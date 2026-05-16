@@ -1,5 +1,5 @@
 // =============================================================
-// Aluminum Cost Estimation — Phase 1 Prisma Schema
+// Aluminum Cost Estimation — SmartQuote Prisma Schema
 // =============================================================
 // Design Principles:
 //   1. Category → Material → MaterialVariant (color/price)
@@ -15,7 +15,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider  = "postgresql"
 }
 
 // =============================================================

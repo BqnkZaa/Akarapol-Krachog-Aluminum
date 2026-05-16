@@ -13,11 +13,11 @@ import { config } from "dotenv";
 config(); // load .env so DATABASE_URL is in process.env
 
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-// Prisma v7 requires a driver adapter — no more bundled engine
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL ?? "file:./prisma/dev.db",
+// Prisma v7 requires a driver adapter
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
 });
 const prisma = new PrismaClient({ adapter });
 
