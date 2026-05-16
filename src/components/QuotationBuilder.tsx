@@ -146,17 +146,17 @@ export default function QuotationBuilder({ initialCategories }: QuotationBuilder
         
         {/* WIZARD SECTION */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden print:hidden">
-          <div className="bg-blue-50/50 p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <div className="bg-blue-50/50 p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2 shrink-0">
               <Plus className="w-5 h-5 text-blue-600" /> Add Material Item
             </h2>
-            <div className="flex gap-2 text-sm text-gray-500 font-medium">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 font-medium">
               <span className={currentStep >= 1 ? "text-blue-600" : ""}>1. Category</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className={currentStep >= 2 ? "text-blue-600" : ""}>2. Material</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className={currentStep >= 3 ? "text-blue-600" : ""}>3. Color</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className={currentStep >= 4 ? "text-blue-600" : ""}>4. Qty</span>
             </div>
           </div>
@@ -232,13 +232,13 @@ export default function QuotationBuilder({ initialCategories }: QuotationBuilder
             {/* Step 4: Quantity */}
             {currentStep === 4 && selectedMaterial && selectedVariant && (
               <div className="space-y-6 max-w-md mx-auto py-4">
-                 <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
+                 <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-6 border-b border-gray-100 pb-4 gap-4 sm:gap-0">
                     <div>
                       <p className="text-sm text-gray-500">{selectedMaterial.code}</p>
                       <h3 className="font-semibold text-gray-800">{selectedMaterial.name}</h3>
                       <p className="text-sm font-medium text-gray-600 mt-1">Color: {selectedVariant.colorName}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                        <p className="text-sm text-gray-500">Unit Price</p>
                        <p className="font-semibold text-blue-600">฿{selectedVariant.unitCost.toLocaleString()}</p>
                     </div>

@@ -32,11 +32,11 @@ export default async function DashboardPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {stats.map((s) => (
             <div key={s.label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center">
               <p className="text-4xl font-extrabold text-gray-900">{s.value}</p>
-              <span className={`mt-2 inline-block text-xs font-semibold px-3 py-1 rounded-full ${s.color}`}>
+              <span className={`mt-2 inline-block text-xs font-semibold px-2 sm:px-3 py-1 rounded-full ${s.color}`}>
                 {s.label}
               </span>
             </div>
