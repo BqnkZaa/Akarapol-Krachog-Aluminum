@@ -1,0 +1,179 @@
+// =============================================================
+// Aluminum Cost Estimation — Phase 1 Prisma Schema
+// =============================================================
+// Design Principles:
+//   1. Category → Material → MaterialVariant (color/price)
+//   2. Colors affect price, so price lives on the VARIANT, not the material
+//   3. EstimationProject is the quotation wrapper; holds optional WxH reference dims
+//   4. EstimationItem = one raw profile/component line (quantity × unitCost)
+//   5. materialCost = quantity × unitCost  (NO area math)
+// =============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// =============================================================
+// MASTER DATA — Categories, Materials, Colors
+// =============================================================
+
+/// A brand/series grouping, e.g. "Alumet Euro Series", "Smart X Series"
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique           // e.g. "Alumet Euro Series"
+  slug        String   @unique           // e.g. "alumet-euro"
+  description String?
+  imageUrl    String?                    // brand/series logo or thumbnail
+  sortOrder   Int      @default(0)       // display ordering
+  isActive    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materials Material[]
+
+  @@map("categories")
+}
+
+/// A raw aluminum profile or component, e.g. "เฟรมบน-ล่างบานเลื่อน" (top/bottom sliding frame)
+model Material {
+  id         String @id @default(cuid())
+  categoryId String
+
+  code       String  @unique             // Catalog code, e.g. "iS-0101"
+  name       String                      // Thai/English name, e.g. "เฟรมบน-ล่างบานเลื่อน ไอคอนิค"
+  unit       String  @default("piece")   // "piece", "เส้น", "meter", "sheet"
+
+  /// Bundled cost per unit BEFORE color markup (base/default cost).
+  /// When variants exist, each variant overrides this with its own cost.
+  baseCost   Float   @default(0)
+
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category        Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants        MaterialVariant[]
+  estimationItems EstimationItem[]
+
+  @@index([categoryId])
+  @@map("materials")
+}
+
+/// Color-specific pricing for a raw profile/component.
+/// Example: iS-0101 (top/bottom sliding frame) White = 185 THB/piece, Black = 210 THB/piece
+model MaterialVariant {
+  id         String @id @default(cuid())
+  materialId String
+  colorId    String
+
+  /// The actual unit cost for this material + color combination
+  unitCost Float
+
+  sku      String?  // optional color-specific SKU
+  isActive Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  material        Material           @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  color           Color              @relation(fields: [colorId], references: [id], onDelete: Restrict)
+  estimationItems EstimationItem[]
+
+  @@unique([materialId, colorId])   // one price per material+color
+  @@index([materialId])
+  @@index([colorId])
+  @@map("material_variants")
+}
+
+/// Lookup table for available colors, e.g. White, Black, Wood Grain
+model Color {
+  id       String @id @default(cuid())
+  name     String @unique               // "White", "Black", "Wood Grain"
+  hexCode  String?                      // e.g. "#FFFFFF" for UI swatches
+  sortOrder Int   @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants MaterialVariant[]
+
+  @@map("colors")
+}
+
+// =============================================================
+// ESTIMATION — Projects & Line Items
+// =============================================================
+
+/// A quotation / estimation project for a customer.
+/// Dimensions here are REFERENCE ONLY — they describe what door/window this BOM is for.
+/// They do NOT affect cost calculation.
+model EstimationProject {
+  id          String @id @default(cuid())
+
+  /// Customer / project info
+  projectName   String   // e.g. "คุณสมชาย – บ้านพักอาศัย"
+  customerName  String?
+  customerPhone String?
+  customerAddress String?
+  notes         String?
+
+  /// Reference dimensions (informational only — e.g. "this BOM is for a 2000×1500mm door")
+  refWidthMm  Float?   // optional reference width in mm
+  refHeightMm Float?   // optional reference height in mm
+
+  /// Pricing adjustments (applied to total material cost)
+  profitMarginPercent Float @default(15) // e.g. 15.0 = 15%
+  laborCost           Float @default(0)  // flat labor cost (THB)
+  additionalCost      Float @default(0)  // misc. additional costs (THB)
+  discountPercent     Float @default(0)  // optional discount %
+
+  status String @default("DRAFT") // DRAFT | QUOTED | ACCEPTED | REJECTED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items EstimationItem[]
+
+  @@map("estimation_projects")
+}
+
+/// A single BOM line-item: one raw profile/component entry.
+/// Cost formula: materialCost = quantity × unitCost
+model EstimationItem {
+  id                  String  @id @default(cuid())
+  estimationProjectId String
+  materialId          String
+  materialVariantId   String?  // the selected color variant (nullable = no color yet)
+
+  quantity    Int    @default(1)  // how many pieces/lengths needed
+  description String?            // optional label, e.g. "Top rail × 2 cuts"
+
+  /// Snapshotted at the time of calculation so price changes don't affect saved quotes
+  unitCost     Float @default(0) // copied from MaterialVariant.unitCost
+  materialCost Float @default(0) // = quantity × unitCost
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  estimationProject EstimationProject @relation(fields: [estimationProjectId], references: [id], onDelete: Cascade)
+  material          Material          @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  materialVariant   MaterialVariant?  @relation(fields: [materialVariantId], references: [id], onDelete: SetNull)
+
+  @@index([estimationProjectId])
+  @@index([materialId])
+  @@index([materialVariantId])
+  @@map("estimation_items")
+}
