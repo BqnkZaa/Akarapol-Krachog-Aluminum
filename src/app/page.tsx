@@ -1,6 +1,8 @@
 import QuotationBuilder from "@/components/QuotationBuilder";
 import { getCategoriesWithMaterials } from "@/actions/material";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "New Quotation — SmartQuote",
 };

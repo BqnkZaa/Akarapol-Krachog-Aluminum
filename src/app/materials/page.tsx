@@ -3,6 +3,8 @@ import { PlusCircle, Tag, Palette } from "lucide-react";
 import prisma from "@/lib/prisma";
 import MaterialActions from "@/components/MaterialActions";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Materials — SmartQuote",
 };

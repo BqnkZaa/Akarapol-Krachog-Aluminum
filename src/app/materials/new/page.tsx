@@ -2,6 +2,8 @@ import { getColors } from "@/actions/material";
 import prisma from "@/lib/prisma";
 import NewMaterialForm from "@/components/NewMaterialForm";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Add Material — SmartQuote",
 };

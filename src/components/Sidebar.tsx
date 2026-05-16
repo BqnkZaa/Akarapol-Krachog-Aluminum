@@ -30,7 +30,7 @@ export default function Sidebar() {
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
   return (
-    <aside className="w-64 shrink-0 bg-gray-900 min-h-screen flex flex-col print:hidden">
+    <aside className="hidden md:flex w-64 shrink-0 bg-gray-900 min-h-screen flex-col print:hidden">
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-800">
         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
