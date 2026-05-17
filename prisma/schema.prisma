@@ -1,12 +1,23 @@
 // =============================================================
 // Aluminum Cost Estimation — SmartQuote Prisma Schema
 // =============================================================
-// Design Principles:
-//   1. Category → Material → MaterialVariant (color/price)
-//   2. Colors affect price, so price lives on the VARIANT, not the material
-//   3. EstimationProject is the quotation wrapper; holds optional WxH reference dims
-//   4. EstimationItem = one raw profile/component line (quantity × unitCost)
-//   5. materialCost = quantity × unitCost  (NO area math)
+// Design Principles (v2 — Parametric Estimator):
+//
+//   MASTER DATA LAYER (unchanged):
+//     1. Category → Material → MaterialVariant (color/price)
+//     2. Colors affect price: price lives on the VARIANT, not the material
+//
+//   TEMPLATE LAYER (new):
+//     3. ProductTemplate defines a door/window model (e.g., "iConiq Sliding 2-Panel")
+//     4. TemplateComponent stores formula strings per profile (e.g., "H - 35")
+//     5. GlassSpecification calculates glass area and cost from W & H
+//     6. TemplateAccessory holds fixed accessories per template (handles, rollers, etc.)
+//
+//   ESTIMATION LAYER (pivoted):
+//     7. EstimationProject is now PARAMETRIC — user inputs Template + Color + W + H
+//     8. CuttingResult stores 1D bin-packing output (bars required, cuts, waste)
+//     9. EstimationItem REMOVED — replaced by the parametric + optimization pipeline
+//
 // =============================================================
 
 generator client {
@@ -15,7 +26,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 // =============================================================
@@ -25,8 +36,8 @@ datasource db {
 /// A brand/series grouping, e.g. "Alumet Euro Series", "Smart X Series"
 model Category {
   id          String   @id @default(cuid())
-  name        String   @unique           // e.g. "Alumet Euro Series"
-  slug        String   @unique           // e.g. "alumet-euro"
+  name        String   @unique           // e.g. "iConiq Sliding Series"
+  slug        String   @unique           // e.g. "iconiq-sliding"
   description String?
   imageUrl    String?                    // brand/series logo or thumbnail
   sortOrder   Int      @default(0)       // display ordering
@@ -36,6 +47,7 @@ model Category {
   updatedAt DateTime @updatedAt
 
   materials Material[]
+  templates ProductTemplate[]
 
   @@map("categories")
 }
@@ -46,11 +58,11 @@ model Material {
   categoryId String
 
   code       String  @unique             // Catalog code, e.g. "iS-0101"
-  name       String                      // Thai/English name, e.g. "เฟรมบน-ล่างบานเลื่อน ไอคอนิค"
-  unit       String  @default("piece")   // "piece", "เส้น", "meter", "sheet"
+  name       String                      // Thai/English name
+  unit       String  @default("เส้น")    // "เส้น" (bar), "piece", "meter", "sheet"
 
-  /// Bundled cost per unit BEFORE color markup (base/default cost).
-  /// When variants exist, each variant overrides this with its own cost.
+  /// Base cost per unit BEFORE color markup.
+  /// When variants exist, each variant overrides this with its own unitCost.
   baseCost   Float   @default(0)
 
   description String?
@@ -61,22 +73,23 @@ model Material {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  category        Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  variants        MaterialVariant[]
-  estimationItems EstimationItem[]
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants           MaterialVariant[]
+  templateComponents TemplateComponent[]
+  cuttingResults     CuttingResult[]
 
   @@index([categoryId])
   @@map("materials")
 }
 
 /// Color-specific pricing for a raw profile/component.
-/// Example: iS-0101 (top/bottom sliding frame) White = 185 THB/piece, Black = 210 THB/piece
+/// Example: iS-0101 White = 185 THB/เส้น, Black = 215 THB/เส้น
 model MaterialVariant {
   id         String @id @default(cuid())
   materialId String
   colorId    String
 
-  /// The actual unit cost for this material + color combination
+  /// The actual unit cost for this material + color combination (THB per bar/piece)
   unitCost Float
 
   sku      String?  // optional color-specific SKU
@@ -85,11 +98,10 @@ model MaterialVariant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  material        Material           @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  color           Color              @relation(fields: [colorId], references: [id], onDelete: Restrict)
-  estimationItems EstimationItem[]
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  color    Color    @relation(fields: [colorId], references: [id], onDelete: Restrict)
 
-  @@unique([materialId, colorId])   // one price per material+color
+  @@unique([materialId, colorId])   // one price per material+color combination
   @@index([materialId])
   @@index([colorId])
   @@map("material_variants")
@@ -97,83 +109,255 @@ model MaterialVariant {
 
 /// Lookup table for available colors, e.g. White, Black, Wood Grain
 model Color {
-  id       String @id @default(cuid())
-  name     String @unique               // "White", "Black", "Wood Grain"
-  hexCode  String?                      // e.g. "#FFFFFF" for UI swatches
-  sortOrder Int   @default(0)
-  isActive Boolean @default(true)
+  id        String  @id @default(cuid())
+  name      String  @unique               // "ขาว (White)", "ดำ (Black)"
+  hexCode   String?                       // e.g. "#F5F5F5" for UI swatches
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   variants MaterialVariant[]
+  projects EstimationProject[]
 
   @@map("colors")
 }
 
 // =============================================================
-// ESTIMATION — Projects & Line Items
+// TEMPLATE LAYER — Parametric Door/Window Models
 // =============================================================
 
-/// A quotation / estimation project for a customer.
-/// Dimensions here are REFERENCE ONLY — they describe what door/window this BOM is for.
-/// They do NOT affect cost calculation.
-model EstimationProject {
-  id          String @id @default(cuid())
+/// A door or window model template, e.g. "iConiq Sliding Door 2-Panel"
+/// Defines which profiles are needed and how to calculate their lengths
+/// from user-supplied Width (W) and Height (H).
+model ProductTemplate {
+  id         String @id @default(cuid())
+  categoryId String
 
-  /// Customer / project info
-  projectName   String   // e.g. "คุณสมชาย – บ้านพักอาศัย"
-  customerName  String?
-  customerPhone String?
-  customerAddress String?
-  notes         String?
+  name        String  @unique   // "iConiq Sliding Door 2-Panel"
+  slug        String  @unique   // "iconiq-sliding-door-2p"
+  description String?
+  imageUrl    String?            // diagram/schematic placeholder for the UI
 
-  /// Reference dimensions (informational only — e.g. "this BOM is for a 2000×1500mm door")
-  refWidthMm  Float?   // optional reference width in mm
-  refHeightMm Float?   // optional reference height in mm
+  /// Standard stock length of aluminum bars for this template (mm).
+  /// Default: 6000mm (Thai standard). Override for imported profiles, e.g. 6400mm.
+  standardBarLengthMm Int @default(6000)
 
-  /// Pricing adjustments (applied to total material cost)
-  profitMarginPercent Float @default(15) // e.g. 15.0 = 15%
-  laborCost           Float @default(0)  // flat labor cost (THB)
-  additionalCost      Float @default(0)  // misc. additional costs (THB)
-  discountPercent     Float @default(0)  // optional discount %
+  /// Saw blade kerf width (mm). Consumed material per cut.
+  /// Default: 5mm. Accounts for saw blade thickness in 1D bin-packing.
+  kerfMm Int @default(5)
 
-  status String @default("DRAFT") // DRAFT | QUOTED | ACCEPTED | REJECTED
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items EstimationItem[]
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  components   TemplateComponent[]
+  accessories  TemplateAccessory[]
+  glass        GlassSpecification?
+  projects     EstimationProject[]
 
-  @@map("estimation_projects")
+  @@index([categoryId])
+  @@map("product_templates")
 }
 
-/// A single BOM line-item: one raw profile/component entry.
-/// Cost formula: materialCost = quantity × unitCost
-model EstimationItem {
-  id                  String  @id @default(cuid())
-  estimationProjectId String
-  materialId          String
-  materialVariantId   String?  // the selected color variant (nullable = no color yet)
+/// One aluminum profile entry within a template, driven by a formula.
+///
+/// The formula field is a safe arithmetic expression in terms of W and H (mm).
+/// Examples:
+///   "H - 35"           → jamb height minus 35mm for track clearance
+///   "W"                → top/bottom track equals full width
+///   "W / 2 + 10"       → each sliding panel = half width + 10mm overlap
+///   "(W - 40) / 2"     → inner frame per panel
+///
+/// The formula is evaluated by the Formula Parser Engine (see src/lib/formulaParser.ts).
+/// Allowed tokens: numbers, W, H, +, -, *, /, (, )
+/// No eval() — uses a safe recursive-descent parser.
+model TemplateComponent {
+  id         String @id @default(cuid())
+  templateId String
+  materialId String
 
-  quantity    Int    @default(1)  // how many pieces/lengths needed
-  description String?            // optional label, e.g. "Top rail × 2 cuts"
+  /// Human-readable label shown on the cutting list output
+  /// e.g., "เฟรมบน-ล่าง (ต่อบาน)", "รางล่าง", "Jamb (Left/Right)"
+  label String
 
-  /// Snapshotted at the time of calculation so price changes don't affect saved quotes
-  unitCost     Float @default(0) // copied from MaterialVariant.unitCost
-  materialCost Float @default(0) // = quantity × unitCost
+  /// Arithmetic formula string evaluated with W and H (mm).
+  /// Result is the cut length in mm for ONE piece.
+  formula String
+
+  /// Number of identical cuts from this formula.
+  /// e.g., quantity=4 → "cut 4 pieces of length formula(W,H)"
+  quantity Int @default(1)
+
+  /// Optional per-component bar length override (mm).
+  /// If null, inherits standardBarLengthMm from ProductTemplate.
+  /// Use for specialized profiles in different stock lengths (e.g., 6400mm import).
+  barLengthMm Int?
 
   sortOrder Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  template ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  material Material        @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@index([templateId])
+  @@index([materialId])
+  @@map("template_components")
+}
+
+/// Glass area specification for a template.
+/// Both width and height formulas are evaluated with W and H to get glass dimensions (mm).
+/// Glass cost = panelCount × (glassW / 1000) × (glassH / 1000) × pricePerSqM
+model GlassSpecification {
+  id         String @id @default(cuid())
+  templateId String @unique  // one glass specification per template
+
+  /// Formula for glass width (mm), e.g. "W / 2 - 30" for a 2-panel door
+  widthFormula String
+
+  /// Formula for glass height (mm), e.g. "H - 80"
+  heightFormula String
+
+  /// Number of glass panels (multiplied into the area calculation)
+  panelCount Int @default(1)
+
+  /// Glass type label shown on the quote, e.g. "6mm Clear Tempered"
+  glassType String @default("6mm Clear Tempered")
+
+  /// Price per square meter of glass (THB/m²)
+  pricePerSqM Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("glass_specifications")
+}
+
+/// Fixed accessories included with a template (handles, rollers, weatherstrip, etc.)
+/// These have a fixed cost — they are NOT affected by W or H.
+model TemplateAccessory {
+  id         String @id @default(cuid())
+  templateId String
+
+  name      String   // "ชุดล้อบานเลื่อน (Roller Set)", "มือจับ (Handle)", "กุญแจ (Lock)"
+  quantity  Int      @default(1)
+  unitCost  Float    // THB per piece
+  unit      String   @default("ชุด")  // "ชุด", "อัน", "เมตร"
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("template_accessories")
+}
+
+// =============================================================
+// ESTIMATION LAYER — Parametric Quotation Projects
+// =============================================================
+
+/// A parametric quotation / estimation project.
+///
+/// The user provides: Template + Color + Width + Height
+/// The system runs:
+///   1. Formula Engine   → Cutting List (lengths per profile)
+///   2. 1D Bin Packing   → Bars Required per profile
+///   3. Price Lookup     → unitCost from MaterialVariant for chosen color
+///   4. Totaling         → glassCost + accessoryCost + materialCost + margin/labor
+model EstimationProject {
+  id String @id @default(cuid())
+
+  /// Customer / project info
+  projectName     String   // e.g. "บ้านคุณสมชาย — ประตูห้องนอน"
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  notes           String?
+
+  /// ─── PARAMETRIC INPUTS ─────────────────────────────────────
+  templateId String  // which door/window model template
+  colorId    String  // selected color for ALL profiles in this project
+  widthMm    Float   // user-input Width (W) in mm
+  heightMm   Float   // user-input Height (H) in mm
+
+  /// ─── PRICING ADJUSTMENTS ───────────────────────────────────
+  profitMarginPercent Float @default(15)   // e.g. 15.0 = 15%
+  laborCost           Float @default(0)    // flat labor cost (THB)
+  additionalCost      Float @default(0)    // misc. additional costs (THB)
+  discountPercent     Float @default(0)    // optional discount %
+
+  /// ─── COMPUTED COST SNAPSHOTS (written at calculation time) ──
+  /// Snapshots ensure saved quotes are not affected by future price changes.
+  glassCost     Float @default(0)   // computed glass panel cost (THB)
+  accessoryCost Float @default(0)   // sum of all accessory costs (THB)
+  materialCost  Float @default(0)   // sum of all bar costs from bin packing (THB)
+  totalBarsUsed Int   @default(0)   // total full bars purchased across all materials
+  wastePercent  Float @default(0)   // weighted average waste % from optimization
+
+  status String @default("DRAFT")   // DRAFT | QUOTED | ACCEPTED | REJECTED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template       ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  color          Color           @relation(fields: [colorId], references: [id], onDelete: Restrict)
+  cuttingResults CuttingResult[]
+
+  @@index([templateId])
+  @@index([colorId])
+  @@map("estimation_projects")
+}
+
+/// Output of the 1D bin-packing algorithm for ONE material in an estimation project.
+///
+/// Each row represents the cutting optimization result for a single profile/material.
+/// Multiple CuttingResults per project — one per unique material in the template.
+///
+/// cutDetails is a JSON-serialized array of bar assignments:
+///   [
+///     { "barIndex": 1, "cuts": [1965, 1965], "usedMm": 3935, "wasteMm": 2065 },
+///     { "barIndex": 2, "cuts": [965],        "usedMm":  970, "wasteMm": 5030 }
+///   ]
+/// Each "usedMm" includes kerf: e.g., 2 cuts of 1965mm + 1 kerf of 5mm = 3935mm
+model CuttingResult {
+  id                  String @id @default(cuid())
+  estimationProjectId String
+  materialId          String
+
+  /// Snapshot of material identity (so the quote is immutable after saving)
+  materialCode String
+  materialName String
+
+  /// Snapshot of cost at the time of calculation
+  barUnitCost Float   // THB per full bar for the selected color
+  barLengthMm Int     // stock bar length used for this material (mm)
+
+  /// Bin packing output
+  barsRequired Int    // number of full bars that must be purchased
+  cutDetails   String // JSON string — array of BarAssignment objects
+
+  /// Waste analytics
+  totalUsedMm  Int    // sum of all cut lengths + kerf consumed
+  totalWasteMm Int    // sum of unused bar ends
+  wastePercent Float  // totalWasteMm / (barsRequired × barLengthMm) × 100
+
+  createdAt DateTime @default(now())
+
   estimationProject EstimationProject @relation(fields: [estimationProjectId], references: [id], onDelete: Cascade)
   material          Material          @relation(fields: [materialId], references: [id], onDelete: Restrict)
-  materialVariant   MaterialVariant?  @relation(fields: [materialVariantId], references: [id], onDelete: SetNull)
 
   @@index([estimationProjectId])
   @@index([materialId])
-  @@index([materialVariantId])
-  @@map("estimation_items")
+  @@map("cutting_results")
 }

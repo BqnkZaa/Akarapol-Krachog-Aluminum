@@ -1,0 +1,398 @@
+# Step 1: Database Architecture for Parametric Estimator
+
+## Background
+
+We are pivoting from a **Manual BOM Builder** (manually adding line items) to a **Parametric Estimator** where:
+1. User selects a **Template** (e.g., "iConiq Sliding Door 2-Panel") and a **Color**
+2. User inputs **Width (W)** and **Height (H)** in millimeters
+3. A **Formula Engine** evaluates template-linked formulas to produce a **Cutting List**
+4. A **1D Bin Packing Algorithm** determines how many full-length bars (6000mm) are needed
+5. Cost is based on **full bars purchased**, not just cut pieces
+
+---
+
+## Proposed Schema Design
+
+### Architecture Overview
+
+```mermaid
+erDiagram
+    Category ||--o{ Material : "has"
+    Material ||--o{ MaterialVariant : "has"
+    Color ||--o{ MaterialVariant : "for"
+    
+    Category ||--o{ ProductTemplate : "belongs to"
+    ProductTemplate ||--o{ TemplateComponent : "has"
+    TemplateComponent }o--|| Material : "uses"
+    ProductTemplate ||--o{ TemplateAccessory : "includes"
+    ProductTemplate ||--o| GlassSpecification : "has"
+    
+    EstimationProject ||--o{ CuttingResult : "produces"
+    EstimationProject }o--|| ProductTemplate : "uses"
+    EstimationProject }o--|| Color : "selected"
+    CuttingResult }o--|| Material : "for"
+```
+
+### What We Keep (Untouched)
+
+The existing **master data** models remain as-is — they are the backbone of the material catalog:
+
+| Model | Purpose | Change |
+|-------|---------|--------|
+| `Category` | Brand/series grouping | No change |
+| `Material` | Raw aluminum profile | No change |
+| `MaterialVariant` | Color-specific pricing | No change |
+| `Color` | Available colors | No change |
+
+### What We Add (New Models)
+
+#### 1. `ProductTemplate` — The Door/Window Model
+
+```prisma
+model ProductTemplate {
+  id          String   @id @default(cuid())
+  categoryId  String
+
+  name        String   @unique   // "iConiq Sliding Door 2-Panel"
+  slug        String   @unique   // "iconiq-sliding-2p"
+  description String?
+  imageUrl    String?            // diagram/schematic placeholder
+
+  /// Default bar length for this template's optimization (mm)
+  standardBarLengthMm  Int   @default(6000)
+
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category      Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  components    TemplateComponent[]
+  accessories   TemplateAccessory[]
+  glass         GlassSpecification?
+  projects      EstimationProject[]
+
+  @@index([categoryId])
+  @@map("product_templates")
+}
+```
+
+> [!IMPORTANT]
+> `standardBarLengthMm` defaults to 6000mm (standard aluminum bar length in Thailand). This can be overridden per template if specific profiles come in different stock lengths.
+
+---
+
+#### 2. `TemplateComponent` — Formula-Linked Profile Requirements
+
+This is the **core of the parametric engine**. Each row defines:
+- Which `Material` profile to use
+- A **formula string** (e.g., `"H - 35"`, `"W / 2 + 10"`) evaluated against W and H
+- The **quantity** of cuts needed
+
+```prisma
+model TemplateComponent {
+  id         String @id @default(cuid())
+  templateId String
+  materialId String
+
+  /// Human-readable label, e.g., "Jamb (Left)", "Top Track"
+  label       String
+
+  /// Math formula string evaluated with variables W and H.
+  /// Examples: "H - 35", "W", "W / 2 + 10", "(W - 40) / 2"
+  /// Supports: +, -, *, /, parentheses, integers, decimals, W, H
+  formula     String
+
+  /// Number of identical cuts produced by this formula
+  /// e.g., quantity=2 means "cut 2 pieces at this length"
+  quantity    Int    @default(1)
+
+  /// Optional override for bar length (mm). If null, uses template default.
+  barLengthMm Int?
+
+  sortOrder   Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template  ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  material  Material        @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@index([templateId])
+  @@index([materialId])
+  @@map("template_components")
+}
+```
+
+> [!NOTE]
+> **Formula Safety**: We will NOT use `eval()`. Step 2 will implement a **safe parser** using a whitelist approach:
+> - **Allowed tokens**: numbers, `W`, `H`, `+`, `-`, `*`, `/`, `(`, `)`
+> - **Parser**: A simple recursive-descent parser or tokenizer that rejects any unrecognized token
+> - **No function calls, no variable assignments, no string operations** — purely arithmetic
+
+---
+
+#### 3. `GlassSpecification` — Glass Area & Pricing per Template
+
+```prisma
+model GlassSpecification {
+  id         String @id @default(cuid())
+  templateId String @unique  // one glass spec per template
+
+  /// Formula for glass width in mm (e.g., "W - 60")
+  widthFormula   String
+  /// Formula for glass height in mm (e.g., "H - 80")
+  heightFormula  String
+
+  /// Number of glass panels
+  panelCount     Int     @default(1)
+
+  /// Cost per square meter of glass (THB/m²)
+  pricePerSqM    Float
+
+  /// Glass type description, e.g., "6mm Clear Tempered"
+  glassType      String  @default("6mm Clear")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("glass_specifications")
+}
+```
+
+> [!TIP]
+> **Glass cost formula**: `glassCost = panelCount × (widthFormula(W,H) / 1000) × (heightFormula(W,H) / 1000) × pricePerSqM`
+> This converts mm² to m² before applying the price.
+
+---
+
+#### 4. `TemplateAccessory` — Fixed Accessories per Template
+
+```prisma
+model TemplateAccessory {
+  id         String @id @default(cuid())
+  templateId String
+
+  name        String    // "Roller Set", "Handle", "Lock", "Weatherstrip"
+  quantity    Int       @default(1)
+  unitCost    Float     // THB per piece
+  unit        String    @default("piece")
+
+  sortOrder   Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template ProductTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("template_accessories")
+}
+```
+
+---
+
+#### 5. Updated `EstimationProject` — Now Template-Driven
+
+```prisma
+model EstimationProject {
+  id              String @id @default(cuid())
+
+  /// Customer / project info
+  projectName     String
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  notes           String?
+
+  /// ─── PARAMETRIC INPUTS (NEW — now REQUIRED) ───
+  templateId      String         // which door/window template
+  colorId         String         // selected color for all profiles
+  widthMm         Float          // user-input Width (W) in mm
+  heightMm        Float          // user-input Height (H) in mm
+
+  /// Pricing adjustments
+  profitMarginPercent Float @default(15)
+  laborCost           Float @default(0)
+  additionalCost      Float @default(0)
+  discountPercent     Float @default(0)
+
+  /// ─── COMPUTED SNAPSHOTS (written at calculation time) ───
+  glassCost         Float  @default(0)   // computed glass cost
+  accessoryCost     Float  @default(0)   // total accessories cost
+  materialCost      Float  @default(0)   // total bar material cost (from cutting optimization)
+  totalBarsUsed     Int    @default(0)   // total full bars purchased
+  wastePercent      Float  @default(0)   // overall waste % from optimization
+
+  status String @default("DRAFT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  template      ProductTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  color         Color            @relation(fields: [colorId], references: [id], onDelete: Restrict)
+  cuttingResults CuttingResult[]
+
+  @@index([templateId])
+  @@index([colorId])
+  @@map("estimation_projects")
+}
+```
+
+> [!WARNING]
+> **Breaking change**: The old `EstimationProject` had optional `refWidthMm`/`refHeightMm` and a `items` relation to `EstimationItem`. The new version replaces these with required parametric fields (`templateId`, `colorId`, `widthMm`, `heightMm`) and `CuttingResult` instead of manual `EstimationItem`.
+
+---
+
+#### 6. `CuttingResult` — Output of 1D Bin Packing
+
+Each row represents one **full bar** purchased, with its list of cuts.
+
+```prisma
+model CuttingResult {
+  id                  String @id @default(cuid())
+  estimationProjectId String
+  materialId          String
+
+  /// Which Material this bar is for (e.g., "iS-0101 เฟรมบน-ล่าง")
+  materialCode  String
+  materialName  String
+
+  /// Unit cost per full bar (from MaterialVariant for selected color)
+  barUnitCost   Float
+  /// Standard bar length (mm)
+  barLengthMm   Int
+
+  /// Number of full bars needed for this material
+  barsRequired  Int
+
+  /// JSON array of cut assignments per bar
+  /// e.g., [{"barIndex":1,"cuts":[1965,1965],"used":3930,"waste":2070},...]
+  cutDetails    String    // JSON serialized
+
+  /// Aggregate waste for this material group
+  totalUsedMm   Int
+  totalWasteMm  Int
+  wastePercent  Float
+
+  createdAt DateTime @default(now())
+
+  estimationProject EstimationProject @relation(fields: [estimationProjectId], references: [id], onDelete: Cascade)
+  material          Material          @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@index([estimationProjectId])
+  @@map("cutting_results")
+}
+```
+
+---
+
+#### 7. Model Removal: `EstimationItem`
+
+> [!CAUTION]
+> The `EstimationItem` model will be **removed**. It represents the old "manual BOM line item" approach. Its responsibilities are now fully replaced by:
+> - `TemplateComponent` (defines what to cut, via formulas)
+> - `CuttingResult` (stores the optimized cutting output)
+>
+> **Data migration**: Any existing estimation items in the database will be lost. Since the app is in development (pre-production), this is acceptable. If you need to preserve old data, please let me know.
+
+---
+
+### Relation Additions to Existing Models
+
+Two existing models need **new relations** added (no breaking changes to their fields):
+
+```diff
+ model Category {
+   ...
+   materials Material[]
++  templates ProductTemplate[]
+   ...
+ }
+
+ model Material {
+   ...
+   estimationItems EstimationItem[]  // ← REMOVED
++  templateComponents TemplateComponent[]
++  cuttingResults     CuttingResult[]
+   ...
+ }
+
+ model Color {
+   ...
+   variants MaterialVariant[]
++  projects EstimationProject[]
+   ...
+ }
+```
+
+---
+
+## Complete New Flow Diagram
+
+```mermaid
+flowchart TD
+    A["👤 User selects Template + Color"] --> B["📐 Inputs W × H (mm)"]
+    B --> C["⚙️ Formula Engine<br/>(Step 2)"]
+    C --> D["📋 Cutting List Generated<br/>e.g., 4× 1965mm, 2× 965mm"]
+    D --> E["📦 1D Bin Packing<br/>(Step 3 — FFD Algorithm)"]
+    E --> F["🧮 Bar Calculation<br/>e.g., 3 full bars @ 6000mm"]
+    
+    C --> G["🪟 Glass Area Calculation<br/>panelCount × glassW × glassH"]
+    
+    F --> H["💰 Cost Computation"]
+    G --> H
+    I["🔩 Accessories<br/>(fixed per template)"] --> H
+    
+    H --> J["📄 Final Quotation<br/>Material + Glass + Accessories<br/>+ Margin + Labor"]
+```
+
+---
+
+## Formula Engine Safety Design (Preview for Step 2)
+
+| Concern | Solution |
+|---------|----------|
+| Code injection | **No `eval()`** — custom tokenizer + recursive-descent parser |
+| Allowed tokens | `0-9`, `.`, `W`, `H`, `+`, `-`, `*`, `/`, `(`, `)` |
+| Validation | Formula validated at template creation time AND at evaluation time |
+| Error handling | Invalid formulas return descriptive errors, never crash |
+| Precision | All arithmetic in standard JS `number` (IEEE 754 double — sufficient for mm) |
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Q1: Bar Length Variation** — Do different profiles within the same template ever come in different stock lengths? (e.g., tracks = 6000mm but frames = 5800mm). The schema supports per-component `barLengthMm` override, but I want to confirm this is needed.
+
+> [!IMPORTANT]
+> **Q2: Kerf / Blade Width** — Should the cutting optimization account for saw blade kerf (typically 3-5mm per cut)? This affects how many cuts fit in a single bar. I can add a `kerfMm` field to `ProductTemplate` if needed.
+
+> [!IMPORTANT]  
+> **Q3: Existing Data** — The database currently has one sample estimation project with manual BOM items. Dropping the `EstimationItem` model will lose this data. Is that acceptable for this development pivot?
+
+---
+
+## Verification Plan
+
+### Automated
+- Run `npx prisma validate` to confirm schema syntax
+- Run `npx prisma migrate dev --name parametric-template` to generate and apply migration
+- Run updated seed script to populate a sample template with formulas
+
+### Manual
+- Inspect the generated migration SQL for correctness
+- Verify the database tables via Prisma Studio
+
+---
+
+## Files to Modify/Create
+
+| Action | File | Purpose |
+|--------|------|---------|
+| **MODIFY** | [schema.prisma](file:///d:/Workshop/aluminum/prisma/schema.prisma) | Add 5 new models, update 3 existing models, remove `EstimationItem` |
+| **MODIFY** | [seed.ts](file:///d:/Workshop/aluminum/prisma/seed.ts) | Add sample `ProductTemplate` with formulas, glass spec, and accessories |

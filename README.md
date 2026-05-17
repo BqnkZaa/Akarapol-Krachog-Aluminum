@@ -1,26 +1,52 @@
 # ⬡ SmartQuote Aluminum
 
-**A professional Cost Estimation & CPQ (Configure, Price, Quote) web application for aluminum door and window contractors.**
+**A professional Parametric Cost Estimation & CPQ (Configure, Price, Quote) web application for aluminum door and window contractors.**
 
-SmartQuote replaces error-prone manual spreadsheets with a structured, real-time quoting workflow. Sales operators can configure a Bill of Materials (BOM) from a live catalog of aluminum profiles, apply profit margins and labor costs, instantly preview the final selling price, and export a clean PDF quotation for the customer — all in a few taps.
+SmartQuote has evolved from a manual Bill of Materials (BOM) builder into a fully automated **Parametric Estimator**. Sales operators can simply select a product template (e.g., "iConiq Sliding Door 2-Panel"), select a color, input the Width (W) and Height (H), and let the sophisticated backend engine instantly calculate exact cut lengths, run bin-packing optimizations to determine how many raw aluminum bars to purchase, and generate a final quotation — all in seconds.
 
 ---
 
-## ✨ Core Features
+## ✨ Core Features & Architecture
 
-### Phase 1 — Quotation Engine
-- **Step-by-Step Quotation Wizard** — A guided 4-step flow (Category → Material → Color → Quantity) that builds a BOM without overwhelming the user.
-- **Dynamic Color-Variant Pricing** — Each aluminum profile has independent unit costs per color (White / Black / Wood Grain), matching real manufacturer pricing structures.
-- **Real-Time Price Preview** — Subtotal, profit margin, labor cost, and discount are calculated client-side instantly as items are added or adjusted.
-- **Server-Side Price Verification** — When a quotation is saved, the server re-fetches all prices directly from the database, making client-side price tampering impossible.
-- **Print / Export to PDF** — A dedicated `window.print()` action with Tailwind `print:` media classes that strips all UI chrome and renders a clean, professional customer-facing document.
-- **Quotation Persistence** — Projects are saved with a full price snapshot (`unitCost` and `materialCost` per item), ensuring historical records are never affected by future price changes.
+### 1. Parametric Formula Engine (Zero `eval()`)
+- **Template-Driven:** Products are defined as templates containing multiple `TemplateComponent`s.
+- **Dynamic Math Parser:** Each component specifies a cut formula (e.g., `W / 2 - 10` or `H - 90`). 
+- **Security First:** The formula engine uses a custom-built **Recursive-Descent Parser** with strict whitelisting. It completely avoids the use of `eval()`, protecting the server against code injection vulnerabilities while reliably parsing variables like `W`, `H`, numbers, and operators `+ - * / ( )`.
 
-### Phase 2 — Admin Dashboard & Master Data Management
-- **Dashboard** — Live overview of catalog statistics (categories, materials, saved quotations) with quick-action shortcuts.
-- **Materials Catalog** — A full table view of all aluminum profiles, grouped by brand/series, with color swatch pricing chips.
-- **Add Material Form** — A structured form to register new profiles with multi-color pricing in a single atomic database transaction.
-- **Soft-Delete** — Deactivating a material sets `isActive = false` instead of deleting the record, preserving the integrity of all historical quotations that reference it.
+### 2. 1D Bin Packing Optimization (FFD)
+- **First Fit Decreasing Algorithm:** Once the formula engine outputs the required cuts, the cutting optimizer groups them by material and runs an FFD algorithm to place cuts into standard aluminum bar lengths (e.g., 6000mm).
+- **Kerf Accounting:** The algorithm perfectly models reality on the shop floor. Every cut accounts for the saw blade thickness (`kerfMm`), ensuring that the estimated number of full bars required is 100% physically realistic. 
+
+### 3. Visual Cut Sheet & Quotation Wizard
+- **4-Step Wizard:** A beautiful, intuitive frontend UI guides the user through selecting a Template, Color, Parametric Dimensions (W×H), and Pricing Modifiers (Margin, Labor, Discount).
+- **Visual 1D Cut Sheet:** The final result view renders the bin-packing output proportionally! Each required aluminum bar is drawn visually, showing colored segments for the cuts and striped regions for the physical waste, alongside glass area calculations and accessories.
+- **Server-Side Price Verification:** All material base costs (`unitCost`) are securely fetched server-side from the active `MaterialVariant` catalog based on the selected color.
+- **Immutable Snapshots:** Upon saving, the final calculated costs are snapshotted onto the `EstimationProject`. Future changes to the material catalog pricing will never corrupt historical quotes.
+
+### 4. Admin Dashboard & Master Data Management
+- **Dashboard** — Live overview of catalog statistics (Series, Materials, Templates, Quotations) and quick-action shortcuts.
+- **Materials Catalog** — Full table view of all aluminum profiles, grouped by series, with per-color pricing chips.
+- **Series (Category) CRUD** — `/admin/categories` — Create, edit, and delete brand/series groupings. Deletion is **blocked** at the server if any materials or templates still reference the series, preventing orphaned records.
+- **Soft-Delete** — Deactivating a material sets `isActive = false`, preserving the integrity of all historical quotations that reference it.
+
+### 5. Parametric Template Builder (Admin)
+
+The crown jewel of the admin system — a fully dynamic, enterprise-grade form at `/admin/templates` for creating and editing `ProductTemplate` work types without touching the database directly.
+
+**Dynamic Profile Components**
+- Admins click **"Add Profile"** to append a new row containing: Material dropdown (grouped by series via `<optgroup>`), Label, Formula string, Quantity, and an optional per-component Bar Length override.
+- Rows can be reordered with ↑/↓ buttons and individually removed.
+- **Live formula validation:** Every formula field runs through the `validateFormula()` engine on each keystroke. A red ⚠ error or green ✓ confirmation appears inline, giving immediate feedback before any network call is made.
+
+**Glass Specification (Toggleable)**
+- A toggle switch reveals the glass section for templates that include glazing. Width and height formulas for the glass pane are also live-validated.
+
+**Fixed Accessories**
+- A separate dynamic array for handles, rollers, locks, and other fixed-cost items (name, quantity, unit cost, unit label).
+
+**Atomic `$transaction` with Delete-and-Recreate Strategy**
+- `updateTemplate` uses a deliberate **delete-all-children → re-create** approach inside a single Prisma `$transaction`. This is the correct and safest pattern for complex nested form arrays where rows may have been arbitrarily added, removed, or reordered — it avoids complex diff logic while guaranteeing the database never holds a partially updated state.
+- `deleteTemplate` **blocks** deletion if any `EstimationProject` references the template, preserving quotation integrity.
 
 ---
 
@@ -31,7 +57,7 @@ SmartQuote replaces error-prone manual spreadsheets with a structured, real-time
 | **Framework** | [Next.js 16](https://nextjs.org/) — App Router, Server Components, Server Actions |
 | **Language** | TypeScript 5 |
 | **ORM** | [Prisma v7](https://www.prisma.io/) with driver adapter architecture |
-| **Database** | SQLite (dev) via `better-sqlite3` — drop-in swap to PostgreSQL for production |
+| **Database** | PostgreSQL (Supabase) via `@prisma/adapter-pg` |
 | **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
 | **Icons** | [Lucide React](https://lucide.dev/) |
 | **Runtime** | Node.js 22+ |
@@ -43,73 +69,71 @@ SmartQuote replaces error-prone manual spreadsheets with a structured, real-time
 ```
 aluminum/
 ├── prisma/
-│   ├── schema.prisma        # Database schema — all models defined here
-│   └── seed.ts              # Seed script: colors, categories, iConiq profiles
+│   ├── schema.prisma        # Database schema — ProductTemplate, CuttingResult, etc.
+│   └── seed.ts              # Seed script: colors, categories, iConiq templates
 ├── src/
 │   ├── actions/
-│   │   ├── admin.ts         # Server actions: createMaterial, deleteMaterial
-│   │   ├── estimation.ts    # Server actions: save/fetch estimation projects
-│   │   └── material.ts      # Server actions: getColors, getCategoriesWithMaterials
+│   │   ├── admin.ts         # createMaterial, deleteMaterial
+│   │   ├── category.ts      # createCategory, updateCategory, deleteCategory (Phase 4)
+│   │   ├── template.ts      # createTemplate, updateTemplate, deleteTemplate (Phase 4)
+│   │   ├── estimation.ts    # runParametricEstimation pipeline, DB persistence
+│   │   └── material.ts      # getCategoriesWithMaterials, getColors
 │   ├── app/
-│   │   ├── layout.tsx       # Root layout with global Sidebar
-│   │   ├── page.tsx         # / — New Quotation page
-│   │   ├── dashboard/
-│   │   │   └── page.tsx     # /dashboard — Stats & quick actions
-│   │   └── materials/
-│   │       ├── page.tsx     # /materials — Materials catalog table
-│   │       └── new/
-│   │           └── page.tsx # /materials/new — Add material form
+│   │   ├── page.tsx              # / — Parametric Quotation Wizard
+│   │   ├── dashboard/            # /dashboard — Stats & quick actions
+│   │   ├── materials/            # /materials — Material catalog
+│   │   └── admin/
+│   │       ├── categories/       # /admin/categories — Series CRUD
+│   │       └── templates/        # /admin/templates — Template Builder
 │   ├── components/
-│   │   ├── MaterialActions.tsx  # Deactivate button (client)
-│   │   ├── NewMaterialForm.tsx  # Add material form (client)
-│   │   ├── QuotationBuilder.tsx # Full quotation wizard + BOM (client)
-│   │   └── Sidebar.tsx          # Navigation sidebar (client)
-│   ├── generated/
-│   │   └── prisma/          # Auto-generated Prisma v7 client (do not edit)
-│   └── lib/
-│       └── prisma.ts        # Singleton PrismaClient with SQLite adapter
-├── .env                     # Environment variables (DATABASE_URL)
-├── prisma.config.ts         # Prisma v7 config (schema path, seed command)
-└── package.json
+│   │   ├── QuotationBuilder.tsx      # 4-step wizard UI & Visual Cut Sheet
+│   │   ├── CategoryForm.tsx          # Create/edit series form
+│   │   ├── CategoryActions.tsx       # Series row action buttons
+│   │   ├── TemplateForm.tsx          # Template Builder orchestrator
+│   │   ├── TemplateFormSections.tsx  # ComponentsSection, GlassSection, AccessoriesSection
+│   │   ├── TemplateFormTypes.ts      # Shared row types & factory helpers
+│   │   ├── TemplateActions.tsx       # Template row action buttons
+│   │   └── Sidebar.tsx              # Navigation sidebar (grouped sections)
+│   ├── lib/
+│   │   ├── formulaParser.ts    # Custom Recursive-Descent Parser + validateFormula()
+│   │   ├── cuttingOptimizer.ts # 1D FFD Bin Packing logic
+│   │   └── prisma.ts           # Singleton PrismaClient (adapter-pg)
+└── .env
 ```
 
 ---
 
 ## 🗄 Data Architecture
 
-The schema is built around a **raw material BOM** philosophy — materials are individual aluminum profiles priced per piece or length, not finished product types.
+The schema represents a true Parametric Estimator flow. Legacy `EstimationItem` manual entry rows have been completely removed.
 
 ```
-Category (Brand/Series)
-  └── Material (Raw Profile — e.g. "iS-0101 Top/Bottom Sliding Frame")
-        └── MaterialVariant (Color × Price — e.g. White: ฿185, Black: ฿210)
+ProductTemplate (e.g. iConiq Sliding Door 2-Panel)
+  ├── TemplateComponent (Profile + Formula string + bar override)
+  ├── GlassSpecification (Area formulas + price/m²)
+  └── TemplateAccessory (Fixed items)
 
-EstimationProject (Quotation header — customer info, margin, labor)
-  └── EstimationItem (BOM line — material + variant + qty + snapshotted price)
-```
-
-**Cost formula (per item):**
-```
-materialCost = quantity × unitCost   ← unitCost sourced from DB, not client
+EstimationProject (Quotation record with user inputs W, H, margin, labor)
+  └── CuttingResult (JSON snapshot of bin-packing outcome per material)
 ```
 
-**Final price formula (per project):**
-```
-subtotal       = Σ materialCost per item
-marginAmount   = subtotal × (profitMarginPercent / 100)
-beforeDiscount = subtotal + marginAmount + laborCost + additionalCost
-discountAmount = beforeDiscount × (discountPercent / 100)
-finalPrice     = beforeDiscount − discountAmount
-```
+**Pipeline Execution Order:**
+1. Fetch template & color
+2. Run `formulaParser` for each component to generate raw lengths
+3. Run `cuttingOptimizer` (FFD + Kerf) on raw lengths to determine Bars
+4. Calculate Glass (W×H formula) and Accessories
+5. Multiply Bars × Color Variant Unit Cost
+6. Apply Margins, Labor, and Discounts
+7. Persist atomic snapshot to Database
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-
 - Node.js **v22** or later
 - npm v10 or later
+- PostgreSQL Database
 
 ### 1. Clone & Install
 
@@ -124,30 +148,23 @@ npm install
 Create a `.env` file at the project root:
 
 ```env
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="postgresql://user:password@localhost:5432/smartquote"
 ```
-
-> **Switching to PostgreSQL:** Update `DATABASE_URL` to a PostgreSQL connection string and change the `provider` in `prisma/schema.prisma` from `"sqlite"` to `"postgresql"`. Then re-run migrations.
 
 ### 3. Run Database Migrations
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate dev
 ```
-
-This creates the SQLite database file and applies the full schema.
 
 ### 4. Seed the Database
 
 ```bash
 npx prisma db seed
 ```
-
 This populates the database with:
 - 3 colors: ขาว (White), ดำ (Black), ลายไม้ (Wood Grain)
-- 2 categories: iConiq Sliding Series, Alumet Euro Casement Series
-- 4 iConiq sliding door profiles (iS-0101 to iS-0104) with color pricing
-- 1 sample quotation project to verify the cost engine
+- The fully parametric **iConiq Sliding Door 2-Panel** template, including dynamic formulas for tracks and frames, glass specs, and accessories.
 
 ### 5. Start the Development Server
 
@@ -157,72 +174,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-| Route | Description |
-|---|---|
-| `/` | Quotation Builder Wizard |
-| `/dashboard` | Stats overview & quick actions |
-| `/materials` | Full material catalog |
-| `/materials/new` | Add a new material profile |
-
----
-
-## 🔑 Key Implementation Notes
-
-### Prisma v7 — Driver Adapter Required
-
-Prisma v7 no longer bundles a query engine binary. An explicit **driver adapter** is required. This project uses `@prisma/adapter-better-sqlite3` for SQLite:
-
-```typescript
-// src/lib/prisma.ts
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
-const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
-```
-
-The singleton is guarded with `globalThis` to prevent connection exhaustion during Next.js hot-reloads in development.
-
-### Security — Server-Side Price Verification
-
-The quotation form submits only `materialVariantId` and `quantity`. **No price data ever comes from the client.** The `saveEstimationProject` server action fetches all unit costs from the database before calculation:
-
-```typescript
-// src/actions/estimation.ts
-const dbVariants = await prisma.materialVariant.findMany({
-  where: { id: { in: variantIds } },
-  select: { id: true, unitCost: true },
-});
-// unitCost is always sourced from the DB map — never from the request payload
-```
-
-### Soft-Delete Pattern
-
-Materials are never hard-deleted. `deleteMaterial` sets `isActive = false`, which:
-- Hides the material from the quotation wizard and catalog
-- Preserves all `EstimationItem` records that reference the material
-- Maintains full historical quotation accuracy
-
----
-
-## 📦 Production Deployment
-
-### Build
-
-```bash
-npm run build
-npm run start
-```
-
-### Recommended Production Database
-
-Migrate from SQLite to **PostgreSQL** for multi-user production use:
-
-1. Update `DATABASE_URL` in your production environment variables.
-2. Change `provider = "postgresql"` in `prisma/schema.prisma`.
-3. Install the PostgreSQL adapter: `npm install @prisma/adapter-pg pg`
-4. Update `src/lib/prisma.ts` to use `PrismaPg` from `@prisma/adapter-pg`.
-5. Run `npx prisma migrate deploy` in production.
-
 ---
 
 ## 📄 License
@@ -231,4 +182,4 @@ This project was built as a custom solution for an aluminum contractor client. A
 
 ---
 
-*Built with ❤️ using Next.js 16, Prisma v7, and Tailwind CSS v4.*
+*Built with ❤️ using Next.js 16, Prisma v7, and Tailwind CSS v4. — Phase 4 (Parametric Template Builder) complete.*

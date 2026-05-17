@@ -1,22 +1,22 @@
 import QuotationBuilder from "@/components/QuotationBuilder";
-import { getCategoriesWithMaterials } from "@/actions/material";
+import { getTemplates } from "@/actions/estimation";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "New Quotation — SmartQuote",
+  title: "New Parametric Quotation — SmartQuote",
 };
 
 export default async function NewQuotationPage() {
-  const categories = await getCategoriesWithMaterials();
+  const templates = await getTemplates();
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24 print:bg-white print:pb-0">
       {/* Page header */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-10 print:hidden">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">New Quotation</h1>
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Parametric Estimator</h1>
         <p className="mt-1 text-base text-gray-500">
-          Select materials, set pricing, and generate an instant cost estimate.
+          Select a template and enter dimensions to instantly generate an optimized cutting list and quotation.
         </p>
       </div>
 
@@ -28,12 +28,12 @@ export default async function NewQuotationPage() {
           </div>
           <div>
             <p className="font-bold text-gray-900 text-lg leading-tight">SmartQuote Aluminum</p>
-            <p className="text-gray-500 text-xs">Cost Estimation Report</p>
+            <p className="text-gray-500 text-xs">Parametric Cost Estimation Report</p>
           </div>
         </div>
       </div>
 
-      <QuotationBuilder initialCategories={categories} />
+      <QuotationBuilder initialTemplates={templates} />
     </main>
   );
 }

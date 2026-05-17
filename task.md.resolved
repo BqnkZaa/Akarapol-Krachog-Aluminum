@@ -1,0 +1,48 @@
+# Parametric Estimator — Task Progress
+
+## Step 1: Database Architecture ✅ DONE
+- [x] Write new `schema.prisma` with 5 new models + updated existing models
+  - [x] `ProductTemplate` (with `kerfMm` + `standardBarLengthMm`)
+  - [x] `TemplateComponent` (formula string + qty + optional `barLengthMm` override)
+  - [x] `GlassSpecification` (widthFormula, heightFormula, panelCount, pricePerSqM)
+  - [x] `TemplateAccessory` (fixed cost accessories)
+  - [x] `CuttingResult` (bin-packing output, JSON cutDetails)
+  - [x] Updated `EstimationProject` (now template-driven with colorId, widthMm, heightMm)
+  - [x] Removed `EstimationItem` model
+- [x] Run `prisma validate` → ✅ valid
+- [x] Clear old SQLite migration history + reset DB
+- [x] Run `prisma migrate dev --name init_parametric_estimator` → ✅ applied
+- [x] Run `prisma generate` → ✅ client regenerated
+- [x] Rewrite `seed.ts` with parametric template data
+- [x] Run `npx prisma db seed` → ✅ all records created
+- [x] Fix TypeScript compile errors (stub old estimation.ts, fix QuotationBuilder.tsx)
+- [x] Run `tsc --noEmit` → ✅ zero errors
+
+## Step 2: Formula Parser Engine ✅ DONE
+- [x] Write `src/lib/formulaParser.ts`
+  - [x] Tokenizer with strict whitelist (numbers, W, H, +, -, *, /, parens)
+  - [x] Recursive-descent parser (expression → term → factor → atom)
+  - [x] Unary minus support (e.g., `-H`, `-(W + 10)`)
+  - [x] Division by zero detection
+  - [x] `evalFormula(formula, vars)` → `FormulaResult` (never throws)
+  - [x] `validateFormula(formula)` → for template creation-time validation
+  - [x] `evalFormulasBatch(formulas, vars, defaultBarLengthMm)` → full cutting list
+- [x] `tsc --noEmit` passes with zero errors
+
+## Step 3: 1D Bin Packing Algorithm
+- [ ] Write `src/lib/cuttingOptimizer.ts`
+  - [ ] FFD (First Fit Decreasing) bin packing implementation
+  - [ ] Takes: cut lengths array, bar length, kerf width
+  - [ ] Returns: bars required, per-bar cut assignments, waste stats
+
+## Step 4: Integration Server Action
+- [ ] Write `src/actions/parametricEstimation.ts`
+  - [ ] `runParametricEstimation(payload)` — ties formula engine + bin packing + DB write
+  - [ ] `getEstimationProjects()` — list action
+  - [ ] `getEstimationProjectById(id)` — detail action with cutting results
+
+## Step 5: Frontend Parametric Wizard
+- [ ] New `TemplateWizard` component (template + color selection)
+- [ ] Parametric input form (W × H in mm)
+- [ ] Quotation output view (cutting list + glass + accessories + summary)
+- [ ] Update routing / pages

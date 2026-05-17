@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Layers,
-  PlusCircle,
   FileText,
+  FolderOpen,
 } from "lucide-react";
 
 type NavItem = {
@@ -17,10 +17,10 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/", label: "New Quote", icon: FileText, exact: true },
-  { href: "/materials", label: "Materials", icon: Layers, exact: false },
-  { href: "/materials/new", label: "Add Mat.", icon: PlusCircle, exact: true },
+  { href: "/dashboard", label: "หน้าหลัก", icon: LayoutDashboard, exact: true },
+  { href: "/", label: "ประเมินราคา", icon: FileText, exact: true },
+  { href: "/admin/categories", label: "ซีรีส์", icon: FolderOpen, exact: false },
+  { href: "/materials", label: "วัสดุ", icon: Layers, exact: false },
 ];
 
 export default function BottomNav() {

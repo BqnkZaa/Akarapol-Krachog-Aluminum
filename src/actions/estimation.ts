@@ -1,214 +1,509 @@
 /**
  * src/actions/estimation.ts
- * ─────────────────────────────────────────────────────────────
- * Server Actions — Estimation Calculation & Persistence
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Server Actions — Parametric Estimation Engine (v2)
  *
- * saveEstimationProject(payload) → creates a full estimation project
- *   with server-verified prices and calculated totals.
+ * PRIMARY ACTION:
+ *   runParametricEstimation(payload)
+ *     1. Fetch template (components + formulas, glass spec, accessories)
+ *     2. Fetch MaterialVariant unit costs for the selected color
+ *     3. Run Formula Parser on every component → Cutting List
+ *     4. Run FFD Cutting Optimizer per material → Bars Required + Waste
+ *     5. Calculate Glass Cost (area formula → m² → THB)
+ *     6. Calculate Accessories Cost (fixed per template)
+ *     7. Calculate Final Price with margin / labor / discount
+ *     8. Persist EstimationProject + CuttingResult[] in one DB transaction
  *
- * getEstimationProjects()        → list of projects for dashboard
- * getEstimationProjectById(id)   → single project with full BOM
- * ─────────────────────────────────────────────────────────────
+ * READ ACTIONS:
+ *   getEstimationProjects()        → dashboard listing
+ *   getEstimationProjectById(id)   → full detail with cutting results
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 "use server";
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import {
+  evalFormula,
+  evalFormulasBatch,
+  type FormulaInput,
+} from "@/lib/formulaParser";
+import {
+  optimizeCuts,
+  serializeCutDetails,
+  deserializeCutDetails,
+  type CutRequest,
+  type MaterialOptimizationResult,
+  type StoredBarDetail,
+} from "@/lib/cuttingOptimizer";
 
-// ─── Input / Output Types ──────────────────────────────────────
+// ─── Input Types ──────────────────────────────────────────────────────────────
 
-/** One line-item submitted from the wizard UI */
-export type EstimationItemInput = {
-  materialId: string;
-  materialVariantId: string; // color variant — MUST exist in DB
-  quantity: number;
-  description?: string;
-  sortOrder?: number;
-};
+export interface RunEstimationPayload {
+  // ── Template & color selection ──────────────────────────────────────────
+  templateId: string;
+  colorId: string;
 
-/** Full payload to create a new estimation project */
-export type SaveEstimationPayload = {
-  // Project metadata
+  // ── Parametric dimensions (user input, in mm) ───────────────────────────
+  widthMm: number;   // W
+  heightMm: number;  // H
+
+  // ── Customer / project metadata ─────────────────────────────────────────
   projectName: string;
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
   notes?: string;
 
-  // Reference dimensions (informational only, not used in cost calc)
-  refWidthMm?: number;
-  refHeightMm?: number;
+  // ── Pricing modifiers ────────────────────────────────────────────────────
+  profitMarginPercent: number; // e.g. 20 → 20%
+  laborCost: number;           // flat THB
+  additionalCost?: number;     // misc flat THB
+  discountPercent?: number;    // e.g. 5 → 5%
+}
 
-  // Pricing adjustments
-  profitMarginPercent: number; // e.g. 15 for 15%
-  laborCost: number; // flat THB
-  additionalCost?: number; // misc flat THB
-  discountPercent?: number; // e.g. 5 for 5%
+// ─── Output Types ─────────────────────────────────────────────────────────────
 
-  // BOM line items
-  items: EstimationItemInput[];
-};
+/** Per-material cutting result for the frontend to render the cut sheet */
+export interface CuttingResultSummary {
+  materialId: string;
+  materialCode: string;
+  materialName: string;
+  barLengthMm: number;
+  barsRequired: number;
+  barUnitCost: number;         // THB per bar for selected color
+  materialLineCost: number;    // barsRequired × barUnitCost
+  totalCutsMm: number;
+  totalWasteMm: number;
+  wastePercent: number;
+  utilizationPercent: number;
+  bars: StoredBarDetail[];     // deserialized bar assignments for cut sheet display
+}
 
-/** Result returned to the client after saving */
-export type SaveEstimationResult =
+/** Glass calculation detail for the quotation view */
+export interface GlassDetail {
+  glassType: string;
+  panelCount: number;
+  widthPerPanelMm: number;
+  heightPerPanelMm: number;
+  areaSqM: number;             // total glass area in m²
+  pricePerSqM: number;
+  glassCost: number;           // total glass cost THB
+}
+
+/** Accessories detail for the quotation view */
+export interface AccessoryDetail {
+  name: string;
+  quantity: number;
+  unitCost: number;
+  unit: string;
+  lineCost: number;            // quantity × unitCost
+}
+
+/** Complete pricing breakdown */
+export interface QuotationSummary {
+  materialCost: number;        // sum of all bar purchase costs
+  glassCost: number;
+  accessoryCost: number;
+  subtotal: number;            // materialCost + glassCost + accessoryCost
+  marginAmount: number;        // subtotal × marginPercent / 100
+  laborCost: number;
+  additionalCost: number;
+  beforeDiscount: number;      // subtotal + marginAmount + laborCost + additionalCost
+  discountAmount: number;      // beforeDiscount × discountPercent / 100
+  finalPrice: number;          // beforeDiscount - discountAmount
+}
+
+export type RunEstimationResult =
   | {
       success: true;
       projectId: string;
-      summary: EstimationSummary;
+      templateName: string;
+      colorName: string;
+      widthMm: number;
+      heightMm: number;
+      cuttingResults: CuttingResultSummary[];
+      glassDetail: GlassDetail | null;
+      accessories: AccessoryDetail[];
+      summary: QuotationSummary;
     }
   | {
       success: false;
       error: string;
+      field?: string; // which step/field caused the error
     };
 
-/** Pricing summary calculated server-side */
-export type EstimationSummary = {
-  subtotal: number; // sum of all materialCosts
-  marginAmount: number; // subtotal × margin%
-  laborCost: number;
-  additionalCost: number;
-  discountAmount: number;
-  finalPrice: number;
-};
+// ─── Internal: Price Calculation ──────────────────────────────────────────────
 
-// ─── Helpers ───────────────────────────────────────────────────
-
-function calculateSummary(
-  subtotal: number,
+function buildQuotationSummary(
+  materialCost: number,
+  glassCost: number,
+  accessoryCost: number,
   marginPercent: number,
   labor: number,
   additional: number,
   discountPercent: number
-): EstimationSummary {
+): QuotationSummary {
+  const subtotal = materialCost + glassCost + accessoryCost;
   const marginAmount = subtotal * (marginPercent / 100);
   const beforeDiscount = subtotal + marginAmount + labor + additional;
   const discountAmount = beforeDiscount * (discountPercent / 100);
   const finalPrice = beforeDiscount - discountAmount;
 
   return {
+    materialCost,
+    glassCost,
+    accessoryCost,
     subtotal,
     marginAmount,
     laborCost: labor,
     additionalCost: additional,
+    beforeDiscount,
     discountAmount,
     finalPrice,
   };
 }
 
-// ─── Actions ───────────────────────────────────────────────────
+// ─── PRIMARY ACTION ───────────────────────────────────────────────────────────
 
 /**
- * Save a new EstimationProject with server-verified pricing.
+ * The full parametric estimation pipeline:
+ * Template → Formulas → Cutting Optimizer → Glass → Accessories → Price → DB
  *
- * Security: The client sends materialVariantId, NOT a price.
- * We look up every variant's unitCost from the database — this
- * prevents any client-side price manipulation.
- *
- * Formula per item: materialCost = quantity × unitCost  (from DB)
+ * All DB writes are atomic (Prisma transaction). If ANY step fails, nothing
+ * is persisted and a descriptive error is returned to the client.
  */
-export async function saveEstimationProject(
-  payload: SaveEstimationPayload
-): Promise<SaveEstimationResult> {
+export async function runParametricEstimation(
+  payload: RunEstimationPayload
+): Promise<RunEstimationResult> {
   try {
-    // ── Validate basics ─────────────────────────────────────────
+    // ── Step 0: Basic input validation ───────────────────────────────────────
     if (!payload.projectName?.trim()) {
-      return { success: false, error: "Project name is required." };
+      return { success: false, error: "Project name is required.", field: "projectName" };
     }
-    if (!payload.items || payload.items.length === 0) {
-      return { success: false, error: "At least one material item is required." };
+    if (!payload.templateId) {
+      return { success: false, error: "Please select a template.", field: "templateId" };
+    }
+    if (!payload.colorId) {
+      return { success: false, error: "Please select a color.", field: "colorId" };
+    }
+    if (!payload.widthMm || payload.widthMm <= 0) {
+      return { success: false, error: "Width (W) must be a positive number.", field: "widthMm" };
+    }
+    if (!payload.heightMm || payload.heightMm <= 0) {
+      return { success: false, error: "Height (H) must be a positive number.", field: "heightMm" };
     }
     if (payload.profitMarginPercent < 0 || payload.profitMarginPercent > 100) {
-      return { success: false, error: "Profit margin must be between 0 and 100." };
+      return { success: false, error: "Profit margin must be between 0 and 100.", field: "profitMarginPercent" };
     }
 
-    // ── Server-side price verification ─────────────────────────
-    // Fetch all variant prices from DB in one round-trip
-    const variantIds = payload.items.map((i) => i.materialVariantId);
-    const dbVariants = await prisma.materialVariant.findMany({
-      where: { id: { in: variantIds } },
-      select: { id: true, unitCost: true, materialId: true },
+    const W = payload.widthMm;
+    const H = payload.heightMm;
+
+    // ── Step 1: Fetch Template + all related data ────────────────────────────
+    const template = await prisma.productTemplate.findUnique({
+      where: { id: payload.templateId, isActive: true },
+      include: {
+        components: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            material: {
+              select: { id: true, code: true, name: true, variants: true },
+            },
+          },
+        },
+        glass: true,
+        accessories: { orderBy: { sortOrder: "asc" } },
+      },
     });
 
-    // Index by id for O(1) lookup
-    const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
-
-    // Verify every requested variant actually exists
-    for (const item of payload.items) {
-      if (!variantMap.has(item.materialVariantId)) {
-        return {
-          success: false,
-          error: `Material variant "${item.materialVariantId}" not found. Please refresh and try again.`,
-        };
-      }
+    if (!template) {
+      return {
+        success: false,
+        error: "Template not found or is inactive. Please refresh and try again.",
+        field: "templateId",
+      };
     }
 
-    // ── Build line items with server-verified costs ─────────────
-    let subtotal = 0;
+    // ── Step 2: Fetch color for name display ─────────────────────────────────
+    const color = await prisma.color.findUnique({
+      where: { id: payload.colorId, isActive: true },
+      select: { id: true, name: true },
+    });
 
-    const itemsToCreate = payload.items.map((item, idx) => {
-      const dbVariant = variantMap.get(item.materialVariantId)!;
-      const qty = Math.max(1, Math.round(item.quantity)); // sanitize: min 1, integer
-      const unitCost = dbVariant.unitCost; // ← from DB, not client
-      const materialCost = qty * unitCost;
-
-      subtotal += materialCost;
-
+    if (!color) {
       return {
-        materialId: item.materialId,
-        materialVariantId: item.materialVariantId,
-        quantity: qty,
-        description: item.description?.trim() ?? null,
-        sortOrder: item.sortOrder ?? idx,
-        unitCost, // snapshot
-        materialCost, // snapshot
+        success: false,
+        error: "Selected color not found or is inactive.",
+        field: "colorId",
+      };
+    }
+
+    // ── Step 3: Resolve color variant prices for every component ─────────────
+    // Build a map: materialId → unitCost for the selected color
+    // This is a single O(n) pass — no N+1 queries.
+    const variantPriceMap = new Map<string, number>(); // materialId → unitCost
+    const variantIdMap    = new Map<string, string>();  // materialId → variantId (for auditing)
+
+    for (const comp of template.components) {
+      const material = comp.material;
+
+      // Find the variant matching the selected color
+      const variant = material.variants.find(
+        (v) => v.colorId === payload.colorId && v.isActive
+      );
+
+      if (!variant) {
+        return {
+          success: false,
+          error:
+            `Profile "${material.code} — ${material.name}" does not have a price ` +
+            `for the selected color. Please choose a different color or update the material catalog.`,
+          field: "colorId",
+        };
+      }
+
+      variantPriceMap.set(material.id, variant.unitCost);
+      variantIdMap.set(material.id, variant.id);
+    }
+
+    // ── Step 4: Run Formula Engine → Cutting List ────────────────────────────
+    const formulaInputs: FormulaInput[] = template.components.map((comp) => ({
+      label:       comp.label,
+      formula:     comp.formula,
+      quantity:    comp.quantity,
+      materialId:  comp.material.id,
+      barLengthMm: comp.barLengthMm, // null = use template default
+    }));
+
+    const formulaResult = evalFormulasBatch(
+      formulaInputs,
+      { W, H },
+      template.standardBarLengthMm
+    );
+
+    if (!formulaResult.ok) {
+      return {
+        success: false,
+        error: formulaResult.error,
+        field: "formula",
+      };
+    }
+
+    // ── Step 5: Run 1D Cutting Optimizer (FFD) ───────────────────────────────
+    const cutRequests: CutRequest[] = formulaResult.cuts.map((cut) => ({
+      label:       cut.label,
+      materialId:  cut.materialId,
+      cutLengthMm: cut.cutLengthMm,
+      quantity:    cut.quantity,
+      // Use per-component bar length override; fall back to template default
+      barLengthMm: cut.barLengthMm ?? template.standardBarLengthMm,
+    }));
+
+    const optimizerResult = optimizeCuts({
+      cuts:               cutRequests,
+      defaultBarLengthMm: template.standardBarLengthMm,
+      kerfMm:             template.kerfMm,
+    });
+
+    if (!optimizerResult.ok) {
+      return {
+        success: false,
+        error: `Cutting optimization failed: ${optimizerResult.error}`,
+        field: "optimizer",
+      };
+    }
+
+    // ── Step 6: Build CuttingResultSummary with costs ────────────────────────
+    // Merge optimizer output with material metadata + prices
+    const materialMap = new Map(
+      template.components.map((c) => [c.material.id, c.material])
+    );
+
+    let totalMaterialCost = 0;
+    let totalBarsUsed     = 0;
+
+    const cuttingResults: CuttingResultSummary[] = optimizerResult.materials.map(
+      (matResult: MaterialOptimizationResult) => {
+        const material    = materialMap.get(matResult.materialId)!;
+        const barUnitCost = variantPriceMap.get(matResult.materialId)!;
+        const lineCost    = matResult.barsRequired * barUnitCost;
+
+        totalMaterialCost += lineCost;
+        totalBarsUsed     += matResult.barsRequired;
+
+        return {
+          materialId:         matResult.materialId,
+          materialCode:       material.code,
+          materialName:       material.name,
+          barLengthMm:        matResult.barLengthMm,
+          barsRequired:       matResult.barsRequired,
+          barUnitCost,
+          materialLineCost:   lineCost,
+          totalCutsMm:        matResult.totalCutsMm,
+          totalWasteMm:       matResult.totalWasteMm,
+          wastePercent:       matResult.wastePercent,
+          utilizationPercent: matResult.utilizationPercent,
+          bars:               matResult.bars.map((bar) => ({
+            barIndex: bar.barIndex,
+            cuts:     bar.cuts.map((c) => ({ label: c.label, lengthMm: c.lengthMm })),
+            usedMm:   bar.usedMm,
+            wasteMm:  bar.wasteMm,
+          })),
+        };
+      }
+    );
+
+    // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
+    let glassDetail: GlassDetail | null = null;
+    let glassCost = 0;
+
+    if (template.glass) {
+      const g = template.glass;
+
+      const glassWResult = evalFormula(g.widthFormula,  { W, H });
+      const glassHResult = evalFormula(g.heightFormula, { W, H });
+
+      if (!glassWResult.ok) {
+        return {
+          success: false,
+          error: `Glass width formula error: ${glassWResult.error}`,
+          field: "glass.widthFormula",
+        };
+      }
+      if (!glassHResult.ok) {
+        return {
+          success: false,
+          error: `Glass height formula error: ${glassHResult.error}`,
+          field: "glass.heightFormula",
+        };
+      }
+
+      const widthPerPanelMm  = Math.round(glassWResult.value);
+      const heightPerPanelMm = Math.round(glassHResult.value);
+
+      // Convert mm → m before multiplying: (mm / 1000) × (mm / 1000) = m²
+      const areaSqM = g.panelCount * (widthPerPanelMm / 1000) * (heightPerPanelMm / 1000);
+      glassCost = areaSqM * g.pricePerSqM;
+
+      glassDetail = {
+        glassType:         g.glassType,
+        panelCount:        g.panelCount,
+        widthPerPanelMm,
+        heightPerPanelMm,
+        areaSqM:           Math.round(areaSqM * 10000) / 10000, // 4 decimal places
+        pricePerSqM:       g.pricePerSqM,
+        glassCost:         Math.round(glassCost * 100) / 100,
+      };
+    }
+
+    // ── Step 8: Calculate Accessories Cost ───────────────────────────────────
+    let totalAccessoryCost = 0;
+    const accessories: AccessoryDetail[] = template.accessories.map((acc) => {
+      const lineCost = acc.quantity * acc.unitCost;
+      totalAccessoryCost += lineCost;
+      return {
+        name:     acc.name,
+        quantity: acc.quantity,
+        unitCost: acc.unitCost,
+        unit:     acc.unit,
+        lineCost,
       };
     });
 
-    // ── Calculate final pricing ─────────────────────────────────
-    const margin = payload.profitMarginPercent;
-    const labor = Math.max(0, payload.laborCost);
+    // ── Step 9: Final Pricing Summary ────────────────────────────────────────
+    const margin     = payload.profitMarginPercent;
+    const labor      = Math.max(0, payload.laborCost);
     const additional = Math.max(0, payload.additionalCost ?? 0);
-    const discount = Math.max(0, payload.discountPercent ?? 0);
+    const discount   = Math.max(0, Math.min(100, payload.discountPercent ?? 0));
 
-    const summary = calculateSummary(subtotal, margin, labor, additional, discount);
+    const summary = buildQuotationSummary(
+      totalMaterialCost,
+      glassCost,
+      totalAccessoryCost,
+      margin,
+      labor,
+      additional,
+      discount
+    );
 
-    // ── Persist project + items in a single transaction ─────────
-    const project = await prisma.estimationProject.create({
-      data: {
-        projectName: payload.projectName.trim(),
-        customerName: payload.customerName?.trim() ?? null,
-        customerPhone: payload.customerPhone?.trim() ?? null,
-        customerAddress: payload.customerAddress?.trim() ?? null,
-        notes: payload.notes?.trim() ?? null,
+    // ── Step 10: Persist atomically in a Prisma transaction ──────────────────
+    // All records are created or NONE — no partial saves.
+    const savedProject = await prisma.$transaction(async (tx) => {
+      // Create the EstimationProject
+      const project = await tx.estimationProject.create({
+        data: {
+          projectName:     payload.projectName.trim(),
+          customerName:    payload.customerName?.trim()    ?? null,
+          customerPhone:   payload.customerPhone?.trim()   ?? null,
+          customerAddress: payload.customerAddress?.trim() ?? null,
+          notes:           payload.notes?.trim()            ?? null,
 
-        refWidthMm: payload.refWidthMm ?? null,
-        refHeightMm: payload.refHeightMm ?? null,
+          templateId: payload.templateId,
+          colorId:    payload.colorId,
+          widthMm:    W,
+          heightMm:   H,
 
-        profitMarginPercent: margin,
-        laborCost: labor,
-        additionalCost: additional,
-        discountPercent: discount,
+          profitMarginPercent: margin,
+          laborCost:           labor,
+          additionalCost:      additional,
+          discountPercent:     discount,
 
-        status: "DRAFT",
+          // Snapshot computed costs so this quote is immutable to future price changes
+          glassCost:     summary.glassCost,
+          accessoryCost: summary.accessoryCost,
+          materialCost:  summary.materialCost,
+          totalBarsUsed,
+          wastePercent:  optimizerResult.overallWastePercent,
 
-        items: {
-          create: itemsToCreate,
+          status: "DRAFT",
         },
-      },
-      select: { id: true },
+        select: { id: true },
+      });
+
+      // Create one CuttingResult row per material group
+      await tx.cuttingResult.createMany({
+        data: optimizerResult.materials.map((matResult) => {
+          const material    = materialMap.get(matResult.materialId)!;
+          const barUnitCost = variantPriceMap.get(matResult.materialId)!;
+
+          return {
+            estimationProjectId: project.id,
+            materialId:          matResult.materialId,
+            materialCode:        material.code,
+            materialName:        material.name,
+            barUnitCost,
+            barLengthMm:         matResult.barLengthMm,
+            barsRequired:        matResult.barsRequired,
+            cutDetails:          serializeCutDetails(matResult.bars),
+            totalUsedMm:         matResult.totalUsedMm,
+            totalWasteMm:        matResult.totalWasteMm,
+            wastePercent:        matResult.wastePercent,
+          };
+        }),
+      });
+
+      return project;
     });
 
-    // ── Invalidate cached pages if needed ───────────────────────
+    // ── Step 11: Revalidate & Return ─────────────────────────────────────────
     revalidatePath("/estimates");
 
     return {
       success: true,
-      projectId: project.id,
+      projectId:      savedProject.id,
+      templateName:   template.name,
+      colorName:      color.name,
+      widthMm:        W,
+      heightMm:       H,
+      cuttingResults,
+      glassDetail,
+      accessories,
       summary,
     };
   } catch (err) {
-    console.error("[saveEstimationProject] Error:", err);
+    console.error("[runParametricEstimation] Unexpected error:", err);
     return {
       success: false,
       error: "An unexpected server error occurred. Please try again.",
@@ -216,87 +511,107 @@ export async function saveEstimationProject(
   }
 }
 
-// ─── Read Actions ──────────────────────────────────────────────
+// ─── READ ACTIONS ─────────────────────────────────────────────────────────────
 
-/** List type for the dashboard */
-export type EstimationProjectListItem = {
+export interface EstimationProjectListItem {
   id: string;
   projectName: string;
   customerName: string | null;
+  templateName: string;
+  colorName: string;
+  widthMm: number;
+  heightMm: number;
+  totalBarsUsed: number;
+  wastePercent: number;
   status: string;
-  profitMarginPercent: number;
-  laborCost: number;
-  additionalCost: number;
-  discountPercent: number;
-  refWidthMm: number | null;
-  refHeightMm: number | null;
-  itemCount: number;
   createdAt: Date;
-};
+}
 
 /**
  * Fetch all estimation projects for the dashboard listing.
- * Returns lean data — no BOM details.
+ * Lean query — no cutting result detail included.
  */
-export async function getEstimationProjects(): Promise<
-  EstimationProjectListItem[]
-> {
+export async function getEstimationProjects(): Promise<EstimationProjectListItem[]> {
   const projects = await prisma.estimationProject.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      id: true,
-      projectName: true,
+      id:           true,
+      projectName:  true,
       customerName: true,
-      status: true,
-      profitMarginPercent: true,
-      laborCost: true,
-      additionalCost: true,
-      discountPercent: true,
-      refWidthMm: true,
-      refHeightMm: true,
-      createdAt: true,
-      _count: { select: { items: true } },
+      widthMm:      true,
+      heightMm:     true,
+      totalBarsUsed: true,
+      wastePercent: true,
+      status:       true,
+      createdAt:    true,
+      template: { select: { name: true } },
+      color:    { select: { name: true } },
     },
   });
 
   return projects.map((p) => ({
-    ...p,
-    itemCount: p._count.items,
+    id:           p.id,
+    projectName:  p.projectName,
+    customerName: p.customerName,
+    templateName: p.template.name,
+    colorName:    p.color.name,
+    widthMm:      p.widthMm,
+    heightMm:     p.heightMm,
+    totalBarsUsed: p.totalBarsUsed,
+    wastePercent: p.wastePercent,
+    status:       p.status,
+    createdAt:    p.createdAt,
   }));
 }
 
-/** Full BOM detail type for the quotation view */
-export type EstimationProjectDetail = {
+/** Full project detail including all cutting results */
+export interface EstimationProjectDetail {
   id: string;
   projectName: string;
   customerName: string | null;
   customerPhone: string | null;
   customerAddress: string | null;
   notes: string | null;
-  refWidthMm: number | null;
-  refHeightMm: number | null;
+  templateName: string;
+  colorName: string;
+  widthMm: number;
+  heightMm: number;
+  status: string;
+  createdAt: Date;
+
+  // Snapshotted pricing
+  glassCost: number;
+  accessoryCost: number;
+  materialCost: number;
+  totalBarsUsed: number;
+  wastePercent: number;
   profitMarginPercent: number;
   laborCost: number;
   additionalCost: number;
   discountPercent: number;
-  status: string;
-  createdAt: Date;
-  items: {
+
+  // Cutting results per material
+  cuttingResults: {
     id: string;
-    sortOrder: number;
-    quantity: number;
-    unitCost: number;
-    materialCost: number;
-    description: string | null;
-    material: { code: string; name: string; unit: string };
-    materialVariant: { color: { name: string; hexCode: string | null } } | null;
+    materialCode: string;
+    materialName: string;
+    barLengthMm: number;
+    barsRequired: number;
+    barUnitCost: number;
+    materialLineCost: number;
+    totalUsedMm: number;
+    totalWasteMm: number;
+    wastePercent: number;
+    bars: StoredBarDetail[];
   }[];
-  summary: EstimationSummary;
-};
+
+  // Recomputed summary from snapshots
+  summary: QuotationSummary;
+}
 
 /**
- * Fetch a single estimation project with its full BOM + computed summary.
- * Used by the quotation detail / print view.
+ * Fetch one project with full cutting detail.
+ * Used by the quotation view and print page.
  */
 export async function getEstimationProjectById(
   id: string
@@ -304,38 +619,169 @@ export async function getEstimationProjectById(
   const project = await prisma.estimationProject.findUnique({
     where: { id },
     include: {
-      items: {
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          sortOrder: true,
-          quantity: true,
-          unitCost: true,
-          materialCost: true,
-          description: true,
-          material: { select: { code: true, name: true, unit: true } },
-          materialVariant: {
-            select: { color: { select: { name: true, hexCode: true } } },
-          },
-        },
+      template:  { select: { name: true } },
+      color:     { select: { name: true } },
+      cuttingResults: {
+        orderBy: { createdAt: "asc" },
       },
     },
   });
 
   if (!project) return null;
 
-  const subtotal = project.items.reduce(
-    (sum, item) => sum + item.materialCost,
-    0
-  );
-
-  const summary = calculateSummary(
-    subtotal,
+  // Recompute the summary from the snapshotted cost fields
+  const summary = buildQuotationSummary(
+    project.materialCost,
+    project.glassCost,
+    project.accessoryCost,
     project.profitMarginPercent,
     project.laborCost,
     project.additionalCost,
     project.discountPercent
   );
 
-  return { ...project, summary };
+  return {
+    id:              project.id,
+    projectName:     project.projectName,
+    customerName:    project.customerName,
+    customerPhone:   project.customerPhone,
+    customerAddress: project.customerAddress,
+    notes:           project.notes,
+    templateName:    project.template.name,
+    colorName:       project.color.name,
+    widthMm:         project.widthMm,
+    heightMm:        project.heightMm,
+    status:          project.status,
+    createdAt:       project.createdAt,
+
+    glassCost:           project.glassCost,
+    accessoryCost:       project.accessoryCost,
+    materialCost:        project.materialCost,
+    totalBarsUsed:       project.totalBarsUsed,
+    wastePercent:        project.wastePercent,
+    profitMarginPercent: project.profitMarginPercent,
+    laborCost:           project.laborCost,
+    additionalCost:      project.additionalCost,
+    discountPercent:     project.discountPercent,
+
+    cuttingResults: project.cuttingResults.map((cr) => ({
+      id:               cr.id,
+      materialCode:     cr.materialCode,
+      materialName:     cr.materialName,
+      barLengthMm:      cr.barLengthMm,
+      barsRequired:     cr.barsRequired,
+      barUnitCost:      cr.barUnitCost,
+      materialLineCost: cr.barsRequired * cr.barUnitCost,
+      totalUsedMm:      cr.totalUsedMm,
+      totalWasteMm:     cr.totalWasteMm,
+      wastePercent:     cr.wastePercent,
+      bars:             deserializeCutDetails(cr.cutDetails),
+    })),
+
+    summary,
+  };
+}
+
+// ─── TEMPLATE CATALOG ACTIONS (for the Step 5 Wizard) ────────────────────────
+
+export interface TemplateOption {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  imageUrl: string | null;
+  standardBarLengthMm: number;
+  kerfMm: number;
+  categoryName: string;
+  componentCount: number;
+  hasGlass: boolean;
+  accessoryCount: number;
+}
+
+/**
+ * Fetch all active templates for the wizard's template selection step.
+ * Returns enough metadata to render a card without loading formulas.
+ */
+export async function getTemplates(): Promise<TemplateOption[]> {
+  const templates = await prisma.productTemplate.findMany({
+    where: { isActive: true },
+    orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+    include: {
+      category:    { select: { name: true } },
+      _count:      { select: { components: true, accessories: true } },
+      glass:       { select: { id: true } },
+    },
+  });
+
+  return templates.map((t) => ({
+    id:                  t.id,
+    name:                t.name,
+    slug:                t.slug,
+    description:         t.description,
+    imageUrl:            t.imageUrl,
+    standardBarLengthMm: t.standardBarLengthMm,
+    kerfMm:              t.kerfMm,
+    categoryName:        t.category.name,
+    componentCount:      t._count.components,
+    hasGlass:            t.glass !== null,
+    accessoryCount:      t._count.accessories,
+  }));
+}
+
+export interface ColorOption {
+  id: string;
+  name: string;
+  hexCode: string | null;
+}
+
+/**
+ * Fetch colors available for a specific template.
+ * A color is "available" if ALL components in the template have a variant for it.
+ * This prevents selecting a color that lacks pricing for one of the profiles.
+ */
+export async function getAvailableColors(
+  templateId: string
+): Promise<ColorOption[]> {
+  // Fetch all component materials for this template
+  const template = await prisma.productTemplate.findUnique({
+    where: { id: templateId },
+    include: {
+      components: {
+        include: {
+          material: {
+            include: { variants: { include: { color: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  if (!template || template.components.length === 0) return [];
+
+  // Find colors that exist as a variant in EVERY component's material
+  // Start with all colors from the first material, then intersect
+  const colorSets = template.components.map((comp) => {
+    const colorIds = new Set(
+      comp.material.variants
+        .filter((v) => v.isActive)
+        .map((v) => v.colorId)
+    );
+    return { colorIds, variants: comp.material.variants };
+  });
+
+  // Intersection: only colors present in ALL materials
+  const universalColorIds = colorSets.reduce(
+    (intersection, { colorIds }) =>
+      new Set([...intersection].filter((id) => colorIds.has(id))),
+    colorSets[0].colorIds
+  );
+
+  // Collect color details from first material's variants (all materials share the same colors)
+  const allColors = await prisma.color.findMany({
+    where: { id: { in: [...universalColorIds] }, isActive: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, hexCode: true },
+  });
+
+  return allColors;
 }
