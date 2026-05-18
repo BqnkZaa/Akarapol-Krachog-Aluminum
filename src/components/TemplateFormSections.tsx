@@ -89,8 +89,20 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     วัสดุ <span className="text-red-500">*</span>
                   </label>
-                  <select value={row.materialId} onChange={e => onChange(idx, "materialId", e.target.value)}
-                    className={inp}>
+                  <select 
+                    value={row.materialId} 
+                    onChange={e => {
+                      const newMaterialId = e.target.value;
+                      onChange(idx, "materialId", newMaterialId);
+                      
+                      // Auto-populate the label using the selected material's name
+                      const selectedMaterial = materials.find(m => m.id === newMaterialId);
+                      if (selectedMaterial) {
+                        onChange(idx, "label", selectedMaterial.name);
+                      }
+                    }}
+                    className={inp}
+                  >
                     <option value="">— เลือกวัสดุ —</option>
                     {grouped.map(g => (
                       <optgroup key={g.name} label={g.name}>
@@ -100,15 +112,6 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
                       </optgroup>
                     ))}
                   </select>
-                </div>
-
-                {/* Label */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    ชื่อเรียก <span className="text-red-500">*</span>
-                  </label>
-                  <input type="text" value={row.label} onChange={e => onChange(idx, "label", e.target.value)}
-                    placeholder='เช่น "เฟรมบน-ล่าง"' className={inp} />
                 </div>
 
                 {/* Quantity */}
