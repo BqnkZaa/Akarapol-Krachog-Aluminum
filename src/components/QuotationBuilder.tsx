@@ -36,6 +36,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   
   const [marginPercent, setMarginPercent] = useState<number>(20);
   const [laborCost, setLaborCost] = useState<number>(500);
+  const [laborCostPerSqM, setLaborCostPerSqM] = useState<number>(0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
 
   // --- Submission State ---
@@ -85,6 +86,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       customerName,
       profitMarginPercent: marginPercent,
       laborCost,
+      laborCostPerSqM,
       discountPercent,
     });
 
@@ -243,7 +245,11 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   </div>
                   <div className="flex justify-between">
                     <span>พื้นที่รวม</span>
-                    <span className="font-medium text-gray-900">{glassDetail.areaSqM.toFixed(2)} m²</span>
+                    <span className="font-medium text-gray-900">{glassDetail.areaSqFt.toFixed(4)} ตร.ฟุต (Sq.Ft)</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>ราคาต่อ ตร.ฟุต</span>
+                    <span className="font-medium text-gray-900">฿{glassDetail.pricePerSqFt.toLocaleString()}/Sq.Ft</span>
                   </div>
                   <div className="flex justify-between font-semibold text-blue-600 mt-2 pt-2 border-t border-gray-50">
                     <span>ค่ากระจก</span>
@@ -316,9 +322,15 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <span>฿{summary.marginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center text-emerald-300 print:text-emerald-700">
-                  <span>ค่าแรง</span>
+                  <span>ค่าแรงคงที่</span>
                   <span>฿{summary.laborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
+                {summary.laborSqMCost > 0 && (
+                  <div className="flex justify-between items-center text-emerald-300 print:text-emerald-700">
+                    <span>ค่าแรงต่อ ตร.ม.</span>
+                    <span>฿{summary.laborSqMCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                )}
                 
                 {summary.discountAmount > 0 && (
                   <>
@@ -593,10 +605,20 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                  </div>
                  
                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรง (฿)</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงคงที่ (฿)</label>
                     <input 
                       type="number" min="0" step="100"
                       value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
+                    />
+                 </div>
+
+                 <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงต่อ ตร.ม. (฿/m²)</label>
+                    <p className="text-xs text-gray-500 mb-2">คูณกับพื้นที่ช่องเปิด ({((widthMm * heightMm) / 1_000_000).toFixed(4)} m²)</p>
+                    <input 
+                      type="number" min="0" step="50"
+                      value={laborCostPerSqM} onChange={(e) => setLaborCostPerSqM(Number(e.target.value))}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
                     />
                  </div>

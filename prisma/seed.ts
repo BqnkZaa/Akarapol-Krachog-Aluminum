@@ -787,7 +787,7 @@ async function main() {
   // Glass: 6mm Clear Tempered, 2 panels
   //   Width per panel:  (W / 2) - 50
   //   Height per panel: H - 110
-  //   Price: 550 THB/m²
+  //   Price: 51.10 THB/sq.ft
   //
   // Accessories (fixed cost per unit):
   //   ชุดล้อบานเลื่อน     qty:4  ฿350/ชุด
@@ -862,10 +862,10 @@ async function main() {
       heightFormula: "H - 110",
       panelCount: 2,
       glassType: "6mm Clear Tempered",
-      pricePerSqM: 550,
+      pricePerSqM: 51.10,
     },
   });
-  console.log(`   ✓ Glass: 6mm Clear Tempered, 2 panels @ ฿550/m²`);
+  console.log(`   ✓ Glass: 6mm Clear Tempered, 2 panels @ ฿51.10/sq.ft`);
 
   // ── Template Accessories ──────────────────────────────────
   type AccSeed = { name: string; quantity: number; unitCost: number; unit: string; sortOrder: number };
@@ -900,7 +900,7 @@ async function main() {
   // Glass: 6mm Clear Tempered, 1 panel
   //   Width:  W - 50
   //   Height: H - 70
-  //   Price:  550 THB/m²
+  //   Price:  51.10 THB/sq.ft
   //
   // Accessories:
   //   ยางกันน้ำ (Weather Strip)   qty:4  ฿85/เส้น
@@ -967,10 +967,10 @@ async function main() {
       heightFormula: "H - 70",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
-      pricePerSqM: 550,
+      pricePerSqM: 51.10,
     },
   });
-  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿550/m²`);
+  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿51.10/sq.ft`);
 
   // ── Fixed Glazing Accessories ─────────────────────────────
   const fixedAccessories: AccSeed[] = [
@@ -1044,10 +1044,10 @@ async function main() {
       heightFormula: "H - 105",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
-      pricePerSqM: 550,
+      pricePerSqM: 51.10,
     },
   });
-  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿550/m²`);
+  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿51.10/sq.ft`);
 
   const casementAccessories: AccSeed[] = [
     { name: "บานพับ 4 นิ้ว (4\" Hinge)",         quantity: 3, unitCost: 120, unit: "อัน",   sortOrder: 1 },
@@ -1123,10 +1123,10 @@ async function main() {
       heightFormula: "H - 105",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
-      pricePerSqM: 550,
+      pricePerSqM: 51.10,
     },
   });
-  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿550/m²`);
+  console.log(`   ✓ Glass: 6mm Clear Tempered, 1 panel @ ฿51.10/sq.ft`);
 
   const awningAccessories: AccSeed[] = [
     { name: "บานพับค้าง Friction Stay (10\")", quantity: 2, unitCost: 350, unit: "อัน",   sortOrder: 1 },
@@ -2658,8 +2658,8 @@ async function main() {
   // Glass spec — each pane
   await prisma.glassSpecification.upsert({
     where: { templateId: tmplSliding.id },
-    update: { widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, pricePerSqM: 450 },
-    create: { templateId: tmplSliding.id, widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+    update: { widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, pricePerSqM: 41.81 },
+    create: { templateId: tmplSliding.id, widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
   });
   // Accessories
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplSliding.id } });
@@ -2702,8 +2702,8 @@ async function main() {
   });
   await prisma.glassSpecification.upsert({
     where: { templateId: tmplFixed.id },
-    update: { widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, pricePerSqM: 450 },
-    create: { templateId: tmplFixed.id, widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+    update: { widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, pricePerSqM: 41.81 },
+    create: { templateId: tmplFixed.id, widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFixed.id } });
   await prisma.templateAccessory.createMany({
@@ -2744,8 +2744,8 @@ async function main() {
   });
   await prisma.glassSpecification.upsert({
     where: { templateId: tmplCasement.id },
-    update: { widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, pricePerSqM: 450 },
-    create: { templateId: tmplCasement.id, widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+    update: { widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, pricePerSqM: 41.81 },
+    create: { templateId: tmplCasement.id, widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplCasement.id } });
   await prisma.templateAccessory.createMany({
@@ -2790,8 +2790,8 @@ async function main() {
   });
   await prisma.glassSpecification.upsert({
     where: { templateId: tmplAwning.id },
-    update: { widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, pricePerSqM: 450 },
-    create: { templateId: tmplAwning.id, widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+    update: { widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, pricePerSqM: 41.81 },
+    create: { templateId: tmplAwning.id, widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplAwning.id } });
   await prisma.templateAccessory.createMany({
@@ -2842,8 +2842,8 @@ async function main() {
   });
   await prisma.glassSpecification.upsert({
     where: { templateId: tmplFolding.id },
-    update: { widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, pricePerSqM: 450 },
-    create: { templateId: tmplFolding.id, widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+    update: { widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, pricePerSqM: 41.81 },
+    create: { templateId: tmplFolding.id, widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFolding.id } });
   await prisma.templateAccessory.createMany({

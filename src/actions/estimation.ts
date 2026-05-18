@@ -9,7 +9,7 @@
  *     2. Fetch MaterialVariant unit costs for the selected color
  *     3. Run Formula Parser on every component → Cutting List
  *     4. Run FFD Cutting Optimizer per material → Bars Required + Waste
- *     5. Calculate Glass Cost (area formula → m² → THB)
+ *     5. Calculate Glass Cost (area formula → ft² → THB)
  *     6. Calculate Accessories Cost (fixed per template)
  *     7. Calculate Final Price with margin / labor / discount
  *     8. Persist EstimationProject + CuttingResult[] in one DB transaction
@@ -59,6 +59,7 @@ export interface RunEstimationPayload {
   // ── Pricing modifiers ────────────────────────────────────────────────────
   profitMarginPercent: number; // e.g. 20 → 20%
   laborCost: number;           // flat THB
+  laborCostPerSqM: number;     // THB per m² — multiplied by total opening area
   additionalCost?: number;     // misc flat THB
   discountPercent?: number;    // e.g. 5 → 5%
 }
@@ -87,8 +88,8 @@ export interface GlassDetail {
   panelCount: number;
   widthPerPanelMm: number;
   heightPerPanelMm: number;
-  areaSqM: number;             // total glass area in m²
-  pricePerSqM: number;
+  areaSqFt: number;            // total glass area in sq.ft
+  pricePerSqFt: number;
   glassCost: number;           // total glass cost THB
 }
 
@@ -103,14 +104,15 @@ export interface AccessoryDetail {
 
 /** Complete pricing breakdown */
 export interface QuotationSummary {
-  materialCost: number;        // sum of all bar purchase costs
+  materialCost: number;        // sum of all pro-rated bar costs (exact usage)
   glassCost: number;
   accessoryCost: number;
   subtotal: number;            // materialCost + glassCost + accessoryCost
   marginAmount: number;        // subtotal × marginPercent / 100
-  laborCost: number;
+  laborCost: number;           // flat THB
+  laborSqMCost: number;        // area-based labor cost (areaSqM × laborCostPerSqM)
   additionalCost: number;
-  beforeDiscount: number;      // subtotal + marginAmount + laborCost + additionalCost
+  beforeDiscount: number;      // subtotal + marginAmount + laborCost + laborSqMCost + additionalCost
   discountAmount: number;      // beforeDiscount × discountPercent / 100
   finalPrice: number;          // beforeDiscount - discountAmount
 }
@@ -142,12 +144,13 @@ function buildQuotationSummary(
   accessoryCost: number,
   marginPercent: number,
   labor: number,
+  laborSqMCost: number,
   additional: number,
   discountPercent: number
 ): QuotationSummary {
   const subtotal = materialCost + glassCost + accessoryCost;
   const marginAmount = subtotal * (marginPercent / 100);
-  const beforeDiscount = subtotal + marginAmount + labor + additional;
+  const beforeDiscount = subtotal + marginAmount + labor + laborSqMCost + additional;
   const discountAmount = beforeDiscount * (discountPercent / 100);
   const finalPrice = beforeDiscount - discountAmount;
 
@@ -158,6 +161,7 @@ function buildQuotationSummary(
     subtotal,
     marginAmount,
     laborCost: labor,
+    laborSqMCost,
     additionalCost: additional,
     beforeDiscount,
     discountAmount,
@@ -316,7 +320,9 @@ export async function runParametricEstimation(
     }
 
     // ── Step 6: Build CuttingResultSummary with costs ────────────────────────
-    // Merge optimizer output with material metadata + prices
+    // Merge optimizer output with material metadata + prices.
+    // REQ-3: Cost is pro-rated on exact length used, NOT rounded up to full bars.
+    //   Cost = (totalUsedMm / barLengthMm) * barUnitCost
     const materialMap = new Map(
       template.components.map((c) => [c.material.id, c.material])
     );
@@ -328,10 +334,12 @@ export async function runParametricEstimation(
       (matResult: MaterialOptimizationResult) => {
         const material    = materialMap.get(matResult.materialId)!;
         const barUnitCost = variantPriceMap.get(matResult.materialId)!;
-        const lineCost    = matResult.barsRequired * barUnitCost;
+
+        // Pro-rated cost: charge for exact length consumed, not whole bars
+        const lineCost = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
 
         totalMaterialCost += lineCost;
-        totalBarsUsed     += matResult.barsRequired;
+        totalBarsUsed     += matResult.barsRequired; // keep full-bar count for BOM/cut list
 
         return {
           materialId:         matResult.materialId,
@@ -356,6 +364,9 @@ export async function runParametricEstimation(
     );
 
     // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
+    // REQ-1: Glass area is now in Sq.Ft using the conversion:
+    //   areaSqFt = (widthMm × heightMm) / 92903.04  (1 ft² = 92903.04 mm²)
+    // The DB field `pricePerSqM` is treated as price-per-sq.ft going forward.
     let glassDetail: GlassDetail | null = null;
     let glassCost = 0;
 
@@ -383,17 +394,21 @@ export async function runParametricEstimation(
       const widthPerPanelMm  = Math.round(glassWResult.value);
       const heightPerPanelMm = Math.round(glassHResult.value);
 
-      // Convert mm → m before multiplying: (mm / 1000) × (mm / 1000) = m²
-      const areaSqM = g.panelCount * (widthPerPanelMm / 1000) * (heightPerPanelMm / 1000);
-      glassCost = areaSqM * g.pricePerSqM;
+      // Convert mm² → ft²: divide by 92903.04 (1 ft² = 304.8mm × 304.8mm)
+      const MM2_PER_SQFT = 92903.04;
+      const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+
+      // pricePerSqM column is reused as pricePerSqFt (no schema migration needed;
+      // values must be updated in seed / admin to reflect the new unit)
+      glassCost = areaSqFt * g.pricePerSqM; // pricePerSqM field = price per sq.ft
 
       glassDetail = {
         glassType:         g.glassType,
         panelCount:        g.panelCount,
         widthPerPanelMm,
         heightPerPanelMm,
-        areaSqM:           Math.round(areaSqM * 10000) / 10000, // 4 decimal places
-        pricePerSqM:       g.pricePerSqM,
+        areaSqFt:          Math.round(areaSqFt * 10000) / 10000, // 4 decimal places
+        pricePerSqFt:      g.pricePerSqM,  // read from DB field (reused column)
         glassCost:         Math.round(glassCost * 100) / 100,
       };
     }
@@ -413,10 +428,16 @@ export async function runParametricEstimation(
     });
 
     // ── Step 9: Final Pricing Summary ────────────────────────────────────────
+    // REQ-2: Add area-based labor cost (labor per m² × opening area in m²)
     const margin     = payload.profitMarginPercent;
     const labor      = Math.max(0, payload.laborCost);
+    const laborPerSqM = Math.max(0, payload.laborCostPerSqM ?? 0);
     const additional = Math.max(0, payload.additionalCost ?? 0);
     const discount   = Math.max(0, Math.min(100, payload.discountPercent ?? 0));
+
+    // Opening area in m²: (W mm × H mm) / 1,000,000
+    const openingAreaSqM = (W * H) / 1_000_000;
+    const laborSqMCost   = Math.round(openingAreaSqM * laborPerSqM * 100) / 100;
 
     const summary = buildQuotationSummary(
       totalMaterialCost,
@@ -424,6 +445,7 @@ export async function runParametricEstimation(
       totalAccessoryCost,
       margin,
       labor,
+      laborSqMCost,
       additional,
       discount
     );
@@ -446,7 +468,8 @@ export async function runParametricEstimation(
           heightMm:   H,
 
           profitMarginPercent: margin,
-          laborCost:           labor,
+          // Snapshot combined labor (flat + area-based) so the saved quote is self-contained
+          laborCost:           labor + laborSqMCost,
           additionalCost:      additional,
           discountPercent:     discount,
 
@@ -630,12 +653,15 @@ export async function getEstimationProjectById(
   if (!project) return null;
 
   // Recompute the summary from the snapshotted cost fields
+  // NOTE: laborSqMCost was folded into the snapshotted laborCost at save time,
+  // so we pass 0 for laborSqMCost here to avoid double-counting on re-read.
   const summary = buildQuotationSummary(
     project.materialCost,
     project.glassCost,
     project.accessoryCost,
     project.profitMarginPercent,
     project.laborCost,
+    0,  // laborSqMCost already included in snapshotted laborCost
     project.additionalCost,
     project.discountPercent
   );
