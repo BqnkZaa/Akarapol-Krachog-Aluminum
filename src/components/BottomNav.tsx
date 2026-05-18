@@ -7,6 +7,7 @@ import {
   Layers,
   FileText,
   FolderOpen,
+  History,
 } from "lucide-react";
 
 type NavItem = {
@@ -19,6 +20,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "หน้าหลัก", icon: LayoutDashboard, exact: true },
   { href: "/", label: "ประเมินราคา", icon: FileText, exact: true },
+  { href: "/quotations", label: "ประวัติ", icon: History, exact: true },
   { href: "/admin/categories", label: "ซีรีส์", icon: FolderOpen, exact: false },
   { href: "/materials", label: "วัสดุ", icon: Layers, exact: false },
 ];

@@ -9,6 +9,7 @@ import {
   FileText,
   FolderOpen,
   FileBox,
+  History,
 } from "lucide-react";
 
 type NavItem = {
@@ -29,6 +30,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard", label: "หน้าหลัก", icon: LayoutDashboard, exact: true },
       { href: "/", label: "ประเมินราคาใหม่", icon: FileText, exact: true },
+      { href: "/quotations", label: "ประวัติใบเสนอราคา", icon: History, exact: true },
     ],
   },
   {
