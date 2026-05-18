@@ -110,6 +110,71 @@ export async function createMaterial(
   }
 }
 
+// ─── Update ────────────────────────────────────────────────────
+
+export type UpdateMaterialPayload = {
+  id: string;
+  name: string;
+  code: string;
+  variants: {
+    id: string;
+    unitCost: number;
+  }[];
+};
+
+/**
+ * Update an existing Material and its color-variant prices.
+ */
+export async function updateMaterial(
+  payload: UpdateMaterialPayload
+): Promise<AdminActionResult> {
+  try {
+    if (!payload.id) return { success: false, error: "Material ID is required." };
+    if (!payload.name?.trim()) return { success: false, error: "Material name is required." };
+    if (!payload.code?.trim()) return { success: false, error: "Material code is required." };
+
+    // Check for duplicate code if code was changed
+    const existing = await prisma.material.findUnique({
+      where: { code: payload.code.trim() },
+      select: { id: true },
+    });
+    if (existing && existing.id !== payload.id) {
+      return { success: false, error: `Material code "${payload.code}" is already in use by another material.` };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Update base material
+      await tx.material.update({
+        where: { id: payload.id },
+        data: {
+          name: payload.name.trim(),
+          code: payload.code.trim(),
+        },
+      });
+
+      // Update variants
+      for (const v of payload.variants) {
+        if (v.unitCost < 0) throw new Error("Unit cost cannot be negative.");
+        await tx.materialVariant.update({
+          where: { id: v.id },
+          data: { unitCost: v.unitCost },
+        });
+      }
+    });
+
+    revalidatePath("/materials");
+    revalidatePath("/");
+
+    return { success: true, id: payload.id };
+  } catch (err) {
+    console.error("[updateMaterial] Error:", err);
+    if (err instanceof Error) {
+       return { success: false, error: err.message };
+    }
+    return { success: false, error: "Failed to update material." };
+  }
+}
+
 // ─── Delete (soft) ─────────────────────────────────────────────
 
 /**
