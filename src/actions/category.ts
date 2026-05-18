@@ -69,7 +69,10 @@ export async function getCategories(): Promise<CategoryDTO[]> {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: {
       _count: {
-        select: { materials: true, templates: true },
+        select: { 
+          materials: { where: { isActive: true } }, 
+          templates: { where: { isActive: true } } 
+        },
       },
     },
   });
@@ -96,7 +99,10 @@ export async function getCategoryById(id: string): Promise<CategoryDTO | null> {
     where: { id },
     include: {
       _count: {
-        select: { materials: true, templates: true },
+        select: { 
+          materials: { where: { isActive: true } }, 
+          templates: { where: { isActive: true } } 
+        },
       },
     },
   });
@@ -271,7 +277,10 @@ export async function deleteCategory(
       where: { id },
       include: {
         _count: {
-          select: { materials: true, templates: true },
+          select: { 
+            materials: { where: { isActive: true } }, 
+            templates: { where: { isActive: true } } 
+          },
         },
       },
     });
