@@ -2609,10 +2609,259 @@ async function main() {
   console.log(`   ✓ Alumet Standard Series: ${stdItems.length} profiles seeded`);
 
   // ═══════════════════════════════════════════════════════════
+  // 21. SMART X PRODUCT TEMPLATES
+  //     Source: Smart X_Catalogue 2026_100369.pdf
+  //     Bar length: 6000 mm (Smart X standard stock)
+  // ═══════════════════════════════════════════════════════════
+  console.log("\n→ Seeding Smart X ProductTemplates...");
+
+  // Helper: look up a Material by code, throw if missing
+  const mat = async (code: string) => {
+    const m = await prisma.material.findUnique({ where: { code }, select: { id: true } });
+    if (!m) throw new Error(`Material not found: ${code}`);
+    return m.id;
+  };
+
+  // ── Template 1: Smart X Sliding Door/Window 2-Panel ─────────
+  const tmplSliding = await prisma.productTemplate.upsert({
+    where: { slug: "smartx-sliding-2panel" },
+    update: { name: "Smart X Sliding Door/Window 2-Panel" },
+    create: {
+      categoryId: catSmartX.id,
+      name: "Smart X Sliding Door/Window 2-Panel",
+      slug: "smartx-sliding-2panel",
+      description: "บานเลื่อนสลับ 2 บาน ระบบ Smart X — 3-track outer frame, 2 sliding panels",
+      standardBarLengthMm: 6000,
+      kerfMm: 5,
+      sortOrder: 10,
+    },
+  });
+  // Delete old components so upsert is idempotent
+  await prisma.templateComponent.deleteMany({ where: { templateId: tmplSliding.id } });
+  await prisma.templateComponent.createMany({
+    data: [
+      // Outer frame — horizontal (top + bottom track)
+      { templateId: tmplSliding.id, materialId: await mat("SS-X101"), label: "เฟรมบน (Track Top)",      formula: "W",           quantity: 1, sortOrder: 1 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X102"), label: "เฟรมล่าง (Track Bottom)",  formula: "W",           quantity: 1, sortOrder: 2 },
+      // Outer frame — vertical (sides)
+      { templateId: tmplSliding.id, materialId: await mat("SS-X103"), label: "เฟรมข้าง (Side Jamb)",    formula: "H",           quantity: 2, sortOrder: 3 },
+      // Panel top/bottom bars — each panel = W/2 + 20mm overlap
+      { templateId: tmplSliding.id, materialId: await mat("SS-X203"), label: "ขวางบน-ล่างบาน (Panel Top/Bot)", formula: "W / 2 + 20", quantity: 4, sortOrder: 4 },
+      // Panel lock stile (SS-X201) and handle stile (SS-X202) — each panel height
+      { templateId: tmplSliding.id, materialId: await mat("SS-X201"), label: "เสากุญแจ (Lock Stile)",   formula: "H - 45",      quantity: 2, sortOrder: 5 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X202"), label: "เสามือจับ (Handle Stile)", formula: "H - 45",      quantity: 2, sortOrder: 6 },
+      // Glass bead — 4 sides per panel × 2 panels
+      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead H)", formula: "H - 45",  quantity: 4, sortOrder: 7 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead W)", formula: "W / 2 + 20 - 60", quantity: 4, sortOrder: 8 },
+    ],
+  });
+  // Glass spec — each pane
+  await prisma.glassSpecification.upsert({
+    where: { templateId: tmplSliding.id },
+    update: { widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, pricePerSqM: 450 },
+    create: { templateId: tmplSliding.id, widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+  });
+  // Accessories
+  await prisma.templateAccessory.deleteMany({ where: { templateId: tmplSliding.id } });
+  await prisma.templateAccessory.createMany({
+    data: [
+      { templateId: tmplSliding.id, name: "ล้อบานเลื่อน (Roller Set)", quantity: 4, unitCost: 85,  unit: "ชิ้น", sortOrder: 1 },
+      { templateId: tmplSliding.id, name: "มือจับบานเลื่อน (Handle)",  quantity: 2, unitCost: 120, unit: "ชิ้น", sortOrder: 2 },
+      { templateId: tmplSliding.id, name: "แมกเนติกซีล (Brush Seal)", quantity: 2, unitCost: 45,  unit: "เส้น", sortOrder: 3 },
+    ],
+  });
+  console.log(`   ✓ ${tmplSliding.name}`);
+
+  // ── Template 2: Smart X Fixed Glazing / Picture Window ──────
+  const tmplFixed = await prisma.productTemplate.upsert({
+    where: { slug: "smartx-fixed-glazing" },
+    update: { name: "Smart X Fixed Glazing (ช่องแสงติดตาย)" },
+    create: {
+      categoryId: catSmartX.id,
+      name: "Smart X Fixed Glazing (ช่องแสงติดตาย)",
+      slug: "smartx-fixed-glazing",
+      description: "บานช่องแสงติดตาย ระบบ Smart X — SF-X series outer frame + inner bead",
+      standardBarLengthMm: 6000,
+      kerfMm: 5,
+      sortOrder: 11,
+    },
+  });
+  await prisma.templateComponent.deleteMany({ where: { templateId: tmplFixed.id } });
+  await prisma.templateComponent.createMany({
+    data: [
+      // Outer frame — SF-X101 (top/bottom/sides, all same profile)
+      { templateId: tmplFixed.id, materialId: await mat("SF-X101"), label: "เฟรมช่องแสง (Frame H)", formula: "W",      quantity: 2, sortOrder: 1 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X101"), label: "เฟรมช่องแสง (Frame V)", formula: "H",      quantity: 2, sortOrder: 2 },
+      // Inner bead / stop — SF-X103
+      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop H)",    formula: "W - 10", quantity: 2, sortOrder: 3 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop V)",    formula: "H - 10", quantity: 2, sortOrder: 4 },
+      // Glass bead — SF-X108 (12.7mm groove)
+      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead H)",   formula: "W - 40", quantity: 2, sortOrder: 5 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",   formula: "H - 40", quantity: 2, sortOrder: 6 },
+    ],
+  });
+  await prisma.glassSpecification.upsert({
+    where: { templateId: tmplFixed.id },
+    update: { widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, pricePerSqM: 450 },
+    create: { templateId: tmplFixed.id, widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+  });
+  await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFixed.id } });
+  await prisma.templateAccessory.createMany({
+    data: [
+      { templateId: tmplFixed.id, name: "ซิลิโคนขอบกระจก (Glazing Silicone)", quantity: 1, unitCost: 80, unit: "หลอด", sortOrder: 1 },
+    ],
+  });
+  console.log(`   ✓ ${tmplFixed.name}`);
+
+  // ── Template 3: Smart X Casement Window (บานเปิด) ───────────
+  const tmplCasement = await prisma.productTemplate.upsert({
+    where: { slug: "smartx-casement" },
+    update: { name: "Smart X Casement Window (บานเปิด)" },
+    create: {
+      categoryId: catSmartX.id,
+      name: "Smart X Casement Window (บานเปิด)",
+      slug: "smartx-casement",
+      description: "บานเปิด ระบบ Smart X — SC-X outer frame + SC-X201 sash frame",
+      standardBarLengthMm: 6000,
+      kerfMm: 5,
+      sortOrder: 12,
+    },
+  });
+  await prisma.templateComponent.deleteMany({ where: { templateId: tmplCasement.id } });
+  await prisma.templateComponent.createMany({
+    data: [
+      // Outer frame (SC-X101 = top+sides, SF-X109 = bottom sill)
+      { templateId: tmplCasement.id, materialId: await mat("SC-X101"), label: "เฟรมบน-ข้าง (Head/Jamb H)", formula: "W",      quantity: 1, sortOrder: 1 },
+      { templateId: tmplCasement.id, materialId: await mat("SC-X101"), label: "เฟรมบน-ข้าง (Head/Jamb V)", formula: "H",      quantity: 2, sortOrder: 2 },
+      { templateId: tmplCasement.id, materialId: await mat("SF-X109"), label: "เฟรมล่าง (Bottom Sill)",    formula: "W",      quantity: 1, sortOrder: 3 },
+      // Sash frame — SC-X201
+      { templateId: tmplCasement.id, materialId: await mat("SC-X201"), label: "กรอบบาน (Sash H)",          formula: "W - 30", quantity: 2, sortOrder: 4 },
+      { templateId: tmplCasement.id, materialId: await mat("SC-X201"), label: "กรอบบาน (Sash V)",          formula: "H - 35", quantity: 2, sortOrder: 5 },
+      // Glass bead — SF-X108
+      { templateId: tmplCasement.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead H)",        formula: "W - 70", quantity: 2, sortOrder: 6 },
+      { templateId: tmplCasement.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",        formula: "H - 70", quantity: 2, sortOrder: 7 },
+    ],
+  });
+  await prisma.glassSpecification.upsert({
+    where: { templateId: tmplCasement.id },
+    update: { widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, pricePerSqM: 450 },
+    create: { templateId: tmplCasement.id, widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+  });
+  await prisma.templateAccessory.deleteMany({ where: { templateId: tmplCasement.id } });
+  await prisma.templateAccessory.createMany({
+    data: [
+      { templateId: tmplCasement.id, name: "บานพับ (Hinge)",           quantity: 2, unitCost: 180, unit: "ชิ้น", sortOrder: 1 },
+      { templateId: tmplCasement.id, name: "มือจับล็อค (Handle Lock)", quantity: 1, unitCost: 250, unit: "ชุด",  sortOrder: 2 },
+      { templateId: tmplCasement.id, name: "ยางซีล (Weatherstrip)",    quantity: 1, unitCost: 60,  unit: "เส้น", sortOrder: 3 },
+    ],
+  });
+  console.log(`   ✓ ${tmplCasement.name}`);
+
+  // ── Template 4: Smart X Awning Window (บานกระทุ้ง) ──────────
+  const tmplAwning = await prisma.productTemplate.upsert({
+    where: { slug: "smartx-awning" },
+    update: { name: "Smart X Awning Window (บานกระทุ้ง)" },
+    create: {
+      categoryId: catSmartX.id,
+      name: "Smart X Awning Window (บานกระทุ้ง)",
+      slug: "smartx-awning",
+      description: "บานกระทุ้ง ระบบ Smart X — SC-X101 outer frame + SC-X102 sash frame",
+      standardBarLengthMm: 6000,
+      kerfMm: 5,
+      sortOrder: 13,
+    },
+  });
+  await prisma.templateComponent.deleteMany({ where: { templateId: tmplAwning.id } });
+  await prisma.templateComponent.createMany({
+    data: [
+      // Outer frame (top+sides = SC-X101, bottom = SF-X109)
+      { templateId: tmplAwning.id, materialId: await mat("SC-X101"), label: "เฟรมบน-ข้าง (Head/Jamb H)", formula: "W",      quantity: 1, sortOrder: 1 },
+      { templateId: tmplAwning.id, materialId: await mat("SC-X101"), label: "เฟรมบน-ข้าง (Head/Jamb V)", formula: "H",      quantity: 2, sortOrder: 2 },
+      { templateId: tmplAwning.id, materialId: await mat("SF-X109"), label: "เฟรมล่าง (Bottom Sill)",    formula: "W",      quantity: 1, sortOrder: 3 },
+      // Sash / casement frame — SC-X102
+      { templateId: tmplAwning.id, materialId: await mat("SC-X102"), label: "เฟรมบาน (Sash H)",          formula: "W - 25", quantity: 2, sortOrder: 4 },
+      { templateId: tmplAwning.id, materialId: await mat("SC-X102"), label: "เฟรมบาน (Sash V)",          formula: "H - 30", quantity: 2, sortOrder: 5 },
+      // Frame stay / separator — SC-X103
+      { templateId: tmplAwning.id, materialId: await mat("SC-X103"), label: "ซอยเฟรม (Frame Stay)",      formula: "W - 25", quantity: 1, sortOrder: 6 },
+      // Glass bead — SF-X108
+      { templateId: tmplAwning.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead H)",        formula: "W - 65", quantity: 2, sortOrder: 7 },
+      { templateId: tmplAwning.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",        formula: "H - 65", quantity: 2, sortOrder: 8 },
+    ],
+  });
+  await prisma.glassSpecification.upsert({
+    where: { templateId: tmplAwning.id },
+    update: { widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, pricePerSqM: 450 },
+    create: { templateId: tmplAwning.id, widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+  });
+  await prisma.templateAccessory.deleteMany({ where: { templateId: tmplAwning.id } });
+  await prisma.templateAccessory.createMany({
+    data: [
+      { templateId: tmplAwning.id, name: "บานพับกระทุ้ง (Awning Hinge)", quantity: 2, unitCost: 200, unit: "ชิ้น", sortOrder: 1 },
+      { templateId: tmplAwning.id, name: "ที่ค้ำบาน (Stay Arm)",          quantity: 1, unitCost: 150, unit: "ชิ้น", sortOrder: 2 },
+      { templateId: tmplAwning.id, name: "มือจับ (Handle)",               quantity: 1, unitCost: 120, unit: "ชิ้น", sortOrder: 3 },
+      { templateId: tmplAwning.id, name: "ยางซีล (Weatherstrip)",         quantity: 1, unitCost: 60,  unit: "เส้น", sortOrder: 4 },
+    ],
+  });
+  console.log(`   ✓ ${tmplAwning.name}`);
+
+  // ── Template 5: Smart X Folding Door (บานเฟี้ยม) ────────────
+  const tmplFolding = await prisma.productTemplate.upsert({
+    where: { slug: "smartx-folding-door" },
+    update: { name: "Smart X Folding Door (บานเฟี้ยม)" },
+    create: {
+      categoryId: catSmartX.id,
+      name: "Smart X Folding Door (บานเฟี้ยม)",
+      slug: "smartx-folding-door",
+      description: "บานเฟี้ยม ระบบ Smart X — SB-0xxx series outer frame + inner panel frame",
+      standardBarLengthMm: 6000,
+      kerfMm: 5,
+      sortOrder: 14,
+    },
+  });
+  await prisma.templateComponent.deleteMany({ where: { templateId: tmplFolding.id } });
+  await prisma.templateComponent.createMany({
+    data: [
+      // Outer header track — SB-0101
+      { templateId: tmplFolding.id, materialId: await mat("SB-0101"), label: "เฟรมบน (Top Track)",        formula: "W",           quantity: 1, sortOrder: 1 },
+      // Outer bottom track — SB-0103
+      { templateId: tmplFolding.id, materialId: await mat("SB-0103"), label: "เฟรมล่าง (Bottom Track)",   formula: "W",           quantity: 1, sortOrder: 2 },
+      // Side jambs — SB-0105
+      { templateId: tmplFolding.id, materialId: await mat("SB-0105"), label: "เฟรมข้าง (Side Jamb)",      formula: "H",           quantity: 2, sortOrder: 3 },
+      // Door stile (pivot post) — SB-0114
+      { templateId: tmplFolding.id, materialId: await mat("SB-0114"), label: "เสาประตู (Pivot Post)",     formula: "H - 20",      quantity: 1, sortOrder: 4 },
+      // Panel top/bottom — SB-0107 (each leaf = W/number_of_leaves)
+      { templateId: tmplFolding.id, materialId: await mat("SB-0107"), label: "ขวางบน-ล่างบาน (Panel T/B)", formula: "W / 2 - 20",  quantity: 4, sortOrder: 5 },
+      // Panel side — SB-0105 inner
+      { templateId: tmplFolding.id, materialId: await mat("SB-0112"), label: "เฟรมข้างบาน-ใน (Inner Side)", formula: "H - 60",    quantity: 4, sortOrder: 6 },
+      // Glass bead — SB-0108
+      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead H)",    formula: "W / 2 - 60",  quantity: 4, sortOrder: 7 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead V)",    formula: "H - 100",     quantity: 4, sortOrder: 8 },
+      // Floor guide — SB-0115
+      { templateId: tmplFolding.id, materialId: await mat("SB-0115"), label: "รางกั้นพื้น (Floor Guide)", formula: "W",           quantity: 1, sortOrder: 9 },
+    ],
+  });
+  await prisma.glassSpecification.upsert({
+    where: { templateId: tmplFolding.id },
+    update: { widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, pricePerSqM: 450 },
+    create: { templateId: tmplFolding.id, widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 450 },
+  });
+  await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFolding.id } });
+  await prisma.templateAccessory.createMany({
+    data: [
+      { templateId: tmplFolding.id, name: "ล้อบนบานเฟี้ยม (Top Roller)",       quantity: 4, unitCost: 510, unit: "ชิ้น", sortOrder: 1 },
+      { templateId: tmplFolding.id, name: "ไกด์ล่างบานเฟี้ยม (Bottom Guide)",   quantity: 2, unitCost: 390, unit: "ชิ้น", sortOrder: 2 },
+      { templateId: tmplFolding.id, name: "บานพับบานเฟี้ยม (Fold Hinge)",       quantity: 4, unitCost: 105, unit: "ชิ้น", sortOrder: 3 },
+      { templateId: tmplFolding.id, name: "มือจับบานเฟี้ยม (Handle)",           quantity: 2, unitCost: 170, unit: "ชิ้น", sortOrder: 4 },
+      { templateId: tmplFolding.id, name: "ก้านล็อคบน-ล่าง (Top/Bot Rod Lock)", quantity: 2, unitCost: 215, unit: "ชิ้น", sortOrder: 5 },
+    ],
+  });
+  console.log(`   ✓ ${tmplFolding.name}`);
+
+  // ═══════════════════════════════════════════════════════════
   console.log("\n═══════════════════════════════════════════════════════════");
   console.log("📊 Seed summary:");
   console.log(`   Colors         : 6 (ขาว, ดำ, ซาฮาร่าเกรย์, ซาฮาร่าแซนด์, ลายไม้, เงิน)`);
-  console.log(`   Categories     : 7`);
+  console.log(`   Categories     : 8`);
   console.log(`     1. Alumet iConiq Euro Series  (${materials.length} profiles)`);
   console.log(`     2. Alumet Flexi Series         (${flexiBarProfiles.length + 1 + flexiAccessoryPieces.length} items)`);
   console.log(`     3. Alumet Box Series           (${boxProfiles.length} items)`);
@@ -2620,11 +2869,13 @@ async function main() {
   console.log(`     5. Alumet Vista Series         (${vistaProfiles.length} profiles)`);
   console.log(`     6. Alumet Smart X Series       (${smartXProfiles.length} profiles)`);
   console.log(`     7. Alumet Accessories           (${accItems.length} items)`);
-  console.log(`   Templates      : 4`);
-  console.log(`     1. ${template.name}  (${components.length} components)`);
-  console.log(`     2. ${templateFixed.name}  (${fixedComponents.length} components)`);
-  console.log(`     3. ${templateCasement.name}  (${casementComponents.length} components)`);
-  console.log(`     4. ${templateAwning.name}  (${awningComponents.length} components)`);
+  console.log(`     8. Alumet Standard Series      (${stdItems.length} profiles)`);
+  console.log(`   Smart X Templates : 5`);
+  console.log(`     1. ${tmplSliding.name}`);
+  console.log(`     2. ${tmplFixed.name}`);
+  console.log(`     3. ${tmplCasement.name}`);
+  console.log(`     4. ${tmplAwning.name}`);
+  console.log(`     5. ${tmplFolding.name}`);
   console.log(`   Price Effective: iConiq 15 พ.ค. 2569 | Flexi+Box+ProSmart+Vista+SmartX 1 ส.ค. 2567 | Accessories 3 มี.ค. 2568 (ex-VAT)`);
   console.log("═══════════════════════════════════════════════════════════");
   console.log("\n✅ Full Alumet seed complete.\n");
