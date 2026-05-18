@@ -16,6 +16,7 @@ async function getMaterials(page: number, query: string, categoryId: string) {
   const skip = (page - 1) * PAGE_SIZE;
 
   const where = {
+    isActive: true,
     ...(query
       ? {
           OR: [
