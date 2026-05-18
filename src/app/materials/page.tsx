@@ -55,6 +55,7 @@ async function getMaterials(page: number, query: string, categoryId: string) {
 
 async function getCategories() {
   return prisma.category.findMany({
+    where: { isActive: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

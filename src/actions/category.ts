@@ -66,6 +66,7 @@ export type CategoryDTO = {
  */
 export async function getCategories(): Promise<CategoryDTO[]> {
   const cats = await prisma.category.findMany({
+    where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     include: {
       _count: {
@@ -313,7 +314,23 @@ export async function deleteCategory(
     revalidatePath("/");
 
     return { success: true, id };
-  } catch (err) {
+  } catch (err: any) {
+    if (err.code === "P2003" || err.code === "P2014") {
+      try {
+        await prisma.category.update({
+          where: { id },
+          data: { isActive: false },
+        });
+        revalidatePath("/admin/categories");
+        revalidatePath("/materials");
+        revalidatePath("/materials/new");
+        revalidatePath("/");
+        return { success: true, id };
+      } catch (softErr) {
+        console.error("[deleteCategory] Soft Delete Error:", softErr);
+        return { success: false, error: "Failed to deactivate category." };
+      }
+    }
     console.error("[deleteCategory] Error:", err);
     return { success: false, error: "Failed to delete category. It may still have dependent records." };
   }
