@@ -58,7 +58,6 @@ export interface RunEstimationPayload {
 
   // ── Pricing modifiers ────────────────────────────────────────────────────
   profitMarginPercent: number; // e.g. 20 → 20%
-  laborCost: number;           // flat THB
   laborCostPerSqM: number;     // THB per m² — multiplied by total opening area
   additionalCost?: number;     // misc flat THB
   discountPercent?: number;    // e.g. 5 → 5%
@@ -109,10 +108,9 @@ export interface QuotationSummary {
   accessoryCost: number;
   subtotal: number;            // materialCost + glassCost + accessoryCost
   marginAmount: number;        // subtotal × marginPercent / 100
-  laborCost: number;           // flat THB
-  laborSqMCost: number;        // area-based labor cost (areaSqM × laborCostPerSqM)
+  laborCost: number;           // area-based labor cost (areaSqM × laborCostPerSqM)
   additionalCost: number;
-  beforeDiscount: number;      // subtotal + marginAmount + laborCost + laborSqMCost + additionalCost
+  beforeDiscount: number;      // subtotal + marginAmount + laborCost + additionalCost
   discountAmount: number;      // beforeDiscount × discountPercent / 100
   finalPrice: number;          // beforeDiscount - discountAmount
 }
@@ -143,14 +141,13 @@ function buildQuotationSummary(
   glassCost: number,
   accessoryCost: number,
   marginPercent: number,
-  labor: number,
-  laborSqMCost: number,
+  laborCost: number,
   additional: number,
   discountPercent: number
 ): QuotationSummary {
   const subtotal = materialCost + glassCost + accessoryCost;
   const marginAmount = subtotal * (marginPercent / 100);
-  const beforeDiscount = subtotal + marginAmount + labor + laborSqMCost + additional;
+  const beforeDiscount = subtotal + marginAmount + laborCost + additional;
   const discountAmount = beforeDiscount * (discountPercent / 100);
   const finalPrice = beforeDiscount - discountAmount;
 
@@ -160,8 +157,7 @@ function buildQuotationSummary(
     accessoryCost,
     subtotal,
     marginAmount,
-    laborCost: labor,
-    laborSqMCost,
+    laborCost,
     additionalCost: additional,
     beforeDiscount,
     discountAmount,
@@ -428,24 +424,22 @@ export async function runParametricEstimation(
     });
 
     // ── Step 9: Final Pricing Summary ────────────────────────────────────────
-    // REQ-2: Add area-based labor cost (labor per m² × opening area in m²)
+    // Calculate area-based labor cost (labor per m² × opening area in m²)
     const margin     = payload.profitMarginPercent;
-    const labor      = Math.max(0, payload.laborCost);
     const laborPerSqM = Math.max(0, payload.laborCostPerSqM ?? 0);
     const additional = Math.max(0, payload.additionalCost ?? 0);
     const discount   = Math.max(0, Math.min(100, payload.discountPercent ?? 0));
 
     // Opening area in m²: (W mm × H mm) / 1,000,000
     const openingAreaSqM = (W * H) / 1_000_000;
-    const laborSqMCost   = Math.round(openingAreaSqM * laborPerSqM * 100) / 100;
+    const laborCost   = Math.round(openingAreaSqM * laborPerSqM * 100) / 100;
 
     const summary = buildQuotationSummary(
       totalMaterialCost,
       glassCost,
       totalAccessoryCost,
       margin,
-      labor,
-      laborSqMCost,
+      laborCost,
       additional,
       discount
     );
@@ -468,8 +462,8 @@ export async function runParametricEstimation(
           heightMm:   H,
 
           profitMarginPercent: margin,
-          // Snapshot combined labor (flat + area-based) so the saved quote is self-contained
-          laborCost:           labor + laborSqMCost,
+          // Snapshot area-based labor so the saved quote is self-contained
+          laborCost:           laborCost,
           additionalCost:      additional,
           discountPercent:     discount,
 
@@ -653,15 +647,12 @@ export async function getEstimationProjectById(
   if (!project) return null;
 
   // Recompute the summary from the snapshotted cost fields
-  // NOTE: laborSqMCost was folded into the snapshotted laborCost at save time,
-  // so we pass 0 for laborSqMCost here to avoid double-counting on re-read.
   const summary = buildQuotationSummary(
     project.materialCost,
     project.glassCost,
     project.accessoryCost,
     project.profitMarginPercent,
     project.laborCost,
-    0,  // laborSqMCost already included in snapshotted laborCost
     project.additionalCost,
     project.discountPercent
   );

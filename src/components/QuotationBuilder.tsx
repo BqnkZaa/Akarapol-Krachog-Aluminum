@@ -35,7 +35,6 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [customerName, setCustomerName] = useState("");
   
   const [marginPercent, setMarginPercent] = useState<number>(20);
-  const [laborCost, setLaborCost] = useState<number>(500);
   const [laborCostPerSqM, setLaborCostPerSqM] = useState<number>(0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
 
@@ -85,7 +84,6 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       projectName,
       customerName,
       profitMarginPercent: marginPercent,
-      laborCost,
       laborCostPerSqM,
       discountPercent,
     });
@@ -322,15 +320,9 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <span>฿{summary.marginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center text-emerald-300 print:text-emerald-700">
-                  <span>ค่าแรงคงที่</span>
+                  <span>ค่าแรง (ต่อ ตร.ม.)</span>
                   <span>฿{summary.laborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                {summary.laborSqMCost > 0 && (
-                  <div className="flex justify-between items-center text-emerald-300 print:text-emerald-700">
-                    <span>ค่าแรงต่อ ตร.ม.</span>
-                    <span>฿{summary.laborSqMCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                )}
                 
                 {summary.discountAmount > 0 && (
                   <>
@@ -604,14 +596,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                     />
                  </div>
                  
-                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงคงที่ (฿)</label>
-                    <input 
-                      type="number" min="0" step="100"
-                      value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
-                    />
-                 </div>
+
 
                  <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงต่อ ตร.ม. (฿/m²)</label>
