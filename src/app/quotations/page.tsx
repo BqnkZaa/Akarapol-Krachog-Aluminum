@@ -6,7 +6,7 @@ import QuotationActions from "@/components/QuotationActions";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Quotation History — SmartQuote",
+  title: "ประวัติใบเสนอราคา — SmartQuote",
 };
 
 interface PageProps {
@@ -31,16 +31,16 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quotation History</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">ประวัติใบเสนอราคา</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              View and manage your saved quotations
+              จัดการและดูประวัติใบเสนอราคาย้อนหลัง
             </p>
           </div>
           <Link
             href="/"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
           >
-            New Quotation
+            สร้างใบเสนอราคาใหม่
           </Link>
         </div>
       </div>
@@ -50,15 +50,15 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
         {items.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center shadow-sm">
             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="font-semibold text-gray-700">No quotations found</h3>
+            <h3 className="font-semibold text-gray-700">ไม่พบประวัติใบเสนอราคา</h3>
             <p className="text-sm text-gray-400 mt-1 mb-6">
-              You haven't created any quotations yet.
+              คุณยังไม่เคยสร้างใบเสนอราคาใดๆ ในระบบ
             </p>
             <Link
               href="/"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
             >
-              Create Your First Quotation
+              สร้างใบเสนอราคาใหม่
             </Link>
           </div>
         ) : (
@@ -68,22 +68,22 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/70">
                     <th className="text-left py-3 px-4 sm:px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
-                      Date
+                      วันที่
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
-                      ID
+                      เลขที่เอกสาร
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[150px]">
-                      Customer / Project
+                      ชื่อลูกค้า / ชื่อโปรเจกต์
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[150px]">
-                      Template
+                      รูปแบบงาน
                     </th>
                     <th className="text-right py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
-                      Total Amount
+                      ยอดรวมสุทธิ
                     </th>
                     <th className="text-right py-3 px-4 sm:px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
-                      Actions
+                      จัดการ
                     </th>
                   </tr>
                 </thead>
@@ -146,8 +146,8 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-200 px-6 py-4 shadow-sm">
             <p className="text-sm text-gray-500">
-              Showing page <span className="font-semibold text-gray-800">{page}</span> of <span className="font-semibold text-gray-800">{totalPages}</span>
-              {" "} ({total} total)
+              หน้า <span className="font-semibold text-gray-800">{page}</span> จาก <span className="font-semibold text-gray-800">{totalPages}</span>
+              {" "} (ทั้งหมด {total} รายการ)
             </p>
 
             <div className="flex items-center gap-2">
@@ -157,11 +157,11 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                   href={buildUrl(page - 1)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4" /> Previous
+                  <ChevronLeft className="w-4 h-4" /> ก่อนหน้า
                 </Link>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-50 rounded-xl cursor-not-allowed">
-                  <ChevronLeft className="w-4 h-4" /> Previous
+                  <ChevronLeft className="w-4 h-4" /> ก่อนหน้า
                 </span>
               )}
 
@@ -171,11 +171,11 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                   href={buildUrl(page + 1)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
                 >
-                  Next <ChevronRight className="w-4 h-4" />
+                  ถัดไป <ChevronRight className="w-4 h-4" />
                 </Link>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-300 bg-gray-50 rounded-xl cursor-not-allowed">
-                  Next <ChevronRight className="w-4 h-4" />
+                  ถัดไป <ChevronRight className="w-4 h-4" />
                 </span>
               )}
             </div>

@@ -13,13 +13,13 @@ export default function QuotationActions({ quotationId }: QuotationActionsProps)
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete this quotation? This action cannot be undone.")) {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบใบเสนอราคานี้?")) {
       setIsDeleting(true);
       startTransition(async () => {
         try {
           const result = await deleteQuotation(quotationId);
           if (!result.success) {
-            alert(result.error || "Failed to delete quotation");
+            alert(result.error || "ลบใบเสนอราคาไม่สำเร็จ");
           }
         } finally {
           setIsDeleting(false);
@@ -36,7 +36,7 @@ export default function QuotationActions({ quotationId }: QuotationActionsProps)
         onClick={handleDelete}
         disabled={loading}
         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-        title="Delete Quotation"
+        title="ลบ"
       >
         {loading ? (
           <Loader2 className="w-4 h-4 animate-spin text-red-600" />
