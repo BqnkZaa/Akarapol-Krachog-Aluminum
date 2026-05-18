@@ -804,7 +804,7 @@ async function main() {
       name: "บานเลื่อนสลับ 2 บาน (2-Panel Sliding Door)",
       description: "ประตูบานเลื่อนสลับ 2 บาน ไอคอนิค ยูโรซีรี่ส์ — เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
     },
     create: {
       categoryId: catIconiq.id,
@@ -812,7 +812,7 @@ async function main() {
       slug: "iconiq-sliding-door-2-panel",
       description: "ประตูบานเลื่อนสลับ 2 บาน ไอคอนิค ยูโรซีรี่ส์ — เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 1,
     },
   });
@@ -914,7 +914,7 @@ async function main() {
       name: "บานช่องแสง (Fixed Glazing Window)",
       description: "หน้าต่างช่องแสงติดตาย ไอคอนิค ยูโรซีรี่ส์ — ไม่เปิด เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
     },
     create: {
       categoryId: catIconiq.id,
@@ -922,7 +922,7 @@ async function main() {
       slug: "iconiq-fixed-glazing-window",
       description: "หน้าต่างช่องแสงติดตาย ไอคอนิค ยูโรซีรี่ส์ — ไม่เปิด เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 2,
     },
   });
@@ -994,7 +994,7 @@ async function main() {
       name: "บานเปิด (Casement Window)",
       description: "หน้าต่าง/ประตูบานเปิด ไอคอนิค ยูโรซีรี่ส์ — บานพับ เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
     },
     create: {
       categoryId: catIconiq.id,
@@ -1002,7 +1002,7 @@ async function main() {
       slug: "iconiq-casement-window",
       description: "หน้าต่าง/ประตูบานเปิด ไอคอนิค ยูโรซีรี่ส์ — บานพับ เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 3,
     },
   });
@@ -1072,7 +1072,7 @@ async function main() {
       name: "บานกระทุ้ง (Awning Window)",
       description: "หน้าต่างบานกระทุ้ง ไอคอนิค ยูโรซีรี่ส์ — เปิดออกด้านบน เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
     },
     create: {
       categoryId: catIconiq.id,
@@ -1080,7 +1080,7 @@ async function main() {
       slug: "iconiq-awning-window",
       description: "หน้าต่างบานกระทุ้ง ไอคอนิค ยูโรซีรี่ส์ — เปิดออกด้านบน เส้นมาตรฐาน 6.4 ม.",
       standardBarLengthMm: 6400,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 4,
     },
   });
@@ -2632,7 +2632,7 @@ async function main() {
       slug: "smartx-sliding-2panel",
       description: "บานเลื่อนสลับ 2 บาน ระบบ Smart X — 3-track outer frame, 2 sliding panels",
       standardBarLengthMm: 6000,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 10,
     },
   });
@@ -2682,7 +2682,7 @@ async function main() {
       slug: "smartx-fixed-glazing",
       description: "บานช่องแสงติดตาย ระบบ Smart X — SF-X series outer frame + inner bead",
       standardBarLengthMm: 6000,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 11,
     },
   });
@@ -2723,7 +2723,7 @@ async function main() {
       slug: "smartx-casement",
       description: "บานเปิด ระบบ Smart X — SC-X outer frame + SC-X201 sash frame",
       standardBarLengthMm: 6000,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 12,
     },
   });
@@ -2767,7 +2767,7 @@ async function main() {
       slug: "smartx-awning",
       description: "บานกระทุ้ง ระบบ Smart X — SC-X101 outer frame + SC-X102 sash frame",
       standardBarLengthMm: 6000,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 13,
     },
   });
@@ -2814,7 +2814,7 @@ async function main() {
       slug: "smartx-folding-door",
       description: "บานเฟี้ยม ระบบ Smart X — SB-0xxx series outer frame + inner panel frame",
       standardBarLengthMm: 6000,
-      kerfMm: 5,
+      kerfMm: 0,
       sortOrder: 14,
     },
   });

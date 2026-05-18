@@ -85,7 +85,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
   const [barLengthMm, setBarLengthMm] = useState(initialData?.standardBarLengthMm ?? 6000);
-  const [kerfMm, setKerfMm] = useState(initialData?.kerfMm ?? 5);
+  const [kerfMm] = useState(0);
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
 
@@ -197,7 +197,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
         description: description || undefined,
         imageUrl: imageUrl || undefined,
         standardBarLengthMm: barLengthMm,
-        kerfMm,
+        kerfMm: 0,
         sortOrder,
         isActive,
         components: components.map((c, i) => ({
@@ -312,15 +312,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
               <p className="text-xs text-gray-400 mt-1">มาตรฐานไทย: 6000 มม. ใช้ 6400 สำหรับสินค้านำเข้า</p>
             </div>
 
-            {/* Kerf */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                ความกว้างรอยตัด (มม.) <span className="text-red-500">*</span>
-              </label>
-              <input type="number" min={0} step={0.5} value={kerfMm}
-                onChange={e => setKerfMm(parseFloat(e.target.value) || 0)} className={inp} />
-              <p className="text-xs text-gray-400 mt-1">ความหนาใบเลื่อยที่เสียไปต่อการตัด ค่าเริ่มต้น: 5 มม.</p>
-            </div>
+
 
             {/* Sort order + Active */}
             <div>

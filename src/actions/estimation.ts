@@ -304,7 +304,7 @@ export async function runParametricEstimation(
     const optimizerResult = optimizeCuts({
       cuts:               cutRequests,
       defaultBarLengthMm: template.standardBarLengthMm,
-      kerfMm:             template.kerfMm,
+      kerfMm:             0, // Client request: treat cutting width (kerf) as 0
     });
 
     if (!optimizerResult.ok) {
