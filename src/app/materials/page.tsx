@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PlusCircle, Tag, Palette, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import prisma from "@/lib/prisma";
 import MaterialActions from "@/components/MaterialActions";
+import CategoryFilter from "@/components/CategoryFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -156,25 +157,11 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
           </form>
 
           {/* Category filter */}
-          <form method="GET" action="/materials">
-            {query && <input type="hidden" name="q" value={query} />}
-            <select
-              name="cat"
-              onChange={(e) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (e.target.form as any)?.submit();
-              }}
-              defaultValue={categoryId}
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]"
-            >
-              <option value="">All categories</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </form>
+          <CategoryFilter 
+            categories={categories} 
+            currentQuery={query} 
+            currentCategoryId={categoryId} 
+          />
         </div>
       </div>
 
