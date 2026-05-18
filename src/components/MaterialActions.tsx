@@ -25,9 +25,12 @@ export default function MaterialActions({ material }: MaterialActionsProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleDelete = () => {
-    if (!confirm("Mark this material as inactive? It will no longer appear in the quotation wizard.")) return;
+    if (!confirm("Are you sure you want to delete this material? If it is used in a template, it will be marked as inactive instead.")) return;
     startTransition(async () => {
-      await deleteMaterial(material.id);
+      const result = await deleteMaterial(material.id);
+      if (!result.success && result.error) {
+        alert(result.error);
+      }
     });
   };
 
@@ -46,11 +49,11 @@ export default function MaterialActions({ material }: MaterialActionsProps) {
         <button
           onClick={handleDelete}
           disabled={isPending}
-          title="Deactivate material"
+          title="Delete material"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          {isPending ? "Removing..." : "Deactivate"}
+          {isPending ? "Deleting..." : "Delete"}
         </button>
       </div>
 

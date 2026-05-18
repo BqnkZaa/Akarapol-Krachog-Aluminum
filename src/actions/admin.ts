@@ -175,22 +175,36 @@ export async function updateMaterial(
   }
 }
 
-// ─── Delete (soft) ─────────────────────────────────────────────
-
 /**
- * Soft-delete a material by setting isActive = false.
- * Preserves historical references in saved EstimationItems.
+ * Delete a material from the database.
+ * If the material is referenced by existing templates or projects, it will be soft-deleted (isActive = false) instead.
  */
 export async function deleteMaterial(id: string): Promise<AdminActionResult> {
   try {
-    await prisma.material.update({
+    // Attempt to hard-delete the material
+    await prisma.material.delete({
       where: { id },
-      data: { isActive: false },
     });
 
     revalidatePath("/materials");
     return { success: true, id };
-  } catch (err) {
+  } catch (err: any) {
+    // P2003: Foreign key constraint failed. This means the material is used in a template or quotation.
+    if (err.code === "P2003") {
+      try {
+        await prisma.material.update({
+          where: { id },
+          data: { isActive: false },
+        });
+        revalidatePath("/materials");
+        // Still return success so the UI updates
+        return { success: true, id };
+      } catch (softErr) {
+        console.error("[deleteMaterial] Soft Delete Error:", softErr);
+        return { success: false, error: "Failed to deactivate material." };
+      }
+    }
+    
     console.error("[deleteMaterial] Error:", err);
     return { success: false, error: "Failed to delete material." };
   }
