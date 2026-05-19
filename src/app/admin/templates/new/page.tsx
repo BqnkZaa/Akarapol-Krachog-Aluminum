@@ -6,6 +6,8 @@ import {
 } from "@/actions/template";
 import TemplateForm from "@/components/TemplateForm";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Add Template — SmartQuote",
 };

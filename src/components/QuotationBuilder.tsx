@@ -29,8 +29,8 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [isLoadingColors, setIsLoadingColors] = useState(false);
   const [selectedColor, setSelectedColor] = useState<ColorOption | null>(null);
   
-  const [widthMm, setWidthMm] = useState<number>(2000);
-  const [heightMm, setHeightMm] = useState<number>(1500);
+  const [widthCm, setWidthCm] = useState<number>(200);
+  const [heightCm, setHeightCm] = useState<number>(150);
   const [projectName, setProjectName] = useState("");
   const [customerName, setCustomerName] = useState("");
   
@@ -79,8 +79,8 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
     const res = await runParametricEstimation({
       templateId: selectedTemplate.id,
       colorId: selectedColor.id,
-      widthMm,
-      heightMm,
+      widthMm: widthCm * 10,
+      heightMm: heightCm * 10,
       projectName,
       customerName,
       profitMarginPercent: marginPercent,
@@ -145,11 +145,11 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                       </div>
                       <div>
                         <p className="text-gray-500 mb-1">ความกว้าง (W)</p>
-                        <p className="font-semibold text-gray-900">{result.widthMm} mm</p>
+                        <p className="font-semibold text-gray-900">{(result.widthMm / 10).toLocaleString()} ซม.</p>
                       </div>
                       <div>
                         <p className="text-gray-500 mb-1">ความสูง (H)</p>
-                        <p className="font-semibold text-gray-900">{result.heightMm} mm</p>
+                        <p className="font-semibold text-gray-900">{(result.heightMm / 10).toLocaleString()} ซม.</p>
                       </div>
                    </div>
                 </div>
@@ -169,7 +169,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
                     <div>
                       <h4 className="font-bold text-gray-900">{cr.materialName}</h4>
-                      <p className="text-sm text-gray-500 font-mono">{cr.materialCode} • {cr.barLengthMm}mm Bar</p>
+                      <p className="text-sm text-gray-500 font-mono">{cr.materialCode} • {(cr.barLengthMm / 10).toLocaleString()} ซม. ต่อเส้น</p>
                     </div>
                     <div className="text-left md:text-right">
                       <p className="font-semibold text-blue-600">ต้องใช้ {cr.barsRequired} เส้น</p>
@@ -183,7 +183,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                       <div key={bar.barIndex} className="relative">
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                           <span>เส้นที่ #{bar.barIndex}</span>
-                          <span>เศษเหลือ: {bar.wasteMm}mm</span>
+                          <span>เศษเหลือ: {(bar.wasteMm / 10).toFixed(1)} ซม.</span>
                         </div>
                         <div className="h-8 bg-gray-100 rounded-md overflow-hidden flex border border-gray-200 w-full relative">
                           {bar.cuts.map((cut, idx) => {
@@ -198,9 +198,9 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                                 key={idx} 
                                 style={{ width: `${pct}%` }} 
                                 className={`${colorClass} h-full border-r border-white/40 flex items-center justify-center text-[10px] text-white font-bold px-1 overflow-hidden whitespace-nowrap`}
-                                title={`${cut.label}: ${cut.lengthMm}mm`}
+                                title={`${cut.label}: ${(cut.lengthMm / 10).toFixed(1)} ซม.`}
                               >
-                                {cut.lengthMm}
+                                {(cut.lengthMm / 10).toFixed(1)}
                               </div>
                             );
                           })}
@@ -214,7 +214,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                         </div>
                         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[11px] text-gray-600">
                           {bar.cuts.map((cut, idx) => (
-                            <span key={idx}><span className="font-medium text-gray-900">{cut.lengthMm}</span> ({cut.label})</span>
+                            <span key={idx}><span className="font-medium text-gray-900">{(cut.lengthMm / 10).toFixed(1)} ซม.</span> ({cut.label})</span>
                           ))}
                         </div>
                       </div>
@@ -235,7 +235,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                 <div className="space-y-2 mt-3 text-sm text-gray-600">
                   <div className="flex justify-between">
                     <span>ขนาด</span>
-                    <span className="font-medium text-gray-900">{glassDetail.widthPerPanelMm} × {glassDetail.heightPerPanelMm} mm</span>
+                    <span className="font-medium text-gray-900">{(glassDetail.widthPerPanelMm / 10).toFixed(0)} × {(glassDetail.heightPerPanelMm / 10).toFixed(0)} ซม.</span>
                   </div>
                   <div className="flex justify-between">
                     <span>จำนวน</span>
@@ -509,30 +509,30 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                  <div className="col-span-full">
                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 border-b border-gray-100 pb-2">
-                     <Ruler className="w-5 h-5 text-gray-500" /> Parametric Dimensions (mm)
+                     <Ruler className="w-5 h-5 text-gray-500" /> ขนาดช่องเปิด (ซม.)
                    </h3>
                  </div>
                  
                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Width (W)</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ความกว้าง (ซม.)</label>
                     <div className="relative">
                       <input 
-                        type="number" min="100" max="10000"
-                        value={widthMm} onChange={(e) => setWidthMm(Number(e.target.value))}
-                        className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
+                        type="number" min="10" max="1000" step="0.5"
+                        value={widthCm} onChange={(e) => setWidthCm(Number(e.target.value))}
+                        className="w-full pl-4 pr-16 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">mm</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">ซม.</span>
                     </div>
                  </div>
                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Height (H)</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ความสูง (ซม.)</label>
                     <div className="relative">
                       <input 
-                        type="number" min="100" max="10000"
-                        value={heightMm} onChange={(e) => setHeightMm(Number(e.target.value))}
-                        className="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
+                        type="number" min="10" max="1000" step="0.5"
+                        value={heightCm} onChange={(e) => setHeightCm(Number(e.target.value))}
+                        className="w-full pl-4 pr-16 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">mm</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">ซม.</span>
                     </div>
                  </div>
 
@@ -600,7 +600,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
                  <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงต่อ ตร.ม. (฿/m²)</label>
-                    <p className="text-xs text-gray-500 mb-2">คูณกับพื้นที่ช่องเปิด ({((widthMm * heightMm) / 1_000_000).toFixed(4)} m²)</p>
+                    <p className="text-xs text-gray-500 mb-2">คูณกับพื้นที่ช่องเปิด ({((widthCm * heightCm) / 10_000).toFixed(4)} m²)</p>
                     <input 
                       type="number" min="0" step="50"
                       value={laborCostPerSqM} onChange={(e) => setLaborCostPerSqM(Number(e.target.value))}
