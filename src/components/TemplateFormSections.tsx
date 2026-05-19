@@ -2,7 +2,7 @@
 
 import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers } from "lucide-react";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
-import type { MaterialOption } from "@/actions/template";
+import type { MaterialOption, CategoryOption } from "@/actions/template";
 
 // ── Shared input styles ──────────────────────────────────────────────────────
 const inp = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow";
@@ -24,6 +24,7 @@ function buildGrouped(materials: MaterialOption[]) {
 // ════════════════════════════════════════════════════════════════════════════
 type ComponentsSectionProps = {
   rows: ComponentRow[];
+  categories: CategoryOption[];
   materials: MaterialOption[];
   onChange: (idx: number, field: keyof ComponentRow, value: string | number | null) => void;
   onAdd: () => void;
@@ -31,7 +32,7 @@ type ComponentsSectionProps = {
   onMove: (idx: number, dir: -1 | 1) => void;
 };
 
-export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, onMove }: ComponentsSectionProps) {
+export function ComponentsSection({ rows, categories, materials, onChange, onAdd, onRemove, onMove }: ComponentsSectionProps) {
   const grouped = buildGrouped(materials);
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -84,8 +85,29 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
 
               {/* Row fields — 2-col grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    ซีรีส์ของวัสดุ
+                  </label>
+                  <select 
+                    value={row.categoryId} 
+                    onChange={e => {
+                      onChange(idx, "categoryId", e.target.value);
+                      onChange(idx, "materialId", "");
+                      onChange(idx, "label", "");
+                    }}
+                    className={inp}
+                  >
+                    <option value="">— ทั้งหมด —</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Material */}
-                <div className="sm:col-span-2">
+                <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     วัสดุ <span className="text-red-500">*</span>
                   </label>
@@ -99,18 +121,25 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
                       const selectedMaterial = materials.find(m => m.id === newMaterialId);
                       if (selectedMaterial) {
                         onChange(idx, "label", selectedMaterial.name);
+                        onChange(idx, "categoryId", selectedMaterial.categoryId);
                       }
                     }}
                     className={inp}
                   >
                     <option value="">— เลือกวัสดุ —</option>
-                    {grouped.map(g => (
-                      <optgroup key={g.name} label={g.name}>
-                        {g.items.map(m => (
-                          <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
+                    {row.categoryId ? (
+                      materials.filter(m => m.categoryId === row.categoryId).map(m => (
+                        <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
+                      ))
+                    ) : (
+                      grouped.map(g => (
+                        <optgroup key={g.name} label={g.name}>
+                          {g.items.map(m => (
+                            <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -121,6 +150,17 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
                   </label>
                   <input type="number" min={1} value={row.quantity}
                     onChange={e => onChange(idx, "quantity", parseInt(e.target.value) || 1)}
+                    className={`${inpSm} w-full`} />
+                </div>
+
+                {/* Bar length override */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    ความยาวเส้นเต็ม (มม.) กำหนดเอง
+                  </label>
+                  <input type="number" min={1} value={row.barLengthMm}
+                    onChange={e => onChange(idx, "barLengthMm", e.target.value)}
+                    placeholder="เว้นว่างไว้เพื่อใช้ค่าเริ่มต้นของรูปแบบงาน"
                     className={`${inpSm} w-full`} />
                 </div>
 
@@ -138,18 +178,6 @@ export function ComponentsSection({ rows, materials, onChange, onAdd, onRemove, 
                   ) : row.formula && (
                     <p className="text-xs text-green-600 mt-1">✓ รูปแบบสูตรถูกต้อง</p>
                   )}
-                </div>
-
-                {/* Bar length override */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    ความยาวเส้นเต็ม (มม.) กำหนดเอง
-                  </label>
-                  <input type="number" min={1} value={row.barLengthMm}
-                    onChange={e => onChange(idx, "barLengthMm", e.target.value)}
-                    placeholder="เว้นว่างไว้เพื่อใช้ค่าเริ่มต้นของรูปแบบงาน"
-                    className={`${inpSm} w-full`} />
-                  <p className="text-[11px] text-gray-400 mt-0.5">ไม่บังคับ เช่น 6400 สำหรับสินค้านำเข้า</p>
                 </div>
               </div>
             </div>

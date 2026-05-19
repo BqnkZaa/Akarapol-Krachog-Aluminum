@@ -32,18 +32,22 @@ function slugify(s: string) {
     .replace(/-+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function initComponents(data?: TemplateDetail): ComponentRow[] {
+function initComponents(data?: TemplateDetail, materials?: MaterialOption[]): ComponentRow[] {
   if (!data?.components.length) return [makeEmptyComponent(0)];
-  return data.components.map((c, i) => ({
-    _key: `c-init-${i}`,
-    materialId: c.materialId,
-    label: c.label,
-    formula: c.formula,
-    formulaError: null,
-    quantity: c.quantity,
-    barLengthMm: c.barLengthMm != null ? String(c.barLengthMm) : "",
-    sortOrder: c.sortOrder,
-  }));
+  return data.components.map((c, i) => {
+    const mat = materials?.find(m => m.id === c.materialId);
+    return {
+      _key: `c-init-${i}`,
+      categoryId: mat?.categoryId || "",
+      materialId: c.materialId,
+      label: c.label,
+      formula: c.formula,
+      formulaError: null,
+      quantity: c.quantity,
+      barLengthMm: c.barLengthMm != null ? String(c.barLengthMm) : "",
+      sortOrder: c.sortOrder,
+    };
+  });
 }
 
 function initAccessories(data?: TemplateDetail): AccessoryRow[] {
@@ -95,7 +99,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
   }, [name, slugTouched, mode]);
 
   // ── Child arrays ──────────────────────────────────────────────────────────
-  const [components, setComponents] = useState<ComponentRow[]>(() => initComponents(initialData));
+  const [components, setComponents] = useState<ComponentRow[]>(() => initComponents(initialData, materials));
   const [glass, setGlass] = useState<GlassRow>(() => initGlass(initialData));
   const [accessories, setAccessories] = useState<AccessoryRow[]>(() => initAccessories(initialData));
 
@@ -336,6 +340,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
       {/* ── SECTION 2: Profile Components ─────────────────────────────────── */}
       <ComponentsSection
         rows={components}
+        categories={categories}
         materials={materials}
         onChange={updateComp}
         onAdd={addComp}

@@ -5,6 +5,7 @@
 
 export type ComponentRow = {
   _key: string;
+  categoryId: string; // Used to filter the materials dropdown
   materialId: string;
   label: string;
   formula: string;
@@ -37,6 +38,7 @@ export type GlassRow = {
 export function makeEmptyComponent(order: number): ComponentRow {
   return {
     _key: `c-${Date.now()}-${order}`,
+    categoryId: "",
     materialId: "",
     label: "",
     formula: "",
