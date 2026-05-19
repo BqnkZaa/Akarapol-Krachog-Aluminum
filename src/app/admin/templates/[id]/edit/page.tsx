@@ -6,6 +6,7 @@ import {
   getCategoriesForDropdown,
   getMaterialsForDropdown,
   getAccessoriesForDropdown,
+  getGlassesForDropdown,
 } from "@/actions/template";
 import TemplateForm from "@/components/TemplateForm";
 
@@ -22,11 +23,12 @@ export default async function EditTemplatePage({
 }) {
   const { id } = await params;
 
-  const [template, categories, materials, accessories] = await Promise.all([
+  const [template, categories, materials, accessories, glasses] = await Promise.all([
     getTemplateById(id),
     getCategoriesForDropdown(),
     getMaterialsForDropdown(),
     getAccessoriesForDropdown(),
+    getGlassesForDropdown(),
   ]);
 
   if (!template) notFound();
@@ -67,6 +69,7 @@ export default async function EditTemplatePage({
           categories={categories}
           materials={materials}
           accessories={accessories}
+          glasses={glasses}
         />
       </div>
     </div>

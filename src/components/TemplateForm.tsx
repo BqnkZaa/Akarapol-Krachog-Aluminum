@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   createTemplate, updateTemplate,
-  type CategoryOption, type MaterialOption, type TemplateDetail, type AccessoryOption,
+  type CategoryOption, type MaterialOption, type TemplateDetail, type AccessoryOption, type GlassOption,
 } from "@/actions/template";
 import { validateFormula } from "@/lib/formulaParser";
 import {
@@ -20,8 +20,8 @@ import {
 
 // ── Props ────────────────────────────────────────────────────────────────────
 type Props =
-  | { mode: "create"; initialData?: undefined; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[] }
-  | { mode: "edit"; initialData: TemplateDetail; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[] };
+  | { mode: "create"; initialData?: undefined; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[]; glasses: GlassOption[] }
+  | { mode: "edit"; initialData: TemplateDetail; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[]; glasses: GlassOption[] };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const inp = "w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow";
@@ -350,7 +350,7 @@ export default function TemplateForm(props: Props) {
       />
 
       {/* ── SECTION 3: Glass Specification ────────────────────────────────── */}
-      <GlassSection glass={glass} onChange={updateGlass} />
+      <GlassSection glass={glass} glasses={props.glasses} onChange={updateGlass} />
 
       {/* ── SECTION 4: Accessories ────────────────────────────────────────── */}
       <AccessoriesSection

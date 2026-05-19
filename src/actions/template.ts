@@ -783,3 +783,23 @@ export async function getAccessoriesForDropdown(): Promise<AccessoryOption[]> {
   });
   return accs;
 }
+
+/** Minimal glass option for the template glass section dropdown */
+export type GlassOption = {
+  id: string;
+  name: string;
+  thicknessMm: number | null;
+  pricePerSqM: number;
+};
+
+/**
+ * Fetch all active glass types for the template glass section dropdown.
+ */
+export async function getGlassesForDropdown(): Promise<GlassOption[]> {
+  const glasses = await prisma.glass.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, thicknessMm: true, pricePerSqM: true },
+  });
+  return glasses;
+}

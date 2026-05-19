@@ -361,3 +361,122 @@ export async function deleteAccessory(id: string): Promise<AdminActionResult> {
     return { success: false, error: "Failed to delete accessory." };
   }
 }
+
+// ─── Glass ──────────────────────────────────────────────────────────────────
+
+export type CreateGlassPayload = {
+  name: string;
+  thicknessMm?: number;
+  pricePerSqM: number;
+  description?: string;
+  sortOrder?: number;
+};
+
+export type UpdateGlassPayload = {
+  id: string;
+  name: string;
+  thicknessMm: number | null;
+  pricePerSqM: number;
+  description: string | null;
+};
+
+/**
+ * Create a new Glass master record.
+ */
+export async function createGlass(payload: CreateGlassPayload): Promise<AdminActionResult> {
+  try {
+    if (!payload.name?.trim()) return { success: false, error: "กรุณากรอกชื่อกระจก" };
+    if (payload.pricePerSqM < 0) return { success: false, error: "ราคาต่อตารางเมตรต้องไม่ติดลบ" };
+
+    // Duplicate name check
+    const existing = await prisma.glass.findUnique({
+      where: { name: payload.name.trim() },
+      select: { id: true },
+    });
+    if (existing) {
+      return { success: false, error: `ชื่อกระจก "${payload.name.trim()}" มีอยู่ในระบบแล้ว` };
+    }
+
+    const glass = await prisma.glass.create({
+      data: {
+        name: payload.name.trim(),
+        thicknessMm: payload.thicknessMm ?? null,
+        pricePerSqM: payload.pricePerSqM,
+        description: payload.description?.trim() ?? null,
+        sortOrder: payload.sortOrder ?? 0,
+      },
+    });
+
+    revalidatePath("/admin/glass");
+    return { success: true, id: glass.id };
+  } catch (err) {
+    console.error("[createGlass] Error:", err);
+    return { success: false, error: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง" };
+  }
+}
+
+/**
+ * Update an existing Glass master record.
+ */
+export async function updateGlass(payload: UpdateGlassPayload): Promise<AdminActionResult> {
+  try {
+    if (!payload.id) return { success: false, error: "ไม่พบ ID ของกระจก" };
+    if (!payload.name?.trim()) return { success: false, error: "กรุณากรอกชื่อกระจก" };
+    if (payload.pricePerSqM < 0) return { success: false, error: "ราคาต่อตารางเมตรต้องไม่ติดลบ" };
+
+    // Check for duplicate name (excluding self)
+    const existing = await prisma.glass.findUnique({
+      where: { name: payload.name.trim() },
+      select: { id: true },
+    });
+    if (existing && existing.id !== payload.id) {
+      return { success: false, error: `ชื่อกระจก "${payload.name.trim()}" ถูกใช้งานแล้ว` };
+    }
+
+    await prisma.glass.update({
+      where: { id: payload.id },
+      data: {
+        name: payload.name.trim(),
+        thicknessMm: payload.thicknessMm,
+        pricePerSqM: payload.pricePerSqM,
+        description: payload.description,
+      },
+    });
+
+    revalidatePath("/admin/glass");
+    return { success: true, id: payload.id };
+  } catch (err) {
+    console.error("[updateGlass] Error:", err);
+    if (err instanceof Error) return { success: false, error: err.message };
+    return { success: false, error: "ไม่สามารถอัปเดตข้อมูลกระจกได้" };
+  }
+}
+
+/**
+ * Delete a Glass record.
+ * Hard-delete first; soft-delete (isActive=false) if FK constraint triggered.
+ */
+export async function deleteGlass(id: string): Promise<AdminActionResult> {
+  try {
+    await prisma.glass.delete({ where: { id } });
+    revalidatePath("/admin/glass");
+    return { success: true, id };
+  } catch (err: any) {
+    if (err.code === "P2003") {
+      try {
+        await prisma.glass.update({
+          where: { id },
+          data: { isActive: false },
+        });
+        revalidatePath("/admin/glass");
+        return { success: true, id };
+      } catch (softErr) {
+        console.error("[deleteGlass] Soft Delete Error:", softErr);
+        return { success: false, error: "ไม่สามารถปิดใช้งานกระจกได้" };
+      }
+    }
+
+    console.error("[deleteGlass] Error:", err);
+    return { success: false, error: "ไม่สามารถลบข้อมูลกระจกได้" };
+  }
+}

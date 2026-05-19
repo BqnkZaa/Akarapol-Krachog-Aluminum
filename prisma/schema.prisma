@@ -185,6 +185,43 @@ model AccessoryVariant {
 }
 
 // =============================================================
+// GLASS MASTER DATA — Centralized glass type catalog
+// =============================================================
+//
+// Glass types are stored here for admin management (CRUD).
+// The Template Form uses this as a lookup to auto-populate
+// GlassSpecification.glassType (String) and .pricePerSqM (Float).
+//
+// DESIGN NOTE: GlassSpecification intentionally stores snapshots
+// (not a FK to this table) — identical to how TemplateAccessory
+// stores name/unitCost snapshots instead of an Accessory FK.
+// This ensures saved quotations are immutable to future price changes.
+
+/// A glass type entry in the master catalog.
+/// e.g. "กระจกใส 6มม.", "กระจกเทมเปอร์ 8มม.", "กระจกสูญญากาศ"
+model Glass {
+  id          String  @id @default(cuid())
+
+  /// Display name shown in dropdowns and on quotes, e.g. "กระจกใส 6มม."
+  name        String  @unique
+
+  /// Thickness in millimeters (optional, informational only)
+  thicknessMm Int?
+
+  /// Retail price per square meter (THB/m²)
+  pricePerSqM Float
+
+  description String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("glass_types")
+}
+
+// =============================================================
 // TEMPLATE LAYER — Parametric Door/Window Models
 // =============================================================
 

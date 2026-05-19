@@ -12,6 +12,7 @@ import {
   FileBox,
   History,
   Wrench,
+  FlaskConical,
   Menu,
   X,
 } from "lucide-react";
@@ -45,6 +46,7 @@ const navSections: NavSection[] = [
       { href: "/materials", label: "วัสดุ", icon: Layers, exact: false },
       { href: "/materials/new", label: "เพิ่มวัสดุใหม่", icon: PlusCircle, exact: true },
       { href: "/admin/accessories", label: "อุปกรณ์เสริม", icon: Wrench, exact: false },
+      { href: "/admin/glass", label: "กระจก", icon: FlaskConical, exact: false },
     ],
   },
 ];

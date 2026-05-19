@@ -4,6 +4,7 @@ import {
   getCategoriesForDropdown,
   getMaterialsForDropdown,
   getAccessoriesForDropdown,
+  getGlassesForDropdown,
 } from "@/actions/template";
 import TemplateForm from "@/components/TemplateForm";
 
@@ -14,10 +15,11 @@ export const metadata = {
 };
 
 export default async function NewTemplatePage() {
-  const [categories, materials, accessories] = await Promise.all([
+  const [categories, materials, accessories, glasses] = await Promise.all([
     getCategoriesForDropdown(),
     getMaterialsForDropdown(),
     getAccessoriesForDropdown(),
+    getGlassesForDropdown(),
   ]);
 
   return (
@@ -50,6 +52,7 @@ export default async function NewTemplatePage() {
           categories={categories}
           materials={materials}
           accessories={accessories}
+          glasses={glasses}
         />
       </div>
     </div>
