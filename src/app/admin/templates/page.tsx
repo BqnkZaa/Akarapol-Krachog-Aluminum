@@ -179,12 +179,12 @@ export default async function TemplatesPage() {
 
                           {/* Bar length / Kerf */}
                           <td className="py-4 px-4 text-center">
-                            <span className="text-xs text-gray-600 font-mono">
-                              {(t.standardBarLengthMm / 1000).toFixed(1)}m
+                            <span className="text-xs text-gray-600 font-mono" title="ความยาวเส้นเต็ม">
+                              {(t.standardBarLengthMm / 10).toFixed(1)} ซม.
                             </span>
                             <span className="text-gray-300 mx-1">/</span>
-                            <span className="text-xs text-gray-600 font-mono">
-                              {t.kerfMm}mm
+                            <span className="text-xs text-gray-600 font-mono" title="ใบเลื่อยตัดทิ้ง (Kerf)">
+                              {(t.kerfMm / 10).toFixed(1)} ซม.
                             </span>
                           </td>
 

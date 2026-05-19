@@ -309,11 +309,11 @@ export default function TemplateForm({ mode, initialData, categories, materials 
             {/* Bar length */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                ความยาวเส้นเต็ม (มม.) <span className="text-red-500">*</span>
+                ความยาวเส้นเต็ม (ซม.) <span className="text-red-500">*</span>
               </label>
-              <input type="number" min={100} value={barLengthMm}
-                onChange={e => setBarLengthMm(parseInt(e.target.value) || 6000)} className={inp} />
-              <p className="text-xs text-gray-400 mt-1">มาตรฐานไทย: 6000 มม. ใช้ 6400 สำหรับสินค้านำเข้า</p>
+              <input type="number" min={10} value={barLengthMm / 10}
+                onChange={e => setBarLengthMm((parseFloat(e.target.value) || 600) * 10)} className={inp} />
+              <p className="text-xs text-gray-400 mt-1">มาตรฐานไทย: 600 ซม. | นำเข้า: 640 ซม.</p>
             </div>
 
 

@@ -156,10 +156,10 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Bar length override */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    ความยาวเส้นเต็ม (มม.) กำหนดเอง
+                    ความยาวเส้นเต็ม (ซม.) — กำหนดเอง
                   </label>
-                  <input type="number" min={1} value={row.barLengthMm}
-                    onChange={e => onChange(idx, "barLengthMm", e.target.value)}
+                  <input type="number" min={1} value={row.barLengthMm ? Number(row.barLengthMm) / 10 : ""}
+                    onChange={e => onChange(idx, "barLengthMm", e.target.value ? String(Number(e.target.value) * 10) : "")}
                     placeholder="เว้นว่างไว้เพื่อใช้ค่าเริ่มต้นของรูปแบบงาน"
                     className={`${inpSm} w-full`} />
                 </div>
@@ -167,7 +167,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Formula */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    สูตรคำนวณ (W/H ในหน่วย มม.) <span className="text-red-500">*</span>
+                    สูตรคำนวณ — W/H หน่วย ซม. <span className="text-red-500">*</span>
                   </label>
                   <input type="text" value={row.formula}
                     onChange={e => onChange(idx, "formula", e.target.value)}
@@ -224,7 +224,7 @@ export function GlassSection({ glass, onChange }: GlassSectionProps) {
             {/* Width formula */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
-                สูตรความกว้าง (มม.) <span className="text-red-500">*</span>
+                สูตรความกว้างกระจก (ผลลัพธ์หน่วย ซม.) <span className="text-red-500">*</span>
               </label>
               <input type="text" value={glass.widthFormula}
                 onChange={e => onChange("widthFormula", e.target.value)}
@@ -238,7 +238,7 @@ export function GlassSection({ glass, onChange }: GlassSectionProps) {
             {/* Height formula */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
-                สูตรความสูง (มม.) <span className="text-red-500">*</span>
+                สูตรความสูงกระจก (ผลลัพธ์หน่วย ซม.) <span className="text-red-500">*</span>
               </label>
               <input type="text" value={glass.heightFormula}
                 onChange={e => onChange("heightFormula", e.target.value)}
