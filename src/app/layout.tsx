@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
-import BottomNav from "@/components/BottomNav";
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -34,12 +32,9 @@ export default function RootLayout({
         <Sidebar />
 
         {/* Page content — takes remaining width */}
-        <div className="flex-1 min-w-0 overflow-x-hidden pb-16 md:pb-0">
+        <div className="flex-1 min-w-0 overflow-x-hidden">
           {children}
         </div>
-
-        {/* Bottom Nav — mobile only */}
-        <BottomNav />
       </body>
     </html>
   );

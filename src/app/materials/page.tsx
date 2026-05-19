@@ -108,7 +108,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Materials</h1>
             <p className="text-sm text-gray-500 mt-0.5">
@@ -128,7 +128,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
 
       {/* Filters Bar */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex flex-col sm:flex-row gap-3">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <form method="GET" action="/materials" className="flex-1 flex gap-2">
             {categoryId && <input type="hidden" name="cat" value={categoryId} />}
@@ -168,7 +168,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6 md:space-y-10">
         {materials.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
             <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -205,7 +205,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
             {/* Table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[800px]">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/70">
                       <th className="text-left py-3 px-4 sm:px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">

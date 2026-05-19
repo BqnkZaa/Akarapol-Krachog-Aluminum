@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   createTemplate, updateTemplate,
-  type CategoryOption, type MaterialOption, type TemplateDetail,
+  type CategoryOption, type MaterialOption, type TemplateDetail, type AccessoryOption,
 } from "@/actions/template";
 import { validateFormula } from "@/lib/formulaParser";
 import {
@@ -20,8 +20,8 @@ import {
 
 // ── Props ────────────────────────────────────────────────────────────────────
 type Props =
-  | { mode: "create"; initialData?: undefined; categories: CategoryOption[]; materials: MaterialOption[] }
-  | { mode: "edit"; initialData: TemplateDetail; categories: CategoryOption[]; materials: MaterialOption[] };
+  | { mode: "create"; initialData?: undefined; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[] }
+  | { mode: "edit"; initialData: TemplateDetail; categories: CategoryOption[]; materials: MaterialOption[]; accessories: AccessoryOption[] };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const inp = "w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow";
@@ -77,7 +77,8 @@ function initGlass(data?: TemplateDetail): GlassRow {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-export default function TemplateForm({ mode, initialData, categories, materials }: Props) {
+export default function TemplateForm(props: Props) {
+  const { mode, initialData, categories, materials } = props;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -259,7 +260,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Category */}
             <div className="sm:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -354,6 +355,7 @@ export default function TemplateForm({ mode, initialData, categories, materials 
       {/* ── SECTION 4: Accessories ────────────────────────────────────────── */}
       <AccessoriesSection
         rows={accessories}
+        accessoryOptions={props.accessories}
         onChange={updateAcc}
         onAdd={addAcc}
         onRemove={removeAcc}

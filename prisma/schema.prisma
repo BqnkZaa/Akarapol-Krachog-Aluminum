@@ -118,10 +118,70 @@ model Color {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  variants MaterialVariant[]
-  projects EstimationProject[]
+  variants          MaterialVariant[]
+  accessoryVariants AccessoryVariant[]
+  projects          EstimationProject[]
 
   @@map("colors")
+}
+
+// =============================================================
+// ACCESSORIES MASTER DATA — Hardware items (hinges, rollers, handles, etc.)
+// These are distinct from Material (aluminum bar profiles).
+// Accessories are sold by piece/roll/pack, not by linear meter.
+// =============================================================
+
+/// A hardware/accessory item, e.g. a hinge, roller set, handle, or sealant.
+/// Analogous to Material but for non-profile components.
+model Accessory {
+  id         String  @id @default(cuid())
+
+  /// Catalog code from the accessories price list, e.g. "AKL-SMBF001"
+  code       String  @unique
+
+  /// Human-readable name in Thai/English
+  name       String
+
+  /// Selling unit: "ชิ้น" (piece), "ม้วน" (roll), "แพค" (pack), "เส้น" (bar)
+  unit       String  @default("ชิ้น")
+
+  /// Base cost per unit BEFORE color markup (THB)
+  baseCost   Float   @default(0)
+
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants AccessoryVariant[]
+
+  @@map("accessories")
+}
+
+/// Color-specific pricing for an accessory item.
+model AccessoryVariant {
+  id          String @id @default(cuid())
+  accessoryId String
+  colorId     String
+
+  /// Unit cost for this accessory + color combination (THB per unit)
+  unitCost Float
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accessory Accessory @relation(fields: [accessoryId], references: [id], onDelete: Cascade)
+  color     Color     @relation(fields: [colorId], references: [id], onDelete: Restrict)
+
+  @@unique([accessoryId, colorId])
+  @@index([accessoryId])
+  @@index([colorId])
+  @@map("accessory_variants")
 }
 
 // =============================================================

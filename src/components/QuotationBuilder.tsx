@@ -102,7 +102,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   if (result) {
     const { summary, cuttingResults, glassDetail, accessories } = result;
     return (
-      <div className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:p-0">
+      <div className="max-w-7xl mx-auto p-3 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 print:block print:p-0">
 
         {/* Left Column: BOM & Cut Sheet */}
         <div className="lg:col-span-8 space-y-8 print:w-full">
@@ -134,7 +134,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-100 text-sm">
                   <div>
                     <p className="text-gray-500 mb-1">รูปแบบงาน</p>
                     <p className="font-semibold text-gray-900 leading-tight">{result.templateName}</p>
@@ -359,9 +359,9 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   </>
                 )}
 
-                <div className="flex justify-between items-end pt-4 mt-4 border-t border-gray-700 print:border-gray-300">
+                <div className="flex justify-between items-end pt-4 mt-4 border-t border-gray-700 print:border-gray-300 flex-wrap gap-2">
                   <span className="text-base text-gray-400 print:text-gray-600 mb-1">ราคาสุทธิ</span>
-                  <span className="text-3xl font-extrabold text-white print:text-black leading-none">
+                  <span className="text-2xl md:text-3xl font-extrabold text-white print:text-black leading-none break-all sm:break-normal">
                     ฿{summary.finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>

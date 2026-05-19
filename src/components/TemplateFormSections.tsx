@@ -2,7 +2,7 @@
 
 import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers } from "lucide-react";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
-import type { MaterialOption, CategoryOption } from "@/actions/template";
+import type { MaterialOption, CategoryOption, AccessoryOption } from "@/actions/template";
 
 // ── Shared input styles ──────────────────────────────────────────────────────
 const inp = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow";
@@ -84,7 +84,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
               </div>
 
               {/* Row fields — 2-col grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Category */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -220,7 +220,7 @@ export function GlassSection({ glass, onChange }: GlassSectionProps) {
         </div>
 
         {glass.enabled && (
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Width formula */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -284,13 +284,14 @@ export function GlassSection({ glass, onChange }: GlassSectionProps) {
 // ════════════════════════════════════════════════════════════════════════════
 type AccessoriesSectionProps = {
   rows: AccessoryRow[];
+  accessoryOptions: AccessoryOption[];
   onChange: (idx: number, field: keyof AccessoryRow, value: string | number) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
 };
 
-export function AccessoriesSection({ rows, onChange, onAdd, onRemove, onMove }: AccessoriesSectionProps) {
+export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, onRemove, onMove }: AccessoriesSectionProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
@@ -339,12 +340,33 @@ export function AccessoriesSection({ rows, onChange, onAdd, onRemove, onMove }: 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {/* Name */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {/* Name Dropdown */}
                 <div className="col-span-2 sm:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">ชื่ออุปกรณ์ <span className="text-red-500">*</span></label>
-                  <input type="text" value={row.name} onChange={e => onChange(idx, "name", e.target.value)}
-                    placeholder='เช่น "ชุดล้อบานเลื่อน"' className={inp} />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    ชื่ออุปกรณ์ <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={row.name}
+                    onChange={(e) => {
+                      const selectedName = e.target.value;
+                      onChange(idx, "name", selectedName);
+                      
+                      const acc = accessoryOptions.find((a) => a.name === selectedName);
+                      if (acc) {
+                        onChange(idx, "unit", acc.unit);
+                        onChange(idx, "unitCost", acc.baseCost);
+                      }
+                    }}
+                    className={inp}
+                  >
+                    <option value="">— เลือกอุปกรณ์เสริม —</option>
+                    {accessoryOptions.map((acc) => (
+                      <option key={acc.id} value={acc.name}>
+                        {acc.code} — {acc.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Unit */}

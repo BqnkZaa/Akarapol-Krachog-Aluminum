@@ -762,3 +762,24 @@ export async function getCategoriesForDropdown(): Promise<CategoryOption[]> {
   });
   return cats;
 }
+
+/** Minimal accessory option for the template accessories dropdown */
+export type AccessoryOption = {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  baseCost: number;
+};
+
+/**
+ * Fetch all active accessories for the template accessories dropdown.
+ */
+export async function getAccessoriesForDropdown(): Promise<AccessoryOption[]> {
+  const accs = await prisma.accessory.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, code: true, name: true, unit: true, baseCost: true },
+  });
+  return accs;
+}

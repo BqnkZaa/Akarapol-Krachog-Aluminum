@@ -209,3 +209,155 @@ export async function deleteMaterial(id: string): Promise<AdminActionResult> {
     return { success: false, error: "Failed to delete material." };
   }
 }
+
+// ─── Accessories ────────────────────────────────────────────────────
+
+export type AccessoryVariantInput = {
+  colorId: string;
+  unitCost: number;
+};
+
+export type CreateAccessoryPayload = {
+  code: string;
+  name: string;
+  unit: string;
+  baseCost?: number;
+  description?: string;
+  sortOrder?: number;
+  variants: AccessoryVariantInput[];
+};
+
+export async function createAccessory(payload: CreateAccessoryPayload): Promise<AdminActionResult> {
+  try {
+    if (!payload.code?.trim()) return { success: false, error: "Accessory code is required." };
+    if (!payload.name?.trim()) return { success: false, error: "Accessory name is required." };
+    if (!payload.unit?.trim()) return { success: false, error: "Unit is required." };
+
+    if (!payload.variants || payload.variants.length === 0) {
+      return { success: false, error: "At least one color variant with a price is required." };
+    }
+
+    for (const v of payload.variants) {
+      if (!v.colorId) return { success: false, error: "Each variant must have a color selected." };
+      if (v.unitCost < 0) return { success: false, error: "Unit cost cannot be negative." };
+    }
+
+    const existing = await prisma.accessory.findUnique({
+      where: { code: payload.code.trim() },
+      select: { id: true },
+    });
+    if (existing) {
+      return { success: false, error: `Accessory code "${payload.code}" already exists.` };
+    }
+
+    const accessory = await prisma.$transaction(async (tx) => {
+      const acc = await tx.accessory.create({
+        data: {
+          code: payload.code.trim(),
+          name: payload.name.trim(),
+          unit: payload.unit.trim(),
+          baseCost: payload.baseCost ?? 0,
+          description: payload.description?.trim() ?? null,
+          sortOrder: payload.sortOrder ?? 0,
+        },
+      });
+
+      await tx.accessoryVariant.createMany({
+        data: payload.variants.map((v) => ({
+          accessoryId: acc.id,
+          colorId: v.colorId,
+          unitCost: v.unitCost,
+        })),
+      });
+
+      return acc;
+    });
+
+    revalidatePath("/admin/accessories");
+    return { success: true, id: accessory.id };
+  } catch (err) {
+    console.error("[createAccessory] Error:", err);
+    return { success: false, error: "An unexpected server error occurred." };
+  }
+}
+
+export type UpdateAccessoryPayload = {
+  id: string;
+  name: string;
+  code: string;
+  variants: {
+    id: string;
+    unitCost: number;
+  }[];
+};
+
+export async function updateAccessory(payload: UpdateAccessoryPayload): Promise<AdminActionResult> {
+  try {
+    if (!payload.id) return { success: false, error: "Accessory ID is required." };
+    if (!payload.name?.trim()) return { success: false, error: "Accessory name is required." };
+    if (!payload.code?.trim()) return { success: false, error: "Accessory code is required." };
+
+    const existing = await prisma.accessory.findUnique({
+      where: { code: payload.code.trim() },
+      select: { id: true },
+    });
+    if (existing && existing.id !== payload.id) {
+      return { success: false, error: `Accessory code "${payload.code}" is already in use.` };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.accessory.update({
+        where: { id: payload.id },
+        data: {
+          name: payload.name.trim(),
+          code: payload.code.trim(),
+        },
+      });
+
+      for (const v of payload.variants) {
+        if (v.unitCost < 0) throw new Error("Unit cost cannot be negative.");
+        await tx.accessoryVariant.update({
+          where: { id: v.id },
+          data: { unitCost: v.unitCost },
+        });
+      }
+    });
+
+    revalidatePath("/admin/accessories");
+    return { success: true, id: payload.id };
+  } catch (err) {
+    console.error("[updateAccessory] Error:", err);
+    if (err instanceof Error) {
+       return { success: false, error: err.message };
+    }
+    return { success: false, error: "Failed to update accessory." };
+  }
+}
+
+export async function deleteAccessory(id: string): Promise<AdminActionResult> {
+  try {
+    await prisma.accessory.delete({
+      where: { id },
+    });
+
+    revalidatePath("/admin/accessories");
+    return { success: true, id };
+  } catch (err: any) {
+    if (err.code === "P2003") {
+      try {
+        await prisma.accessory.update({
+          where: { id },
+          data: { isActive: false },
+        });
+        revalidatePath("/admin/accessories");
+        return { success: true, id };
+      } catch (softErr) {
+        console.error("[deleteAccessory] Soft Delete Error:", softErr);
+        return { success: false, error: "Failed to deactivate accessory." };
+      }
+    }
+    
+    console.error("[deleteAccessory] Error:", err);
+    return { success: false, error: "Failed to delete accessory." };
+  }
+}

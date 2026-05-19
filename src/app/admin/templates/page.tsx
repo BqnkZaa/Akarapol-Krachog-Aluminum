@@ -38,7 +38,7 @@ export default async function TemplatesPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <Link href="/dashboard" className="hover:text-gray-600 transition-colors">
               หน้าหลัก
@@ -68,7 +68,7 @@ export default async function TemplatesPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6 md:space-y-10">
         {templates.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
             <FileBox className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -95,9 +95,10 @@ export default async function TemplatesPage() {
                 </span>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+              {/* Desktop Table */}
+              <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm min-w-[1000px]">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/70">
                         <th className="text-left py-3 px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide">
@@ -137,12 +138,9 @@ export default async function TemplatesPage() {
                           id={`template-row-${t.slug}`}
                           className={`hover:bg-gray-50/60 transition-colors ${!t.isActive ? "opacity-55" : ""}`}
                         >
-                          {/* Template name + slug */}
+                          {/* Template name */}
                           <td className="py-4 px-5">
                             <p className="font-semibold text-gray-900">{t.name}</p>
-                            <p className="text-xs font-mono text-gray-400 mt-0.5">
-                              /{t.slug}
-                            </p>
                             {t.description && (
                               <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">
                                 {t.description}
@@ -221,6 +219,64 @@ export default async function TemplatesPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {items.map((t) => (
+                  <div key={t.id} className={`bg-white rounded-2xl border border-gray-200 p-5 shadow-sm relative overflow-hidden ${!t.isActive ? "opacity-75 bg-gray-50" : ""}`}>
+                    <div className={`absolute top-0 left-0 w-full h-1 ${t.isActive ? "bg-green-500" : "bg-gray-300"}`} />
+                    
+                    <div className="flex justify-between items-start mb-3 mt-1">
+                      <div className="pr-2">
+                        <p className="font-bold text-gray-900 text-base">{t.name}</p>
+                      </div>
+                      <div className="shrink-0">
+                        <TemplateActions templateId={t.id} templateName={t.name} projectCount={t.projectCount} />
+                      </div>
+                    </div>
+                    
+                    {t.description && (
+                      <p className="text-sm text-gray-500 mb-4 line-clamp-2">{t.description}</p>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm mb-4 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> โปรไฟล์</span>
+                        <span className="font-semibold text-gray-900">{t.componentCount} ชิ้นส่วน</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5" /> อุปกรณ์</span>
+                        <span className="font-semibold text-gray-900">{t.accessoryCount || "—"}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> กระจก</span>
+                        <span className="font-semibold text-gray-900">{t.hasGlass ? "มี" : "—"}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 mb-0.5 flex items-center gap-1.5"><FileBox className="w-3.5 h-3.5" /> ประเมินแล้ว</span>
+                        <span className="font-semibold text-gray-900">{t.projectCount} ครั้ง</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        ตัดทิ้ง: <span className="font-mono">{(t.kerfMm / 10).toFixed(1)}</span> ซม.
+                      </div>
+                      <div>
+                        {t.isActive ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3" /> เปิดใช้งาน
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                            <XCircle className="w-3 h-3" /> ปิดใช้งาน
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           ))

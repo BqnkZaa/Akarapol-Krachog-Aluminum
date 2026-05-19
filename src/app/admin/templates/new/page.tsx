@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import {
   getCategoriesForDropdown,
   getMaterialsForDropdown,
+  getAccessoriesForDropdown,
 } from "@/actions/template";
 import TemplateForm from "@/components/TemplateForm";
 
@@ -13,9 +14,10 @@ export const metadata = {
 };
 
 export default async function NewTemplatePage() {
-  const [categories, materials] = await Promise.all([
+  const [categories, materials, accessories] = await Promise.all([
     getCategoriesForDropdown(),
     getMaterialsForDropdown(),
+    getAccessoriesForDropdown(),
   ]);
 
   return (
@@ -47,6 +49,7 @@ export default async function NewTemplatePage() {
           mode="create"
           categories={categories}
           materials={materials}
+          accessories={accessories}
         />
       </div>
     </div>
