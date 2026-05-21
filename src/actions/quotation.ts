@@ -182,7 +182,14 @@ export async function getQuotationById(id: string) {
 
     // Evaluate component lengths driven by the width/height formulas
     const components = project.template.components.map((comp) => {
-      const evalRes = evalFormula(comp.formula, { W: project.widthMm, H: project.heightMm });
+      const evalRes = evalFormula(comp.formula, {
+        W: project.widthMm,
+        H: project.heightMm,
+        H1: project.h1 || 0,
+        H2: project.h2 || project.heightMm,
+        W1: project.w1 || 0,
+        W2: project.w2 || project.widthMm,
+      });
       return {
         label: comp.label,
         formula: comp.formula,
@@ -218,8 +225,22 @@ export async function getQuotationById(id: string) {
     let glassDetail: any = null;
     if (project.template.glass) {
       const g = project.template.glass;
-      const glassWResult = evalFormula(g.widthFormula, { W: project.widthMm, H: project.heightMm });
-      const glassHResult = evalFormula(g.heightFormula, { W: project.widthMm, H: project.heightMm });
+      const glassWResult = evalFormula(g.widthFormula, {
+        W: project.widthMm,
+        H: project.heightMm,
+        H1: project.h1 || 0,
+        H2: project.h2 || project.heightMm,
+        W1: project.w1 || 0,
+        W2: project.w2 || project.widthMm,
+      });
+      const glassHResult = evalFormula(g.heightFormula, {
+        W: project.widthMm,
+        H: project.heightMm,
+        H1: project.h1 || 0,
+        H2: project.h2 || project.heightMm,
+        W1: project.w1 || 0,
+        W2: project.w2 || project.widthMm,
+      });
       const widthPerPanelMm = glassWResult.ok ? Math.round(glassWResult.value) : 0;
       const heightPerPanelMm = glassHResult.ok ? Math.round(glassHResult.value) : 0;
 
@@ -425,7 +446,14 @@ export async function updateQuotation(
 
       const formulaResult = evalFormulasBatch(
         formulaInputs,
-        { W, H },
+        {
+          W,
+          H,
+          H1: payload.h1 || 0,
+          H2: payload.h2 || H,
+          W1: payload.w1 || 0,
+          W2: payload.w2 || W,
+        },
         template.standardBarLengthMm
       );
 
@@ -504,8 +532,22 @@ export async function updateQuotation(
       if (template.glass) {
         const g = template.glass;
 
-        const glassWResult = evalFormula(g.widthFormula,  { W, H });
-        const glassHResult = evalFormula(g.heightFormula, { W, H });
+        const glassWResult = evalFormula(g.widthFormula,  {
+          W,
+          H,
+          H1: payload.h1 || 0,
+          H2: payload.h2 || H,
+          W1: payload.w1 || 0,
+          W2: payload.w2 || W,
+        });
+        const glassHResult = evalFormula(g.heightFormula, {
+          W,
+          H,
+          H1: payload.h1 || 0,
+          H2: payload.h2 || H,
+          W1: payload.w1 || 0,
+          W2: payload.w2 || W,
+        });
 
         if (!glassWResult.ok) {
           return {
@@ -593,6 +635,10 @@ export async function updateQuotation(
           colorId:    payload.colorId,
           widthMm:    W,
           heightMm:   H,
+          h1:         payload.h1 ?? null,
+          h2:         payload.h2 ?? null,
+          w1:         payload.w1 ?? null,
+          w2:         payload.w2 ?? null,
 
           profitMarginPercent: margin,
           laborCost:           laborCost,
@@ -658,6 +704,10 @@ export async function updateQuotation(
       colorName:      color.name,
       widthMm:        W,
       heightMm:       H,
+      w1:             payload.w1,
+      w2:             payload.w2,
+      h1:             payload.h1,
+      h2:             payload.h2,
       cuttingResults,
       glassDetail:    glassDetail,
       accessories,

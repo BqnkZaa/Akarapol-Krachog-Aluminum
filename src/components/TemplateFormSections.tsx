@@ -190,6 +190,9 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                     onChange={e => onChange(idx, "formula", e.target.value)}
                     placeholder='เช่น "H - 35" หรือ "W / 2 + 10"'
                     className={row.formulaError ? inpErr : inp} />
+                  <p className="text-xs text-gray-400 mt-1">
+                    ตัวแปรที่ใช้ได้: <strong className="text-gray-600">W</strong> (กว้าง), <strong className="text-gray-600">H</strong> (สูง), <strong className="text-gray-600">H1</strong> (ความสูงช่องบน), <strong className="text-gray-600">H2</strong> (ความสูงช่องล่าง), <strong className="text-gray-600">W1</strong> (ความกว้างช่องซ้าย), <strong className="text-gray-600">W2</strong> (ความกว้างช่องขวา)
+                  </p>
                   {row.formulaError ? (
                     <p className="text-xs text-red-600 mt-1 flex items-center gap-1">⚠ {row.formulaError}</p>
                   ) : row.formula && (
@@ -248,6 +251,9 @@ export function GlassSection({ glass, glasses, onChange }: GlassSectionProps) {
                 onChange={e => onChange("widthFormula", e.target.value)}
                 placeholder='e.g. "W / 2 - 30"'
                 className={glass.widthFormulaError ? inpErr : inp} />
+              <p className="text-xs text-gray-400 mt-1">
+                ตัวแปรที่ใช้ได้: W, H, W1, W2, H1, H2
+              </p>
               {glass.widthFormulaError
                 ? <p className="text-xs text-red-600 mt-1">⚠ {glass.widthFormulaError}</p>
                 : glass.widthFormula && <p className="text-xs text-green-600 mt-1">✓ ถูกต้อง</p>}
@@ -262,6 +268,9 @@ export function GlassSection({ glass, glasses, onChange }: GlassSectionProps) {
                 onChange={e => onChange("heightFormula", e.target.value)}
                 placeholder='e.g. "H - 80"'
                 className={glass.heightFormulaError ? inpErr : inp} />
+              <p className="text-xs text-gray-400 mt-1">
+                ตัวแปรที่ใช้ได้: W, H, W1, W2, H1, H2
+              </p>
               {glass.heightFormulaError
                 ? <p className="text-xs text-red-600 mt-1">⚠ {glass.heightFormulaError}</p>
                 : glass.heightFormula && <p className="text-xs text-green-600 mt-1">✓ ถูกต้อง</p>}

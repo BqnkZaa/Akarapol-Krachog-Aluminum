@@ -48,6 +48,10 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
   const [widthCm, setWidthCm] = useState<number>(200);
   const [heightCm, setHeightCm] = useState<number>(150);
+  const [h1Cm, setH1Cm] = useState<number | "">("");
+  const [h2Cm, setH2Cm] = useState<number | "">("");
+  const [w1Cm, setW1Cm] = useState<number | "">("");
+  const [w2Cm, setW2Cm] = useState<number | "">("");
   const [projectName, setProjectName] = useState("");
   const [customerName, setCustomerName] = useState("");
 
@@ -102,6 +106,10 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       setCustomerName(project.customerName || "");
       setWidthCm(project.widthMm / 10);
       setHeightCm(project.heightMm / 10);
+      setH1Cm(project.h1 !== null && project.h1 !== undefined ? project.h1 / 10 : "");
+      setH2Cm(project.h2 !== null && project.h2 !== undefined ? project.h2 / 10 : "");
+      setW1Cm(project.w1 !== null && project.w1 !== undefined ? project.w1 / 10 : "");
+      setW2Cm(project.w2 !== null && project.w2 !== undefined ? project.w2 / 10 : "");
       setMarginPercent(project.profitMarginPercent);
       setDiscountPercent(project.discountPercent);
 
@@ -150,6 +158,10 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         colorName: project.color.name,
         widthMm: project.widthMm,
         heightMm: project.heightMm,
+        w1: project.w1 ?? undefined,
+        w2: project.w2 ?? undefined,
+        h1: project.h1 ?? undefined,
+        h2: project.h2 ?? undefined,
         cuttingResults: project.cuttingResults as any,
         glassDetail: project.glassDetail as any,
         accessories: project.accessories as any,
@@ -165,6 +177,64 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   }, [editId, initialTemplates]);
 
   // --- Handlers ---
+  const handleWidthChange = (w: number) => {
+    setWidthCm(w);
+    if (w1Cm !== "" && typeof w1Cm === "number") {
+      setW2Cm(Math.max(0, parseFloat((w - w1Cm).toFixed(2))));
+    } else if (w2Cm !== "" && typeof w2Cm === "number") {
+      setW1Cm(Math.max(0, parseFloat((w - w2Cm).toFixed(2))));
+    }
+  };
+
+  const handleHeightChange = (h: number) => {
+    setHeightCm(h);
+    if (h1Cm !== "" && typeof h1Cm === "number") {
+      setH2Cm(Math.max(0, parseFloat((h - h1Cm).toFixed(2))));
+    } else if (h2Cm !== "" && typeof h2Cm === "number") {
+      setH1Cm(Math.max(0, parseFloat((h - h2Cm).toFixed(2))));
+    }
+  };
+
+  const handleW1Change = (val: string) => {
+    if (val === "") {
+      setW1Cm("");
+      return;
+    }
+    const num = Number(val);
+    setW1Cm(num);
+    setW2Cm(Math.max(0, parseFloat((widthCm - num).toFixed(2))));
+  };
+
+  const handleW2Change = (val: string) => {
+    if (val === "") {
+      setW2Cm("");
+      return;
+    }
+    const num = Number(val);
+    setW2Cm(num);
+    setW1Cm(Math.max(0, parseFloat((widthCm - num).toFixed(2))));
+  };
+
+  const handleH1Change = (val: string) => {
+    if (val === "") {
+      setH1Cm("");
+      return;
+    }
+    const num = Number(val);
+    setH1Cm(num);
+    setH2Cm(Math.max(0, parseFloat((heightCm - num).toFixed(2))));
+  };
+
+  const handleH2Change = (val: string) => {
+    if (val === "") {
+      setH2Cm("");
+      return;
+    }
+    const num = Number(val);
+    setH2Cm(num);
+    setH1Cm(Math.max(0, parseFloat((heightCm - num).toFixed(2))));
+  };
+
   const handleSelectTemplate = (template: TemplateOption) => {
     setSelectedTemplate(template);
     setSelectedColor(null);
@@ -192,6 +262,10 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       colorId: selectedColor.id,
       widthMm: widthCm * 10,
       heightMm: heightCm * 10,
+      h1: h1Cm !== "" ? Number(h1Cm) * 10 : undefined,
+      h2: h2Cm !== "" ? Number(h2Cm) * 10 : undefined,
+      w1: w1Cm !== "" ? Number(w1Cm) * 10 : undefined,
+      w2: w2Cm !== "" ? Number(w2Cm) * 10 : undefined,
       projectName,
       customerName,
       profitMarginPercent: marginPercent,
@@ -363,6 +437,10 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       colorId: selectedColor?.id || "",
       widthMm: widthCm * 10,
       heightMm: heightCm * 10,
+      h1: h1Cm !== "" ? Number(h1Cm) * 10 : undefined,
+      h2: h2Cm !== "" ? Number(h2Cm) * 10 : undefined,
+      w1: w1Cm !== "" ? Number(w1Cm) * 10 : undefined,
+      w2: w2Cm !== "" ? Number(w2Cm) * 10 : undefined,
       projectName,
       customerName,
       profitMarginPercent: marginPercent,
@@ -471,10 +549,20 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <div>
                     <p className="text-gray-500 mb-1">ความกว้าง (W)</p>
                     <p className="font-semibold text-gray-900">{(result.widthMm / 10).toLocaleString()} ซม.</p>
+                    {((result as any).w1 !== undefined && (result as any).w1 !== null || (result as any).w2 !== undefined && (result as any).w2 !== null) && (
+                      <p className="text-[11px] text-gray-400 mt-0.5 leading-none">
+                        (ซ้าย W1: {(result as any).w1 ? ((result as any).w1 / 10).toLocaleString() : "0"} / ขวา W2: {(result as any).w2 ? ((result as any).w2 / 10).toLocaleString() : ((result.widthMm - ((result as any).w1 || 0)) / 10).toLocaleString()} ซม.)
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-gray-500 mb-1">ความสูง (H)</p>
                     <p className="font-semibold text-gray-900">{(result.heightMm / 10).toLocaleString()} ซม.</p>
+                    {((result as any).h1 !== undefined && (result as any).h1 !== null || (result as any).h2 !== undefined && (result as any).h2 !== null) && (
+                      <p className="text-[11px] text-gray-400 mt-0.5 leading-none">
+                        (บน H1: {(result as any).h1 ? ((result as any).h1 / 10).toLocaleString() : "0"} / ล่าง H2: {(result as any).h2 ? ((result as any).h2 / 10).toLocaleString() : ((result.heightMm - ((result as any).h1 || 0)) / 10).toLocaleString()} ซม.)
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1220,7 +1308,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <div className="relative">
                     <input
                       type="number" min="10" max="1000" step="0.5"
-                      value={widthCm} onChange={(e) => setWidthCm(Number(e.target.value))}
+                      value={widthCm} onChange={(e) => handleWidthChange(Number(e.target.value))}
                       className="w-full pl-4 pr-16 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">ซม.</span>
@@ -1231,7 +1319,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   <div className="relative">
                     <input
                       type="number" min="10" max="1000" step="0.5"
-                      value={heightCm} onChange={(e) => setHeightCm(Number(e.target.value))}
+                      value={heightCm} onChange={(e) => handleHeightChange(Number(e.target.value))}
                       className="w-full pl-4 pr-16 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">ซม.</span>
@@ -1246,6 +1334,88 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                       value={setsCount} onChange={(e) => setSetsCount(Math.max(1, parseInt(e.target.value) || 1))}
                       className="w-full pl-4 pr-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-semibold text-gray-900"
                     />
+                  </div>
+                </div>
+
+                <div className="col-span-full mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm">
+                  <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                    การกำหนดช่องแสงและช่องข้าง (Parametric Transoms & Sidelights)
+                  </h4>
+                  <p className="text-xs text-slate-500 mb-6">
+                    สำหรับงานอลูมิเนียมที่มีช่องแสงด้านบน/ด้านล่าง หรือช่องข้าง (ช่องซ้าย/ขวา) 
+                    ระบบจะคำนวณ H1, H2, W1, W2 และป้อนเข้าสู่สูตรการประเมินราคาโดยอัตโนมัติ 
+                    (โดยความสูงรวม H = H1 + H2 และความกว้างรวม W = W1 + W2)
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Width Sub-dimensions */}
+                    <div className="space-y-4 bg-white p-4 rounded-xl border border-slate-100 shadow-inner-sm">
+                      <h5 className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-1.5 flex items-center justify-between">
+                        <span>สัดส่วนความกว้าง (Width Panels)</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-mono">W = {widthCm} ซม.</span>
+                      </h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1.5">ช่องซ้าย W1 (ซม.)</label>
+                          <div className="relative">
+                            <input
+                              type="number" min="0" max={widthCm} step="0.5"
+                              value={w1Cm} onChange={(e) => handleW1Change(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold text-slate-800"
+                              placeholder="ช่องซ้าย"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium font-mono">ซม.</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1.5">ช่องขวา W2 (ซม.)</label>
+                          <div className="relative">
+                            <input
+                              type="number" min="0" max={widthCm} step="0.5"
+                              value={w2Cm} onChange={(e) => handleW2Change(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold text-slate-800"
+                              placeholder="ช่องขวา"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium font-mono">ซม.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Height Sub-dimensions */}
+                    <div className="space-y-4 bg-white p-4 rounded-xl border border-slate-100 shadow-inner-sm">
+                      <h5 className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-1.5 flex items-center justify-between">
+                        <span>สัดส่วนความสูง (Height Panels)</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-mono">H = {heightCm} ซม.</span>
+                      </h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1.5">ช่องบน H1 (ซม.)</label>
+                          <div className="relative">
+                            <input
+                              type="number" min="0" max={heightCm} step="0.5"
+                              value={h1Cm} onChange={(e) => handleH1Change(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold text-slate-800"
+                              placeholder="ช่องบน"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium font-mono">ซม.</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1.5">ช่องล่าง H2 (ซม.)</label>
+                          <div className="relative">
+                            <input
+                              type="number" min="0" max={heightCm} step="0.5"
+                              value={h2Cm} onChange={(e) => handleH2Change(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold text-slate-800"
+                              placeholder="ช่องล่าง"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium font-mono">ซม.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

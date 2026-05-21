@@ -64,6 +64,10 @@ interface Token {
 export interface FormulaVariables {
   W: number; // Width in mm (user input)
   H: number; // Height in mm (user input)
+  W1?: number;
+  W2?: number;
+  H1?: number;
+  H2?: number;
 }
 
 // ─── Result Types ─────────────────────────────────────────────────────────────
@@ -108,15 +112,31 @@ function tokenize(formula: string): Token[] {
       continue;
     }
 
-    // Variables: W or H (case-insensitive)
+    // Variables: W, H, W1, W2, H1, H2 (case-insensitive)
     if (ch === "W" || ch === "w") {
-      tokens.push({ type: "VARIABLE", value: "W" });
-      i++;
+      if (i + 1 < formula.length && formula[i + 1] === "1") {
+        tokens.push({ type: "VARIABLE", value: "W1" });
+        i += 2;
+      } else if (i + 1 < formula.length && formula[i + 1] === "2") {
+        tokens.push({ type: "VARIABLE", value: "W2" });
+        i += 2;
+      } else {
+        tokens.push({ type: "VARIABLE", value: "W" });
+        i++;
+      }
       continue;
     }
     if (ch === "H" || ch === "h") {
-      tokens.push({ type: "VARIABLE", value: "H" });
-      i++;
+      if (i + 1 < formula.length && formula[i + 1] === "1") {
+        tokens.push({ type: "VARIABLE", value: "H1" });
+        i += 2;
+      } else if (i + 1 < formula.length && formula[i + 1] === "2") {
+        tokens.push({ type: "VARIABLE", value: "H2" });
+        i += 2;
+      } else {
+        tokens.push({ type: "VARIABLE", value: "H" });
+        i++;
+      }
       continue;
     }
 
@@ -253,6 +273,10 @@ class Parser {
       this.consume("VARIABLE");
       if (tok.value === "W") return this.vars.W;
       if (tok.value === "H") return this.vars.H;
+      if (tok.value === "W1") return this.vars.W1 ?? 0;
+      if (tok.value === "W2") return this.vars.W2 ?? this.vars.W;
+      if (tok.value === "H1") return this.vars.H1 ?? 0;
+      if (tok.value === "H2") return this.vars.H2 ?? this.vars.H;
       // Should never reach here — tokenizer already validates variable names
       throw new FormulaError(`Unknown variable: "${tok.value}"`);
     }
@@ -336,7 +360,14 @@ export function evalFormula(
 export function validateFormula(
   formula: string
 ): { valid: true } | { valid: false; error: string } {
-  const result = evalFormula(formula, { W: 1000, H: 1000 });
+  const result = evalFormula(formula, {
+    W: 1000,
+    H: 1000,
+    W1: 500,
+    W2: 500,
+    H1: 500,
+    H2: 500,
+  });
   if (result.ok) {
     return { valid: true };
   }

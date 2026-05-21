@@ -48,6 +48,10 @@ export interface RunEstimationPayload {
   // ── Parametric dimensions (user input, in mm) ───────────────────────────
   widthMm: number;   // W
   heightMm: number;  // H
+  h1?: number;
+  h2?: number;
+  w1?: number;
+  w2?: number;
 
   // ── Customer / project metadata ─────────────────────────────────────────
   projectName: string;
@@ -129,6 +133,10 @@ export type RunEstimationResult =
       colorName: string;
       widthMm: number;
       heightMm: number;
+      w1?: number | null;
+      w2?: number | null;
+      h1?: number | null;
+      h2?: number | null;
       cuttingResults: CuttingResultSummary[];
       glassDetail: GlassDetail | null;
       accessories: AccessoryDetail[];
@@ -285,7 +293,14 @@ export async function runParametricEstimation(
 
     const formulaResult = evalFormulasBatch(
       formulaInputs,
-      { W, H },
+      {
+        W,
+        H,
+        H1: payload.h1 || 0,
+        H2: payload.h2 || H,
+        W1: payload.w1 || 0,
+        W2: payload.w2 || W,
+      },
       template.standardBarLengthMm
     );
 
@@ -375,8 +390,22 @@ export async function runParametricEstimation(
     if (template.glass) {
       const g = template.glass;
 
-      const glassWResult = evalFormula(g.widthFormula,  { W, H });
-      const glassHResult = evalFormula(g.heightFormula, { W, H });
+      const glassWResult = evalFormula(g.widthFormula,  {
+        W,
+        H,
+        H1: payload.h1 || 0,
+        H2: payload.h2 || H,
+        W1: payload.w1 || 0,
+        W2: payload.w2 || W,
+      });
+      const glassHResult = evalFormula(g.heightFormula, {
+        W,
+        H,
+        H1: payload.h1 || 0,
+        H2: payload.h2 || H,
+        W1: payload.w1 || 0,
+        W2: payload.w2 || W,
+      });
 
       if (!glassWResult.ok) {
         return {
@@ -466,6 +495,10 @@ export async function runParametricEstimation(
           colorId:    payload.colorId,
           widthMm:    W,
           heightMm:   H,
+          h1:         payload.h1 ?? null,
+          h2:         payload.h2 ?? null,
+          w1:         payload.w1 ?? null,
+          w2:         payload.w2 ?? null,
 
           profitMarginPercent: margin,
           // Snapshot area-based labor so the saved quote is self-contained
@@ -520,6 +553,10 @@ export async function runParametricEstimation(
       colorName:      color.name,
       widthMm:        W,
       heightMm:       H,
+      w1:             payload.w1,
+      w2:             payload.w2,
+      h1:             payload.h1,
+      h2:             payload.h2,
       cuttingResults,
       glassDetail,
       accessories,

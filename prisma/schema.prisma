@@ -390,6 +390,10 @@ model EstimationProject {
   colorId    String  // selected color for ALL profiles in this project
   widthMm    Float   // user-input Width (W) in mm
   heightMm   Float   // user-input Height (H) in mm
+  h1         Float?  // Height of top transom (ช่องบน) in mm
+  h2         Float?  // Height of main unit / bottom (ช่องล่าง) in mm
+  w1         Float?  // Width of left sidelight (ช่องซ้าย) in mm
+  w2         Float?  // Width of main unit / right (ช่องขวา) in mm
 
   /// ─── PRICING ADJUSTMENTS ───────────────────────────────────
   profitMarginPercent Float @default(15)   // e.g. 15.0 = 15%
