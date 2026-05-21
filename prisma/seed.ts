@@ -2656,10 +2656,9 @@ async function main() {
     ],
   });
   // Glass spec — each pane
-  await prisma.glassSpecification.upsert({
-    where: { templateId: tmplSliding.id },
-    update: { widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, pricePerSqM: 41.81 },
-    create: { templateId: tmplSliding.id, widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
+  await prisma.glassSpecification.deleteMany({ where: { templateId: tmplSliding.id } });
+  await prisma.glassSpecification.create({
+    data: { templateId: tmplSliding.id, label: "กระจกบานเลื่อน", widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   // Accessories
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplSliding.id } });
@@ -2700,10 +2699,9 @@ async function main() {
       { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",   formula: "H - 40", quantity: 2, sortOrder: 6 },
     ],
   });
-  await prisma.glassSpecification.upsert({
-    where: { templateId: tmplFixed.id },
-    update: { widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, pricePerSqM: 41.81 },
-    create: { templateId: tmplFixed.id, widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
+  await prisma.glassSpecification.deleteMany({ where: { templateId: tmplFixed.id } });
+  await prisma.glassSpecification.create({
+    data: { templateId: tmplFixed.id, label: "กระจกช่องแสง", widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFixed.id } });
   await prisma.templateAccessory.createMany({
@@ -2742,10 +2740,9 @@ async function main() {
       { templateId: tmplCasement.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",        formula: "H - 70", quantity: 2, sortOrder: 7 },
     ],
   });
-  await prisma.glassSpecification.upsert({
-    where: { templateId: tmplCasement.id },
-    update: { widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, pricePerSqM: 41.81 },
-    create: { templateId: tmplCasement.id, widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
+  await prisma.glassSpecification.deleteMany({ where: { templateId: tmplCasement.id } });
+  await prisma.glassSpecification.create({
+    data: { templateId: tmplCasement.id, label: "กระจกบานเปิด", widthFormula: "W - 90", heightFormula: "H - 90", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplCasement.id } });
   await prisma.templateAccessory.createMany({
@@ -2788,10 +2785,9 @@ async function main() {
       { templateId: tmplAwning.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",        formula: "H - 65", quantity: 2, sortOrder: 8 },
     ],
   });
-  await prisma.glassSpecification.upsert({
-    where: { templateId: tmplAwning.id },
-    update: { widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, pricePerSqM: 41.81 },
-    create: { templateId: tmplAwning.id, widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
+  await prisma.glassSpecification.deleteMany({ where: { templateId: tmplAwning.id } });
+  await prisma.glassSpecification.create({
+    data: { templateId: tmplAwning.id, label: "กระจกบานกระทุ้ง", widthFormula: "W - 85", heightFormula: "H - 85", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplAwning.id } });
   await prisma.templateAccessory.createMany({
@@ -2840,10 +2836,9 @@ async function main() {
       { templateId: tmplFolding.id, materialId: await mat("SB-0115"), label: "รางกั้นพื้น (Floor Guide)", formula: "W",           quantity: 1, sortOrder: 9 },
     ],
   });
-  await prisma.glassSpecification.upsert({
-    where: { templateId: tmplFolding.id },
-    update: { widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, pricePerSqM: 41.81 },
-    create: { templateId: tmplFolding.id, widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81 },
+  await prisma.glassSpecification.deleteMany({ where: { templateId: tmplFolding.id } });
+  await prisma.glassSpecification.create({
+    data: { templateId: tmplFolding.id, label: "กระจกบานเฟี้ยม", widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFolding.id } });
   await prisma.templateAccessory.createMany({

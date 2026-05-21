@@ -276,31 +276,40 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
               {/* Glass & Accessories Side-by-side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Glass detail */}
-                {data.glassDetail && (
+                {data.glassDetail && data.glassDetail.length > 0 && (
                   <div className="bg-white rounded-2xl border border-gray-200 p-5">
                     <h3 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                       <LayoutTemplate className="w-4 h-4 text-blue-500" /> รายละเอียดกระจก
                     </h3>
-                    <p className="font-bold text-gray-800 text-sm">{data.glassDetail.glassType}</p>
-                    <div className="space-y-2 mt-4 text-xs text-gray-600">
-                      <div className="flex justify-between">
-                        <span>ขนาดต่อบาน</span>
-                        <span className="font-semibold text-gray-800">
-                          {(data.glassDetail.widthPerPanelMm / 10).toFixed(1)} × {(data.glassDetail.heightPerPanelMm / 10).toFixed(1)} ซม.
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>จำนวนบาน</span>
-                        <span className="font-semibold text-gray-800">{data.glassDetail.panelCount} บาน</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>พื้นที่รวม (Sq.Ft)</span>
-                        <span className="font-semibold text-gray-800">{data.glassDetail.areaSqFt.toFixed(4)} ตร.ฟุต</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-blue-600 text-sm border-t border-gray-100 pt-2 mt-2">
-                        <span>ค่ากระจก</span>
-                        <span>฿{data.glassCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
+                    <div className="space-y-4 max-h-[220px] overflow-y-auto pr-1 divide-y divide-gray-100">
+                      {data.glassDetail.map((g: any, idx: number) => (
+                        <div key={idx} className={idx > 0 ? "pt-3" : ""}>
+                          <div className="flex justify-between items-start mb-1 text-sm font-semibold text-gray-800">
+                            <span>{g.label || `ชุดกระจก #${idx + 1}`}</span>
+                            <span className="text-xs text-gray-400 font-normal">{g.glassType}</span>
+                          </div>
+                          <div className="space-y-1 text-xs text-gray-600">
+                            <div className="flex justify-between">
+                              <span>ขนาดต่อบาน</span>
+                              <span className="font-medium text-gray-700">
+                                {(g.widthPerPanelMm / 10).toFixed(1)} × {(g.heightPerPanelMm / 10).toFixed(1)} ซม.
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>จำนวนบาน / พื้นที่รวม</span>
+                              <span className="font-medium text-gray-700">{g.panelCount} บาน ({g.areaSqFt.toFixed(2)} ตร.ฟุต)</span>
+                            </div>
+                            <div className="flex justify-between font-semibold text-gray-800 text-xs">
+                              <span>ค่ากระจก</span>
+                              <span className="text-blue-600">฿{g.glassCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between font-bold text-blue-600 text-sm border-t border-gray-100 pt-2.5 mt-3">
+                      <span>ค่ากระจกรวม</span>
+                      <span>฿{data.glassCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}

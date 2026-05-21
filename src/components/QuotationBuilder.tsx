@@ -406,6 +406,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const handleAddGlass = () => {
     setIsManualOverride(true);
     const newGlass = {
+      label: "กระจกกำหนดเอง",
       glassType: "กระจกกำหนดเอง",
       panelCount: 1,
       widthPerPanelMm: 1000,
@@ -769,18 +770,25 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   {editableGlass.map((g, idx) => (
                     <div key={idx} className={idx > 0 ? "pt-4" : ""}>
                       <div className="flex justify-between items-center gap-2 mb-3">
-                        <div className="flex-1">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={g.label || "กระจก"}
+                            onChange={(e) => handleUpdateGlass(idx, { label: e.target.value })}
+                            placeholder="ตำแหน่งกระจก (เช่น ช่องแสง)"
+                            className="w-full text-sm font-semibold text-gray-900 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 print:border-none print:bg-transparent print:p-0 print:text-base print:font-bold print:shadow-none print:outline-none print:focus:ring-0 print:pointer-events-none"
+                          />
                           <input
                             type="text"
                             value={g.glassType}
                             onChange={(e) => handleUpdateGlass(idx, { glassType: e.target.value })}
                             placeholder="ประเภทกระจก"
-                            className="w-full text-sm font-semibold text-gray-900 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 print:border-none print:bg-transparent print:p-0 print:text-base print:font-bold print:shadow-none print:outline-none print:focus:ring-0 print:pointer-events-none"
+                            className="w-full text-xs text-gray-500 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 print:border-none print:bg-transparent print:p-0 print:text-xs print:shadow-none print:outline-none print:focus:ring-0 print:pointer-events-none font-medium"
                           />
                         </div>
                         <button
                           onClick={() => handleDeleteGlass(idx)}
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors print:hidden"
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors print:hidden shrink-0"
                           title="ลบรายการกระจก"
                         >
                           <Trash2 className="w-4 h-4" />

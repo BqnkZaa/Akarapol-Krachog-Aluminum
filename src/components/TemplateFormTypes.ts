@@ -25,7 +25,8 @@ export type AccessoryRow = {
 };
 
 export type GlassRow = {
-  enabled: boolean;
+  _key: string;
+  label: string;
   widthFormula: string;
   widthFormulaError: string | null;
   heightFormula: string;
@@ -33,6 +34,7 @@ export type GlassRow = {
   panelCount: number;
   glassType: string;
   pricePerSqM: number;
+  sortOrder: number;
 };
 
 export function makeEmptyComponent(order: number): ComponentRow {
@@ -60,13 +62,18 @@ export function makeEmptyAccessory(order: number): AccessoryRow {
   };
 }
 
-export const defaultGlass: GlassRow = {
-  enabled: false,
-  widthFormula: "",
-  widthFormulaError: null,
-  heightFormula: "",
-  heightFormulaError: null,
-  panelCount: 1,
-  glassType: "6mm Clear Tempered",
-  pricePerSqM: 0,
-};
+export function makeEmptyGlass(order: number): GlassRow {
+  return {
+    _key: `g-${Date.now()}-${order}`,
+    label: "กระจกบานเลื่อน",
+    widthFormula: "",
+    widthFormulaError: null,
+    heightFormula: "",
+    heightFormulaError: null,
+    panelCount: 1,
+    glassType: "6mm Clear Tempered",
+    pricePerSqM: 0,
+    sortOrder: order,
+  };
+}
+

@@ -28,7 +28,7 @@ async function main() {
     where: { slug: "iconiq-sliding-door-2p" },
     include: {
       components: { orderBy: { sortOrder: "asc" }, include: { material: { include: { variants: true } } } },
-      glass: true,
+      glassSpecifications: { orderBy: { sortOrder: "asc" } },
       accessories: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -81,14 +81,17 @@ async function main() {
 
   // ── 6. Glass ────────────────────────────────────────────────────────
   let glassCost = 0;
-  if (template.glass) {
-    const g = template.glass;
-    const gW = evalFormula(g.widthFormula,  { W, H });
-    const gH = evalFormula(g.heightFormula, { W, H });
-    if (!gW.ok || !gH.ok) throw new Error("Glass formula error");
-    const areaSqM = g.panelCount * (gW.value / 1000) * (gH.value / 1000);
-    glassCost = areaSqM * g.pricePerSqM;
-    console.log(`\n🪟 Glass: ${g.panelCount} panels × ${gW.value}mm × ${gH.value}mm = ${areaSqM.toFixed(4)} m² × ฿${g.pricePerSqM}/m² = ฿${glassCost.toFixed(2)}`);
+  if (template.glassSpecifications && template.glassSpecifications.length > 0) {
+    console.log("\n🪟 Glass:");
+    for (const g of template.glassSpecifications) {
+      const gW = evalFormula(g.widthFormula,  { W, H });
+      const gH = evalFormula(g.heightFormula, { W, H });
+      if (!gW.ok || !gH.ok) throw new Error(`Glass formula error for ${g.label}`);
+      const areaSqM = g.panelCount * (gW.value / 1000) * (gH.value / 1000);
+      const paneCost = areaSqM * g.pricePerSqM;
+      glassCost += paneCost;
+      console.log(`   [${g.label}] ${g.panelCount} panels × ${gW.value}mm × ${gH.value}mm = ${areaSqM.toFixed(4)} m² × ฿${g.pricePerSqM}/m² = ฿${paneCost.toFixed(2)}`);
+    }
   }
 
   // ── 7. Accessories ──────────────────────────────────────────────────

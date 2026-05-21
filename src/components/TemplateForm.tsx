@@ -15,7 +15,7 @@ import {
 } from "./TemplateFormSections";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
 import {
-  makeEmptyComponent, makeEmptyAccessory, defaultGlass,
+  makeEmptyComponent, makeEmptyAccessory, makeEmptyGlass,
 } from "./TemplateFormTypes";
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -62,18 +62,20 @@ function initAccessories(data?: TemplateDetail): AccessoryRow[] {
   }));
 }
 
-function initGlass(data?: TemplateDetail): GlassRow {
-  if (!data?.glass) return defaultGlass;
-  return {
-    enabled: true,
-    widthFormula: data.glass.widthFormula,
+function initGlass(data?: TemplateDetail): GlassRow[] {
+  if (!data?.glassSpecifications.length) return [];
+  return data.glassSpecifications.map((g, i) => ({
+    _key: `g-init-${i}`,
+    label: g.label,
+    widthFormula: g.widthFormula,
     widthFormulaError: null,
-    heightFormula: data.glass.heightFormula,
+    heightFormula: g.heightFormula,
     heightFormulaError: null,
-    panelCount: data.glass.panelCount,
-    glassType: data.glass.glassType,
-    pricePerSqM: data.glass.pricePerSqM,
-  };
+    panelCount: g.panelCount,
+    glassType: g.glassType,
+    pricePerSqM: g.pricePerSqM,
+    sortOrder: g.sortOrder,
+  }));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -102,7 +104,7 @@ export default function TemplateForm(props: Props) {
 
   // ── Child arrays ──────────────────────────────────────────────────────────
   const [components, setComponents] = useState<ComponentRow[]>(() => initComponents(initialData, materials));
-  const [glass, setGlass] = useState<GlassRow>(() => initGlass(initialData));
+  const [glassRows, setGlassRows] = useState<GlassRow[]>(() => initGlass(initialData));
   const [accessories, setAccessories] = useState<AccessoryRow[]>(() => initAccessories(initialData));
 
   // ── Feedback ──────────────────────────────────────────────────────────────
@@ -143,18 +145,43 @@ export default function TemplateForm(props: Props) {
   };
 
   // ── Glass handlers ────────────────────────────────────────────────────────
-  const updateGlass = (field: keyof GlassRow, value: string | number | boolean | null) => {
-    setGlass(prev => {
-      const updated = { ...prev, [field]: value };
-      if (field === "widthFormula" && typeof value === "string") {
-        const res = value.trim() ? validateFormula(value.trim()) : { valid: true };
-        updated.widthFormulaError = res.valid ? null : (res as { valid: false; error: string }).error;
+  const addGlassRow = () => setGlassRows(prev => [...prev, makeEmptyGlass(prev.length)]);
+
+  const removeGlassRow = (idx: number) => setGlassRows(prev => prev.filter((_, i) => i !== idx));
+
+  const updateGlassRow = (idx: number, field: keyof GlassRow, value: string | number) => {
+    setGlassRows(prev => prev.map((row, i) => {
+      if (i !== idx) return row;
+      const updated = { ...row, [field]: value };
+      if (field === "widthFormula") {
+        const v = typeof value === "string" ? value : "";
+        if (v.trim()) {
+          const res = validateFormula(v.trim());
+          updated.widthFormulaError = res.valid ? null : res.error;
+        } else {
+          updated.widthFormulaError = null;
+        }
       }
-      if (field === "heightFormula" && typeof value === "string") {
-        const res = value.trim() ? validateFormula(value.trim()) : { valid: true };
-        updated.heightFormulaError = res.valid ? null : (res as { valid: false; error: string }).error;
+      if (field === "heightFormula") {
+        const v = typeof value === "string" ? value : "";
+        if (v.trim()) {
+          const res = validateFormula(v.trim());
+          updated.heightFormulaError = res.valid ? null : res.error;
+        } else {
+          updated.heightFormulaError = null;
+        }
       }
       return updated;
+    }));
+  };
+
+  const moveGlassRow = (idx: number, dir: -1 | 1) => {
+    setGlassRows(prev => {
+      const next = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next.map((r, i) => ({ ...r, sortOrder: i }));
     });
   };
 
@@ -190,9 +217,11 @@ export default function TemplateForm(props: Props) {
         return;
       }
     }
-    if (glass.enabled && (glass.widthFormulaError || glass.heightFormulaError)) {
-      setError("โปรดแก้ไขข้อผิดพลาดของสูตรกระจกก่อนบันทึก");
-      return;
+    for (const g of glassRows) {
+      if (g.widthFormulaError || g.heightFormulaError) {
+        setError(`โปรดแก้ไขข้อผิดพลาดของสูตรกระจกใน "${g.label || `ชุดกระจก #${glassRows.indexOf(g) + 1}`}" ก่อนบันทึก`);
+        return;
+      }
     }
 
     startTransition(async () => {
@@ -214,13 +243,15 @@ export default function TemplateForm(props: Props) {
           barLengthMm: c.barLengthMm ? parseInt(c.barLengthMm) : undefined,
           sortOrder: i,
         })),
-        glass: glass.enabled ? {
-          widthFormula: glass.widthFormula,
-          heightFormula: glass.heightFormula,
-          panelCount: glass.panelCount,
-          glassType: glass.glassType,
-          pricePerSqM: glass.pricePerSqM,
-        } : null,
+        glassSpecifications: glassRows.map((g, i) => ({
+          label: g.label,
+          widthFormula: g.widthFormula,
+          heightFormula: g.heightFormula,
+          panelCount: g.panelCount,
+          glassType: g.glassType,
+          pricePerSqM: g.pricePerSqM,
+          sortOrder: i,
+        })),
         accessories: accessories.map((a, i) => ({
           name: a.name,
           quantity: a.quantity,
@@ -350,8 +381,15 @@ export default function TemplateForm(props: Props) {
         onMove={moveComp}
       />
 
-      {/* ── SECTION 3: Glass Specification ────────────────────────────────── */}
-      <GlassSection glass={glass} glasses={props.glasses} onChange={updateGlass} />
+      {/* ── SECTION 3: Glass Specifications ──────────────────────────────── */}
+      <GlassSection
+        rows={glassRows}
+        glassOptions={props.glasses}
+        onChange={updateGlassRow}
+        onAdd={addGlassRow}
+        onRemove={removeGlassRow}
+        onMove={moveGlassRow}
+      />
 
       {/* ── SECTION 4: Accessories ────────────────────────────────────────── */}
       <AccessoriesSection
@@ -381,7 +419,7 @@ export default function TemplateForm(props: Props) {
       <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
         <p className="text-xs text-gray-400">
           {components.length} ชิ้นส่วนโปรไฟล์ ·{" "}
-          {glass.enabled ? "รวมกระจก" : "ไม่รวมกระจก"} ·{" "}
+          {glassRows.length} ชุดกระจก ·{" "}
           {accessories.length} อุปกรณ์เสริม
         </p>
         <div className="flex items-center gap-3">

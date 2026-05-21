@@ -34,13 +34,15 @@ export type TemplateComponentInput = {
   sortOrder: number;
 };
 
-/** Glass specification — optional, one per template */
+/** Glass specification — optional, 1-to-many per template */
 export type GlassSpecInput = {
+  label: string;           // e.g. "กระจกบานเลื่อน"
   widthFormula: string;    // e.g. "W / 2 - 30"
   heightFormula: string;   // e.g. "H - 80"
   panelCount: number;
   glassType: string;       // e.g. "6mm Clear Tempered"
   pricePerSqM: number;    // THB per m²
+  sortOrder: number;
 };
 
 /** A fixed-cost accessory item */
@@ -67,7 +69,7 @@ export type TemplatePayload = {
 
   // ─── Child entities ──────────────────────────────────────────
   components: TemplateComponentInput[];
-  glass?: GlassSpecInput | null;  // null = no glass spec
+  glassSpecifications: GlassSpecInput[];
   accessories: TemplateAccessoryInput[];
 };
 
@@ -127,14 +129,16 @@ export type TemplateDetail = {
     sortOrder: number;
   }[];
 
-  glass: {
+  glassSpecifications: {
     id: string;
+    label: string;
     widthFormula: string;
     heightFormula: string;
     panelCount: number;
     glassType: string;
     pricePerSqM: number;
-  } | null;
+    sortOrder: number;
+  }[];
 
   accessories: {
     id: string;
@@ -219,20 +223,24 @@ function validatePayload(payload: TemplatePayload): string | null {
   }
 
   // ── Glass specification validations ─────────────────────────
-  if (payload.glass) {
-    const g = payload.glass;
+  if (payload.glassSpecifications && payload.glassSpecifications.length > 0) {
+    for (let i = 0; i < payload.glassSpecifications.length; i++) {
+      const g = payload.glassSpecifications[i];
+      const prefix = `Glass Spec #${i + 1}`;
 
-    if (!g.widthFormula?.trim()) return "Glass: Width formula is required.";
-    if (!g.heightFormula?.trim()) return "Glass: Height formula is required.";
-    if (g.panelCount < 1) return "Glass: Panel count must be at least 1.";
-    if (!g.glassType?.trim()) return "Glass: Glass type label is required.";
-    if (g.pricePerSqM < 0) return "Glass: Price per m² cannot be negative.";
+      if (!g.label?.trim()) return `${prefix}: Label is required.`;
+      if (!g.widthFormula?.trim()) return `${prefix}: Width formula is required.`;
+      if (!g.heightFormula?.trim()) return `${prefix}: Height formula is required.`;
+      if (g.panelCount < 1) return `${prefix}: Panel count must be at least 1.`;
+      if (!g.glassType?.trim()) return `${prefix}: Glass type label is required.`;
+      if (g.pricePerSqM < 0) return `${prefix}: Price per m² cannot be negative.`;
 
-    const wCheck = validateFormula(g.widthFormula.trim());
-    if (!wCheck.valid) return `Glass width formula error: ${wCheck.error}`;
+      const wCheck = validateFormula(g.widthFormula.trim());
+      if (!wCheck.valid) return `${prefix} width formula error: ${wCheck.error}`;
 
-    const hCheck = validateFormula(g.heightFormula.trim());
-    if (!hCheck.valid) return `Glass height formula error: ${hCheck.error}`;
+      const hCheck = validateFormula(g.heightFormula.trim());
+      if (!hCheck.valid) return `${prefix} height formula error: ${hCheck.error}`;
+    }
   }
 
   // ── Accessory validations ───────────────────────────────────
@@ -262,7 +270,7 @@ export async function getTemplatesForAdmin(): Promise<TemplateListItem[]> {
     orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],
     include: {
       category: { select: { name: true } },
-      glass: { select: { id: true } },
+      glassSpecifications: { select: { id: true } },
       _count: {
         select: {
           components: true,
@@ -287,7 +295,7 @@ export async function getTemplatesForAdmin(): Promise<TemplateListItem[]> {
     categoryName: t.category.name,
     componentCount: t._count.components,
     accessoryCount: t._count.accessories,
-    hasGlass: t.glass !== null,
+    hasGlass: t.glassSpecifications.length > 0,
     projectCount: t._count.projects,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
@@ -308,7 +316,7 @@ export async function getTemplateById(id: string): Promise<TemplateDetail | null
           material: { select: { code: true, name: true } },
         },
       },
-      glass: true,
+      glassSpecifications: { orderBy: { sortOrder: "asc" } },
       accessories: { orderBy: { sortOrder: "asc" } },
       _count: { select: { projects: true } },
     },
@@ -341,16 +349,16 @@ export async function getTemplateById(id: string): Promise<TemplateDetail | null
       sortOrder: c.sortOrder,
     })),
 
-    glass: t.glass
-      ? {
-          id: t.glass.id,
-          widthFormula: t.glass.widthFormula,
-          heightFormula: t.glass.heightFormula,
-          panelCount: t.glass.panelCount,
-          glassType: t.glass.glassType,
-          pricePerSqM: t.glass.pricePerSqM,
-        }
-      : null,
+    glassSpecifications: t.glassSpecifications.map((g) => ({
+      id: g.id,
+      label: g.label,
+      widthFormula: g.widthFormula,
+      heightFormula: g.heightFormula,
+      panelCount: g.panelCount,
+      glassType: g.glassType,
+      pricePerSqM: g.pricePerSqM,
+      sortOrder: g.sortOrder,
+    })),
 
     accessories: t.accessories.map((a) => ({
       id: a.id,
@@ -462,17 +470,19 @@ export async function createTemplate(
         })),
       });
 
-      // 3. Create GlassSpecification (optional)
-      if (payload.glass) {
-        await tx.glassSpecification.create({
-          data: {
+      // 3. Create GlassSpecifications in bulk
+      if (payload.glassSpecifications && payload.glassSpecifications.length > 0) {
+        await tx.glassSpecification.createMany({
+          data: payload.glassSpecifications.map((g) => ({
             templateId: tpl.id,
-            widthFormula: payload.glass.widthFormula.trim(),
-            heightFormula: payload.glass.heightFormula.trim(),
-            panelCount: payload.glass.panelCount,
-            glassType: payload.glass.glassType.trim(),
-            pricePerSqM: payload.glass.pricePerSqM,
-          },
+            label: g.label.trim(),
+            widthFormula: g.widthFormula.trim(),
+            heightFormula: g.heightFormula.trim(),
+            panelCount: g.panelCount,
+            glassType: g.glassType.trim(),
+            pricePerSqM: g.pricePerSqM,
+            sortOrder: g.sortOrder,
+          })),
         });
       }
 
@@ -617,17 +627,19 @@ export async function updateTemplate(
         })),
       });
 
-      // 4. Re-create GlassSpecification (optional)
-      if (payload.glass) {
-        await tx.glassSpecification.create({
-          data: {
+      // 4. Re-create GlassSpecifications in bulk
+      if (payload.glassSpecifications && payload.glassSpecifications.length > 0) {
+        await tx.glassSpecification.createMany({
+          data: payload.glassSpecifications.map((g) => ({
             templateId: id,
-            widthFormula: payload.glass.widthFormula.trim(),
-            heightFormula: payload.glass.heightFormula.trim(),
-            panelCount: payload.glass.panelCount,
-            glassType: payload.glass.glassType.trim(),
-            pricePerSqM: payload.glass.pricePerSqM,
-          },
+            label: g.label.trim(),
+            widthFormula: g.widthFormula.trim(),
+            heightFormula: g.heightFormula.trim(),
+            panelCount: g.panelCount,
+            glassType: g.glassType.trim(),
+            pricePerSqM: g.pricePerSqM,
+            sortOrder: g.sortOrder,
+          })),
         });
       }
 

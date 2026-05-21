@@ -93,6 +93,7 @@ export interface CuttingResultSummary {
 
 /** Glass calculation detail for the quotation view */
 export interface GlassDetail {
+  label: string;
   glassType: string;
   panelCount: number;
   widthPerPanelMm: number;
@@ -138,7 +139,7 @@ export type RunEstimationResult =
       h1?: number | null;
       h2?: number | null;
       cuttingResults: CuttingResultSummary[];
-      glassDetail: GlassDetail | null;
+      glassDetail: GlassDetail[];
       accessories: AccessoryDetail[];
       summary: QuotationSummary;
     }
@@ -227,7 +228,7 @@ export async function runParametricEstimation(
             },
           },
         },
-        glass: true,
+        glassSpecifications: { orderBy: { sortOrder: "asc" } },
         accessories: { orderBy: { sortOrder: "asc" } },
       },
     });
@@ -384,64 +385,64 @@ export async function runParametricEstimation(
     // REQ-1: Glass area is now in Sq.Ft using the conversion:
     //   areaSqFt = (widthMm × heightMm) / 92903.04  (1 ft² = 92903.04 mm²)
     // The DB field `pricePerSqM` is treated as price-per-sq.ft going forward.
-    let glassDetail: GlassDetail | null = null;
+    const glassDetail: GlassDetail[] = [];
     let glassCost = 0;
 
-    if (template.glass) {
-      const g = template.glass;
+    if (template.glassSpecifications && template.glassSpecifications.length > 0) {
+      for (const g of template.glassSpecifications) {
+        const glassWResult = evalFormula(g.widthFormula,  {
+          W,
+          H,
+          H1: payload.h1 || 0,
+          H2: payload.h2 || H,
+          W1: payload.w1 || 0,
+          W2: payload.w2 || W,
+        });
+        const glassHResult = evalFormula(g.heightFormula, {
+          W,
+          H,
+          H1: payload.h1 || 0,
+          H2: payload.h2 || H,
+          W1: payload.w1 || 0,
+          W2: payload.w2 || W,
+        });
 
-      const glassWResult = evalFormula(g.widthFormula,  {
-        W,
-        H,
-        H1: payload.h1 || 0,
-        H2: payload.h2 || H,
-        W1: payload.w1 || 0,
-        W2: payload.w2 || W,
-      });
-      const glassHResult = evalFormula(g.heightFormula, {
-        W,
-        H,
-        H1: payload.h1 || 0,
-        H2: payload.h2 || H,
-        W1: payload.w1 || 0,
-        W2: payload.w2 || W,
-      });
+        if (!glassWResult.ok) {
+          return {
+            success: false,
+            error: `Glass "${g.label}" width formula error: ${glassWResult.error}`,
+            field: "glass.widthFormula",
+          };
+        }
+        if (!glassHResult.ok) {
+          return {
+            success: false,
+            error: `Glass "${g.label}" height formula error: ${glassHResult.error}`,
+            field: "glass.heightFormula",
+          };
+        }
 
-      if (!glassWResult.ok) {
-        return {
-          success: false,
-          error: `Glass width formula error: ${glassWResult.error}`,
-          field: "glass.widthFormula",
-        };
+        const widthPerPanelMm  = Math.round(glassWResult.value);
+        const heightPerPanelMm = Math.round(glassHResult.value);
+
+        // Convert mm² → ft²: divide by 92903.04 (1 ft² = 304.8mm × 304.8mm)
+        const MM2_PER_SQFT = 92903.04;
+        const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+
+        const cost = areaSqFt * g.pricePerSqM;
+        glassCost += cost;
+
+        glassDetail.push({
+          label:             g.label,
+          glassType:         g.glassType,
+          panelCount:        g.panelCount,
+          widthPerPanelMm,
+          heightPerPanelMm,
+          areaSqFt:          Math.round(areaSqFt * 10000) / 10000, // 4 decimal places
+          pricePerSqFt:      g.pricePerSqM,
+          glassCost:         Math.round(cost * 100) / 100,
+        });
       }
-      if (!glassHResult.ok) {
-        return {
-          success: false,
-          error: `Glass height formula error: ${glassHResult.error}`,
-          field: "glass.heightFormula",
-        };
-      }
-
-      const widthPerPanelMm  = Math.round(glassWResult.value);
-      const heightPerPanelMm = Math.round(glassHResult.value);
-
-      // Convert mm² → ft²: divide by 92903.04 (1 ft² = 304.8mm × 304.8mm)
-      const MM2_PER_SQFT = 92903.04;
-      const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
-
-      // pricePerSqM column is reused as pricePerSqFt (no schema migration needed;
-      // values must be updated in seed / admin to reflect the new unit)
-      glassCost = areaSqFt * g.pricePerSqM; // pricePerSqM field = price per sq.ft
-
-      glassDetail = {
-        glassType:         g.glassType,
-        panelCount:        g.panelCount,
-        widthPerPanelMm,
-        heightPerPanelMm,
-        areaSqFt:          Math.round(areaSqFt * 10000) / 10000, // 4 decimal places
-        pricePerSqFt:      g.pricePerSqM,  // read from DB field (reused column)
-        glassCost:         Math.round(glassCost * 100) / 100,
-      };
     }
 
     // ── Step 8: Calculate Accessories Cost ───────────────────────────────────
@@ -769,7 +770,7 @@ export async function getTemplates(): Promise<TemplateOption[]> {
     include: {
       category:    { select: { name: true } },
       _count:      { select: { components: true, accessories: true } },
-      glass:       { select: { id: true } },
+      glassSpecifications: { select: { id: true } },
     },
   });
 
@@ -783,7 +784,7 @@ export async function getTemplates(): Promise<TemplateOption[]> {
     kerfMm:              t.kerfMm,
     categoryName:        t.category.name,
     componentCount:      t._count.components,
-    hasGlass:            t.glass !== null,
+    hasGlass:            t.glassSpecifications.length > 0,
     accessoryCount:      t._count.accessories,
   }));
 }

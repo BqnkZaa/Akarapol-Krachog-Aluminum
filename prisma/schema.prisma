@@ -257,7 +257,7 @@ model ProductTemplate {
   category     Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   components   TemplateComponent[]
   accessories  TemplateAccessory[]
-  glass        GlassSpecification?
+  glassSpecifications GlassSpecification[]
   projects     EstimationProject[]
 
   @@index([categoryId])
@@ -316,7 +316,8 @@ model TemplateComponent {
 /// Glass cost = panelCount × (glassW / 1000) × (glassH / 1000) × pricePerSqM
 model GlassSpecification {
   id         String @id @default(cuid())
-  templateId String @unique  // one glass specification per template
+  templateId String
+  label      String @default("กระจก")
 
   /// Formula for glass width (mm), e.g. "W / 2 - 30" for a 2-panel door
   widthFormula String
@@ -332,6 +333,8 @@ model GlassSpecification {
 
   /// Price per square meter of glass (THB/m²)
   pricePerSqM Float
+
+  sortOrder Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

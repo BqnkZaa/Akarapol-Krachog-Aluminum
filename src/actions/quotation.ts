@@ -148,7 +148,7 @@ export async function getQuotationById(id: string) {
                 },
               },
             },
-            glass: true,
+            glassSpecifications: { orderBy: { sortOrder: "asc" } },
             accessories: { orderBy: { sortOrder: "asc" } },
           },
         },
@@ -222,40 +222,43 @@ export async function getQuotationById(id: string) {
       lineCost: acc.quantity * acc.unitCost,
     }));
 
-    let glassDetail: any = null;
-    if (project.template.glass) {
-      const g = project.template.glass;
-      const glassWResult = evalFormula(g.widthFormula, {
-        W: project.widthMm,
-        H: project.heightMm,
-        H1: project.h1 || 0,
-        H2: project.h2 || project.heightMm,
-        W1: project.w1 || 0,
-        W2: project.w2 || project.widthMm,
-      });
-      const glassHResult = evalFormula(g.heightFormula, {
-        W: project.widthMm,
-        H: project.heightMm,
-        H1: project.h1 || 0,
-        H2: project.h2 || project.heightMm,
-        W1: project.w1 || 0,
-        W2: project.w2 || project.widthMm,
-      });
-      const widthPerPanelMm = glassWResult.ok ? Math.round(glassWResult.value) : 0;
-      const heightPerPanelMm = glassHResult.ok ? Math.round(glassHResult.value) : 0;
+    let glassDetail: any[] = [];
+    if (project.template.glassSpecifications && project.template.glassSpecifications.length > 0) {
+      for (const g of project.template.glassSpecifications) {
+        const glassWResult = evalFormula(g.widthFormula, {
+          W: project.widthMm,
+          H: project.heightMm,
+          H1: project.h1 || 0,
+          H2: project.h2 || project.heightMm,
+          W1: project.w1 || 0,
+          W2: project.w2 || project.widthMm,
+        });
+        const glassHResult = evalFormula(g.heightFormula, {
+          W: project.widthMm,
+          H: project.heightMm,
+          H1: project.h1 || 0,
+          H2: project.h2 || project.heightMm,
+          W1: project.w1 || 0,
+          W2: project.w2 || project.widthMm,
+        });
+        const widthPerPanelMm = glassWResult.ok ? Math.round(glassWResult.value) : 0;
+        const heightPerPanelMm = glassHResult.ok ? Math.round(glassHResult.value) : 0;
 
-      const MM2_PER_SQFT = 92903.04;
-      const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+        const MM2_PER_SQFT = 92903.04;
+        const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+        const cost = areaSqFt * g.pricePerSqM;
 
-      glassDetail = {
-        glassType: g.glassType,
-        panelCount: g.panelCount,
-        widthPerPanelMm,
-        heightPerPanelMm,
-        areaSqFt: Math.round(areaSqFt * 10000) / 10000,
-        pricePerSqFt: g.pricePerSqM,
-        glassCost: project.glassCost,
-      };
+        glassDetail.push({
+          label: g.label,
+          glassType: g.glassType,
+          panelCount: g.panelCount,
+          widthPerPanelMm,
+          heightPerPanelMm,
+          areaSqFt: Math.round(areaSqFt * 10000) / 10000,
+          pricePerSqFt: g.pricePerSqM,
+          glassCost: Math.round(cost * 100) / 100,
+        });
+      }
     }
 
     if (project.notes) {
@@ -333,7 +336,7 @@ export async function updateQuotation(
             },
           },
         },
-        glass: true,
+        glassSpecifications: { orderBy: { sortOrder: "asc" } },
         accessories: { orderBy: { sortOrder: "asc" } },
       },
     });
@@ -529,58 +532,61 @@ export async function updateQuotation(
       );
 
       // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
-      if (template.glass) {
-        const g = template.glass;
+      glassDetail = [];
+      if (template.glassSpecifications && template.glassSpecifications.length > 0) {
+        for (const g of template.glassSpecifications) {
+          const glassWResult = evalFormula(g.widthFormula,  {
+            W,
+            H,
+            H1: payload.h1 || 0,
+            H2: payload.h2 || H,
+            W1: payload.w1 || 0,
+            W2: payload.w2 || W,
+          });
+          const glassHResult = evalFormula(g.heightFormula, {
+            W,
+            H,
+            H1: payload.h1 || 0,
+            H2: payload.h2 || H,
+            W1: payload.w1 || 0,
+            W2: payload.w2 || W,
+          });
 
-        const glassWResult = evalFormula(g.widthFormula,  {
-          W,
-          H,
-          H1: payload.h1 || 0,
-          H2: payload.h2 || H,
-          W1: payload.w1 || 0,
-          W2: payload.w2 || W,
-        });
-        const glassHResult = evalFormula(g.heightFormula, {
-          W,
-          H,
-          H1: payload.h1 || 0,
-          H2: payload.h2 || H,
-          W1: payload.w1 || 0,
-          W2: payload.w2 || W,
-        });
+          if (!glassWResult.ok) {
+            return {
+              success: false,
+              error: `Glass "${g.label}" width formula error: ${glassWResult.error}`,
+              field: "glass.widthFormula",
+            };
+          }
+          if (!glassHResult.ok) {
+            return {
+              success: false,
+              error: `Glass "${g.label}" height formula error: ${glassHResult.error}`,
+              field: "glass.heightFormula",
+            };
+          }
 
-        if (!glassWResult.ok) {
-          return {
-            success: false,
-            error: `Glass width formula error: ${glassWResult.error}`,
-            field: "glass.widthFormula",
-          };
+          const widthPerPanelMm  = Math.round(glassWResult.value);
+          const heightPerPanelMm = Math.round(glassHResult.value);
+
+          const MM2_PER_SQFT = 92903.04;
+          const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+
+          const cost = areaSqFt * g.pricePerSqM;
+          glassCost += cost;
+
+          glassDetail.push({
+            label:             g.label,
+            glassType:         g.glassType,
+            panelCount:        g.panelCount,
+            widthPerPanelMm,
+            heightPerPanelMm,
+            areaSqFt:          Math.round(areaSqFt * 10000) / 10000,
+            pricePerSqFt:      g.pricePerSqM,
+            glassCost:         Math.round(cost * 100) / 100,
+          });
         }
-        if (!glassHResult.ok) {
-          return {
-            success: false,
-            error: `Glass height formula error: ${glassHResult.error}`,
-            field: "glass.heightFormula",
-          };
-        }
-
-        const widthPerPanelMm  = Math.round(glassWResult.value);
-        const heightPerPanelMm = Math.round(glassHResult.value);
-
-        const MM2_PER_SQFT = 92903.04;
-        const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
-
-        glassCost = areaSqFt * g.pricePerSqM;
-
-        glassDetail = {
-          glassType:         g.glassType,
-          panelCount:        g.panelCount,
-          widthPerPanelMm,
-          heightPerPanelMm,
-          areaSqFt:          Math.round(areaSqFt * 10000) / 10000,
-          pricePerSqFt:      g.pricePerSqM,
-          glassCost:         Math.round(glassCost * 100) / 100,
-        };
       }
 
       // ── Step 8: Calculate Accessories Cost ───────────────────────────────────
