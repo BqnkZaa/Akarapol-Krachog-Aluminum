@@ -140,6 +140,8 @@ export default function NewAccessoryForm({ colors }: Props) {
               <option value="ชุดบานเลื่อน" />
               <option value="ชุดบานเปิด, บานกระทุ้ง" />
               <option value="ชุดบานเฟี้ยม" />
+              <option value="ชุดท้องตลาด" />
+              <option value="ชุดบานเปลือย" />
             </datalist>
             <p className="mt-1 text-xs text-gray-400">
               การจัดหมวดหมู่อุปกรณ์เสริมตามซีรีส์อลูมิเนียม

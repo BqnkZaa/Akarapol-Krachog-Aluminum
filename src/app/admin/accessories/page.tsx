@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PlusCircle, Tag, Palette, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import prisma from "@/lib/prisma";
 import AccessoryActions from "@/components/AccessoryActions";
+import { Metadata } from "next";
 
 // ── Series badge ───────────────────────────────────────────────────────────
 const SERIES_COLORS: Record<string, string> = {
@@ -10,30 +11,62 @@ const SERIES_COLORS: Record<string, string> = {
   "Smart X": "bg-sky-100 text-sky-700 border-sky-200",
   Vista: "bg-amber-100 text-amber-700 border-amber-200",
   Flexi: "bg-rose-100 text-rose-700 border-rose-200",
+  "ชุดบานเลื่อน": "bg-blue-100 text-blue-700 border-blue-200",
+  "ชุดบานเปิด, บานกระทุ้ง": "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "ชุดบานเฟี้ยม": "bg-purple-100 text-purple-700 border-purple-200",
+  "ชุดท้องตลาด": "bg-amber-100 text-amber-700 border-amber-200",
+  "ทั่วไป": "bg-amber-100 text-amber-700 border-amber-200",
+  "ชุดบานเปลือย": "bg-rose-100 text-rose-700 border-rose-200",
 };
 
 function SeriesBadge({ series }: { series: string }) {
-  const cls = SERIES_COLORS[series] ?? "bg-gray-100 text-gray-600 border-gray-200";
+  const displaySeries = series === "ทั่วไป" ? "ชุดท้องตลาด" : series;
+  const cls = SERIES_COLORS[displaySeries] ?? "bg-gray-100 text-gray-600 border-gray-200";
   return (
     <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
-      {series}
+      {displaySeries}
     </span>
   );
 }
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Accessories — SmartQuote",
-};
+interface PageProps {
+  searchParams: Promise<{ page?: string; q?: string; series?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const series = params.series?.trim() ?? "";
+  let title = "อุปกรณ์เสริม — SmartQuote";
+  if (series) {
+    if (series.includes("ชุดบานเลื่อน")) title = "อุปกรณ์บานเลื่อน — SmartQuote";
+    else if (series.includes("ชุดบานเปิด")) title = "อุปกรณ์บานเปิด — SmartQuote";
+    else if (series.includes("ชุดบานเฟี้ยม")) title = "อุปกรณ์บานเฟี้ยม — SmartQuote";
+    else if (series.includes("ชุดท้องตลาด")) title = "อุปกรณ์ชุดท้องตลาด — SmartQuote";
+    else if (series.includes("ชุดบานเปลือย")) title = "อุปกรณ์บานเปลือย — SmartQuote";
+  }
+  return { title };
+}
 
 const PAGE_SIZE = 50;
 
-async function getAccessories(page: number, query: string) {
+async function getAccessories(page: number, query: string, series?: string) {
   const skip = (page - 1) * PAGE_SIZE;
+
+  let seriesFilter: any = undefined;
+  if (series) {
+    let seriesList = series.split(",").map((s) => s.trim());
+    // Map official "ชุดท้องตลาด" filter to also display legacy "ทั่วไป" entries
+    if (seriesList.includes("ชุดท้องตลาด")) {
+      seriesList.push("ทั่วไป");
+    }
+    seriesFilter = { in: seriesList };
+  }
 
   const where = {
     isActive: true,
+    ...(seriesFilter ? { series: seriesFilter } : {}),
     ...(query
       ? {
           OR: [
@@ -67,22 +100,20 @@ async function getAccessories(page: number, query: string) {
   return { accessories, total };
 }
 
-interface PageProps {
-  searchParams: Promise<{ page?: string; q?: string }>;
-}
-
 export default async function AccessoriesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const query = params.q?.trim() ?? "";
+  const series = params.series?.trim() ?? "";
 
-  const { accessories, total } = await getAccessories(page, query);
+  const { accessories, total } = await getAccessories(page, query, series);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   function buildUrl(overrides: Record<string, string | number>) {
     const p = new URLSearchParams();
     if (query) p.set("q", query);
+    if (series) p.set("series", series);
     p.set("page", String(page));
     Object.entries(overrides).forEach(([k, v]) => {
       if (v) p.set(k, String(v));
@@ -91,16 +122,26 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
     return `/admin/accessories?${p.toString()}`;
   }
 
+  let pageHeader = "จัดการข้อมูล: อุปกรณ์ทั้งหมด";
+  if (series) {
+    if (series.includes("ชุดบานเลื่อน")) pageHeader = "จัดการข้อมูล: อุปกรณ์บานเลื่อน";
+    else if (series.includes("ชุดบานเปิด")) pageHeader = "จัดการข้อมูล: อุปกรณ์บานเปิด";
+    else if (series.includes("ชุดบานเฟี้ยม")) pageHeader = "จัดการข้อมูล: อุปกรณ์บานเฟี้ยม";
+    else if (series.includes("ชุดท้องตลาด")) pageHeader = "จัดการข้อมูล: อุปกรณ์ชุดท้องตลาด";
+    else if (series.includes("ชุดบานเปลือย")) pageHeader = "จัดการข้อมูล: อุปกรณ์บานเปลือย";
+    else pageHeader = `จัดการข้อมูล: อุปกรณ์${series}`;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Accessories</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{pageHeader}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {total.toLocaleString()} hardware item{total !== 1 ? "s" : ""} total
-              {query ? ` — filtered view` : ""}
+              {query || series ? ` — filtered view` : ""}
             </p>
           </div>
           <Link
@@ -118,6 +159,7 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <form method="GET" action="/admin/accessories" className="flex-1 flex gap-2">
+            {series && <input type="hidden" name="series" value={series} />}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
@@ -134,7 +176,7 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
             >
               Search
             </button>
-            {query && (
+            {(query || series) && (
               <Link
                 href="/admin/accessories"
                 className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors whitespace-nowrap"
@@ -152,14 +194,14 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
           <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
             <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="font-semibold text-gray-700">
-              {query ? "No accessories match your search" : "No accessories yet"}
+              {query || series ? "No accessories match your search" : "No accessories yet"}
             </h3>
             <p className="text-sm text-gray-400 mt-1 mb-6">
-              {query
-                ? "Try adjusting your search term."
+              {query || series
+                ? "Try adjusting your search terms or filters."
                 : "Add your first hardware item to get started."}
             </p>
-            {!query && (
+            {!query && !series && (
               <Link
                 href="/admin/accessories/new"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
@@ -340,3 +382,4 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
     </div>
   );
 }
+

@@ -128,6 +128,8 @@ export default function EditAccessoryModal({ accessory, onClose }: EditAccessory
                 <option value="ชุดบานเลื่อน" />
                 <option value="ชุดบานเปิด, บานกระทุ้ง" />
                 <option value="ชุดบานเฟี้ยม" />
+                <option value="ชุดท้องตลาด" />
+                <option value="ชุดบานเปลือย" />
               </datalist>
             </div>
 

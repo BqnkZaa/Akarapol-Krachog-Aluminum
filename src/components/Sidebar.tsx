@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Layers,
@@ -15,6 +15,7 @@ import {
   FlaskConical,
   Menu,
   X,
+  ChevronDown,
 } from "lucide-react";
 
 type NavItem = {
@@ -51,12 +52,127 @@ const navSections: NavSection[] = [
   },
 ];
 
-export default function Sidebar() {
+function SidebarNavigation({ closeSidebar }: { closeSidebar: () => void }) {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const currentSeries = searchParams.get("series");
+
+  const [isAccessoriesOpen, setIsAccessoriesOpen] = useState(false);
+
+  // Automatically expand the accessories sub-menu when on the accessories pages
+  useEffect(() => {
+    if (pathname.startsWith("/admin/accessories")) {
+      setIsAccessoriesOpen(true);
+    }
+  }, [pathname]);
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
+
+  const isSubActive = (subHref: string) => {
+    if (subHref === "/admin/accessories") {
+      return pathname === "/admin/accessories" && !currentSeries;
+    }
+    const url = new URL(subHref, "http://localhost");
+    const subSeries = url.searchParams.get("series");
+    return pathname === "/admin/accessories" && currentSeries === subSeries;
+  };
+
+  return (
+    <nav className="flex-1 py-4 px-3 space-y-6 overflow-y-auto">
+      {navSections.map((section) => (
+        <div key={section.title}>
+          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            {section.title}
+          </p>
+          <div className="space-y-1">
+            {section.items.map((item) => {
+              if (item.href === "/admin/accessories") {
+                const active = pathname.startsWith("/admin/accessories");
+                const Icon = item.icon;
+                return (
+                  <div key="accessories-collapsible" className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsAccessoriesOpen(!isAccessoriesOpen)}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        active
+                          ? "bg-gray-800 text-white"
+                          : "text-gray-400 hover:text-white hover:bg-gray-800"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                          isAccessoriesOpen ? "transform rotate-180 text-white" : "text-gray-500"
+                        }`}
+                      />
+                    </button>
+                    <div
+                      className={`pl-8 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+                        isAccessoriesOpen ? "max-h-[300px] opacity-100 mt-1" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      {[
+                        { href: "/admin/accessories", label: "อุปกรณ์ทั้งหมด" },
+                        { href: "/admin/accessories?series=ชุดบานเลื่อน", label: "อุปกรณ์บานเลื่อน" },
+                        { href: "/admin/accessories?series=ชุดบานเปิด, บานกระทุ้ง", label: "อุปกรณ์บานเปิด" },
+                        { href: "/admin/accessories?series=ชุดบานเฟี้ยม", label: "อุปกรณ์บานเฟี้ยม" },
+                        { href: "/admin/accessories?series=ชุดท้องตลาด", label: "อุปกรณ์ชุดท้องตลาด" },
+                        { href: "/admin/accessories?series=ชุดบานเปลือย", label: "อุปกรณ์บานเปลือย" },
+                      ].map((subItem) => {
+                        const subActive = isSubActive(subItem.href);
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={closeSidebar}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              subActive
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-gray-400 hover:text-white hover:bg-gray-800"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              const active = isActive(item);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={closeSidebar}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    active
+                      ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+export default function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false);
 
   const closeSidebar = () => setIsOpen(false);
 
@@ -78,37 +194,10 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Nav Sections */}
-      <nav className="flex-1 py-4 px-3 space-y-6 overflow-y-auto">
-        {navSections.map((section) => (
-          <div key={section.title}>
-            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-              {section.title}
-            </p>
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const active = isActive(item);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={closeSidebar}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      active
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40"
-                        : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
+      {/* Nav Sections wrapped in Suspense for static build optimization */}
+      <Suspense fallback={<div className="flex-1 py-4 px-3 space-y-6" />}>
+        <SidebarNavigation closeSidebar={closeSidebar} />
+      </Suspense>
 
       {/* Footer hint */}
       <div className="p-4 border-t border-gray-800 shrink-0">
@@ -154,3 +243,4 @@ export default function Sidebar() {
     </>
   );
 }
+
