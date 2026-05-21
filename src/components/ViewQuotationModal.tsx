@@ -16,11 +16,13 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [showPrintTip, setShowPrintTip] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !quotationId) {
       setData(null);
       setError(null);
+      setShowPrintTip(false);
       return;
     }
 
@@ -42,18 +44,18 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:block print:p-0 print:bg-white print:z-0">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 print:hidden"
         onClick={onClose}
       />
 
       {/* Modal Card */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-200 z-10">
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden transition-all animate-in fade-in zoom-in-95 duration-200 z-10 print:max-h-none print:shadow-none print:border-none print:w-full print:bg-white print:overflow-visible print:relative print:z-0 print:block">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50 print:bg-white print:px-0 print:py-4">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -71,14 +73,32 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
           </div>
           <button 
             onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600 print:hidden"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 min-h-[300px]">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 min-h-[300px] print:overflow-visible print:p-0 print:space-y-4 print:block print:h-auto print:min-h-0 print:flex-none">
+          {/* Iframe Safe Printing Alert Warning Banner */}
+          {showPrintTip && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-800 text-xs sm:text-sm print:hidden">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">แนะนำสำหรับการพิมพ์ / Export PDF</p>
+                <p className="mt-1">
+                  เนื่องจากแอปพลิเคชันกำลังทำงานภายใต้หน้าต่างตัวอย่าง (iframe) ระบบความปลอดภัยของเบราว์เซอร์อาจบล็อกการสั่งพิมพ์ไว้ 
+                  เพื่อการทำงานเต็มประสิทธิภาพ กรุณาคัดลอกลิงก์แอปแล้วเปิดในเบราว์เซอร์หลัก (เช่น Chrome, Edge) ที่ URL{" "}
+                  <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-amber-950">
+                    http://localhost:3000
+                  </a>{" "}
+                  เพื่อพิมพ์รายงานหรือเซฟไฟล์ PDF ได้อย่างถูกต้องครบถ้วน
+                </p>
+              </div>
+            </div>
+          )}
+
           {isPending ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-20">
               <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
@@ -98,15 +118,15 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
           ) : (
             <div className="space-y-8 animate-in fade-in duration-300">
               {/* Top Overview Section */}
-              <div className="bg-blue-50/40 rounded-2xl p-6 border border-blue-100/50 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+              <div className="bg-blue-50/40 rounded-2xl p-6 border border-blue-100/50 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm print:bg-white print:border-gray-300 print:p-4 print:gap-4 print:shadow-none">
                 <div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5 print:text-gray-500">
                     <LayoutTemplate className="w-3.5 h-3.5" /> รูปแบบงาน
                   </p>
                   <p className="font-bold text-gray-800 leading-tight">{data.template.name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5 print:text-gray-500">
                     <Palette className="w-3.5 h-3.5" /> สีอลูมิเนียม
                   </p>
                   <p className="font-bold text-gray-800 flex items-center gap-2">
@@ -118,7 +138,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5 print:text-gray-500">
                     <Ruler className="w-3.5 h-3.5" /> ขนาด (กว้าง × สูง)
                   </p>
                   <p className="font-bold text-gray-800">
@@ -126,7 +146,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5 print:text-gray-500">
                     <Calendar className="w-3.5 h-3.5" /> วันที่เสนอราคา
                   </p>
                   <p className="font-bold text-gray-800">
@@ -159,7 +179,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
 
               {/* Component Breakdown */}
               {data.components && data.components.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 print:border-gray-300 print:p-4 print:break-inside-avoid">
                   <h3 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                     <Ruler className="w-4 h-4 text-blue-500" /> รายการชิ้นส่วนและระยะตัด
                   </h3>
@@ -200,13 +220,13 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
 
               {/* 1D Cutting Optimization results */}
               {data.cuttingResults && data.cuttingResults.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5 print:border-gray-300 print:p-4 print:space-y-3">
                   <h3 className="font-bold text-gray-900 pb-2 border-b border-gray-100 flex items-center gap-2">
                     <Box className="w-4 h-4 text-blue-500" /> แผนการจัดเรียงการตัดวัสดุ (1D Cutting Plan)
                   </h3>
                   <div className="space-y-6">
                     {data.cuttingResults.map((cr: any, idx: number) => (
-                      <div key={`${cr.materialId}-${idx}`} className="border border-gray-250 rounded-xl p-4 md:p-5 bg-gray-50/30">
+                      <div key={`${cr.materialId}-${idx}`} className="border border-gray-250 rounded-xl p-4 md:p-5 bg-gray-50/30 print:break-inside-avoid print:p-3 print:bg-white print:border-gray-300">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
                           <div>
                             <h4 className="font-bold text-gray-800">{cr.materialName}</h4>
@@ -274,10 +294,10 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
               )}
 
               {/* Glass & Accessories Side-by-side */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:block print:space-y-4">
                 {/* Glass detail */}
                 {data.glassDetail && data.glassDetail.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 print:border-gray-300 print:p-4 print:break-inside-avoid">
                     <h3 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                       <LayoutTemplate className="w-4 h-4 text-blue-500" /> รายละเอียดกระจก
                     </h3>
@@ -316,7 +336,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
 
                 {/* Accessories detail */}
                 {data.accessories && data.accessories.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 print:border-gray-300 print:p-4 print:break-inside-avoid">
                     <h3 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                       <Box className="w-4 h-4 text-blue-500" /> อุปกรณ์เสริมติดตั้ง
                     </h3>
@@ -339,67 +359,66 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                 )}
               </div>
 
-              {/* Pricing breakdown summary */}
-              <div className="bg-gray-900 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent pointer-events-none" />
-                <h3 className="font-bold text-base mb-6 flex items-center gap-2 text-white/90">
-                  <Calculator className="w-4 h-4 text-blue-400" /> รายละเอียดการประเมินราคาสุทธิ
+              <div className="bg-gray-900 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden print:bg-white print:text-black print:shadow-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid print:mt-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent pointer-events-none print:hidden" />
+                <h3 className="font-bold text-base mb-6 flex items-center gap-2 text-white/90 print:text-black print:mb-4">
+                  <Calculator className="w-4 h-4 text-blue-400 print:text-blue-600" /> รายละเอียดการประเมินราคาสุทธิ
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm print:block print:space-y-4">
                   {/* Detailed lines */}
-                  <div className="space-y-3.5 text-gray-400 font-medium">
+                  <div className="space-y-3.5 text-gray-400 font-medium print:text-gray-700 print:space-y-2">
                     <div className="flex justify-between">
                       <span>อลูมิเนียม ({data.totalBarsUsed} เส้น)</span>
-                      <span className="text-white">฿{data.materialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="text-white print:text-black">฿{data.materialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     {data.glassCost > 0 && (
                       <div className="flex justify-between">
                         <span>ค่ากระจก</span>
-                        <span className="text-white">฿{data.glassCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-white print:text-black">฿{data.glassCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
                     {data.accessoryCost > 0 && (
                       <div className="flex justify-between">
                         <span>อุปกรณ์เสริม</span>
-                        <span className="text-white">฿{data.accessoryCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-white print:text-black">฿{data.accessoryCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
-                    <div className="h-px bg-gray-800 my-2" />
-                    <div className="flex justify-between text-white font-semibold">
+                    <div className="h-px bg-gray-800 my-2 print:bg-gray-200" />
+                    <div className="flex justify-between text-white print:text-black font-semibold">
                       <span>ราคารวมต้นทุน</span>
-                      <span>฿{data.summary.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="print:text-black">฿{data.summary.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
                   {/* Profit markup & labor & final */}
-                  <div className="space-y-3.5 text-gray-400 font-medium flex flex-col justify-between">
-                    <div className="space-y-3.5">
-                      <div className="flex justify-between text-blue-300">
+                  <div className="space-y-3.5 text-gray-400 font-medium print:text-gray-700 print:block print:space-y-2">
+                    <div className="space-y-3.5 print:space-y-2">
+                      <div className="flex justify-between text-blue-300 print:text-blue-700">
                         <span>กำไร (+{data.profitMarginPercent}%)</span>
-                        <span>฿{data.summary.marginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="print:text-blue-700">฿{data.summary.marginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="flex justify-between text-emerald-300">
+                      <div className="flex justify-between text-emerald-300 print:text-emerald-700">
                         <span>ค่าแรงติดตั้ง</span>
-                        <span>฿{data.laborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="print:text-emerald-700">฿{data.laborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                       {data.additionalCost > 0 && (
-                        <div className="flex justify-between text-white/90">
+                        <div className="flex justify-between text-white/90 print:text-black">
                           <span>ค่าใช้จ่ายเพิ่มเติม</span>
-                          <span>฿{data.additionalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="print:text-black">฿{data.additionalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                       )}
                       {data.discountPercent > 0 && (
-                        <div className="flex justify-between text-red-400 border-t border-gray-800 pt-2.5">
+                        <div className="flex justify-between text-red-400 border-t border-gray-800 pt-2.5 print:text-red-600 print:border-gray-250 print:pt-2">
                           <span>ส่วนลด (-{data.discountPercent}%)</span>
-                          <span>-฿{data.summary.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="print:text-red-600">-฿{data.summary.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex justify-between items-end pt-4 border-t border-gray-800 mt-2 flex-wrap gap-2">
-                      <span className="text-gray-400 font-bold">ราคาสุทธิเสนอราคา</span>
-                      <span className="text-3xl font-extrabold text-blue-400 tracking-tight leading-none">
+                    <div className="flex justify-between items-end pt-4 border-t border-gray-800 mt-2 flex-wrap gap-2 print:border-gray-200 print:pt-2">
+                      <span className="text-gray-400 font-bold print:text-gray-700">ราคาสุทธิเสนอราคา</span>
+                      <span className="text-3xl font-extrabold text-blue-400 tracking-tight leading-none print:text-black">
                         ฿{data.summary.finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -411,7 +430,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3 z-10">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3 z-10 print:hidden">
           <button
             onClick={onClose}
             className="px-4.5 py-2.5 border border-gray-200 hover:bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl transition-all"
@@ -421,7 +440,26 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
           {data && (
             <button
               onClick={() => {
-                window.print();
+                try {
+                  const isIframe = typeof window !== "undefined" && window.self !== window.top;
+                  if (isIframe) {
+                    setShowPrintTip(true);
+                    alert(
+                      "💡 คำแนะนำในการพิมพ์ / Export PDF:\n\n" +
+                      "เนื่องจากคุณกำลังใช้งานระบบผ่านหน้าต่างพรีวิว (iframe) " +
+                      "ระบบเบราว์เซอร์จะบล็อกหน้าต่างการพิมพ์เพื่อความปลอดภัย\n\n" +
+                      "วิธีแก้ไข: กรุณาคัดลอกลิงก์หรือเปิดเบราว์เซอร์จริง เช่น Chrome, Edge แล้ววางลิงก์เข้าใช้งานที่ URL http://localhost:3000 เพื่อเข้าพิมพ์หรือเซฟ PDF ได้ทันที!"
+                    );
+                  }
+                  window.print();
+                } catch (err) {
+                  console.error("Print failed", err);
+                  setShowPrintTip(true);
+                  alert(
+                    "ไม่สามารถเปิดหน้าต่างพิมพ์ได้: " + (err instanceof Error ? err.message : String(err)) + "\n\n" +
+                    "กรุณาเข้าใช้งานผ่านเว็บเบราว์เซอร์ปกติที่ URL http://localhost:3000 แทนหน้าต่างพรีวิวเพื่อพิมพ์ใบเสนอราคา"
+                  );
+                }
               }}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center gap-2"
             >

@@ -74,6 +74,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [editableAccessories, setEditableAccessories] = useState<any[]>([]);
   const [editableGlass, setEditableGlass] = useState<any[]>([]);
   const [isSavingOverride, setIsSavingOverride] = useState<boolean>(false);
+  const [showPrintTip, setShowPrintTip] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
@@ -510,6 +511,24 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
         {/* Left Column: BOM & Cut Sheet */}
         <div className="lg:col-span-8 space-y-8 print:w-full print:space-y-4">
+          {/* Iframe Safe Printing Alert Warning Banner */}
+          {showPrintTip && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-800 text-xs sm:text-sm print:hidden">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">แนะนำสำหรับการพิมพ์ / Export PDF</p>
+                <p className="mt-1">
+                  เนื่องจากแอปพลิเคชันกำลังทำงานภายใต้หน้าต่างตัวอย่าง (iframe) ระบบความปลอดภัยของเบราว์เซอร์อาจบล็อกการสั่งพิมพ์ไว้ 
+                  เพื่อการทำงานเต็มประสิทธิภาพ กรุณาคัดลอกลิงก์แอปแล้วเปิดในเบราว์เซอร์หลัก (เช่น Chrome, Edge) ที่ URL{" "}
+                  <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-900 hover:text-amber-950">
+                    http://localhost:3000
+                  </a>{" "}
+                  เพื่อพิมพ์รายงานหรือเซฟไฟล์ PDF ได้อย่างถูกต้องครบถ้วน
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Header Info with Elevation Drawing */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm print:shadow-none print:border-gray-300 print:p-4">
             <div className="flex flex-col md:flex-row gap-6">
@@ -1108,7 +1127,28 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                 )}
 
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    try {
+                      const isIframe = typeof window !== "undefined" && window.self !== window.top;
+                      if (isIframe) {
+                        setShowPrintTip(true);
+                        alert(
+                          "💡 คำแนะนำในการพิมพ์ / Export PDF:\n\n" +
+                          "เนื่องจากคุณกำลังใช้งานระบบผ่านหน้าต่างพรีวิว (iframe) " +
+                          "ระบบเบราว์เซอร์จะบล็อกหน้าต่างการพิมพ์เพื่อความปลอดภัย\n\n" +
+                          "วิธีแก้ไข: กรุณาคัดลอกลิงก์หรือเปิดเบราว์เซอร์จริง เช่น Chrome, Edge แล้ววางลิงก์เข้าใช้งานที่ URL http://localhost:3000 เพื่อเข้าพิมพ์หรือเซฟ PDF ได้ทันที!"
+                        );
+                      }
+                      window.print();
+                    } catch (err) {
+                      console.error("Print failed", err);
+                      setShowPrintTip(true);
+                      alert(
+                        "ไม่สามารถเปิดหน้าต่างพิมพ์ได้: " + (err instanceof Error ? err.message : String(err)) + "\n\n" +
+                        "กรุณาเข้าใช้งานผ่านเว็บเบราว์เซอร์ปกติที่ URL http://localhost:3000 แทนหน้าต่างพรีวิวเพื่อพิมพ์ใบเสนอราคา"
+                      );
+                    }
+                  }}
                   className="w-full py-3.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                 >
                   <Printer className="w-5 h-5" /> พิมพ์ใบเสนอราคา / ส่งออก PDF
