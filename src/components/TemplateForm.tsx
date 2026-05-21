@@ -96,6 +96,7 @@ export default function TemplateForm(props: Props) {
 
   // ── Auto-slug ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!slugTouched && mode === "create") setSlug(slugify(name));
   }, [name, slugTouched, mode]);
 

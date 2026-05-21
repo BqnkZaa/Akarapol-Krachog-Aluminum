@@ -222,6 +222,7 @@ export type CreateAccessoryPayload = {
   name: string;
   unit: string;
   baseCost?: number;
+  series?: string;
   description?: string;
   sortOrder?: number;
   variants: AccessoryVariantInput[];
@@ -257,6 +258,7 @@ export async function createAccessory(payload: CreateAccessoryPayload): Promise<
           name: payload.name.trim(),
           unit: payload.unit.trim(),
           baseCost: payload.baseCost ?? 0,
+          series: payload.series?.trim() || "ทั่วไป",
           description: payload.description?.trim() ?? null,
           sortOrder: payload.sortOrder ?? 0,
         },
@@ -285,6 +287,7 @@ export type UpdateAccessoryPayload = {
   id: string;
   name: string;
   code: string;
+  series: string;
   variants: {
     id: string;
     unitCost: number;
@@ -311,6 +314,7 @@ export async function updateAccessory(payload: UpdateAccessoryPayload): Promise<
         data: {
           name: payload.name.trim(),
           code: payload.code.trim(),
+          series: payload.series?.trim() || "ทั่วไป",
         },
       });
 

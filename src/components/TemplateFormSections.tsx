@@ -19,6 +19,23 @@ function buildGrouped(materials: MaterialOption[]) {
   return Object.values(map);
 }
 
+// ── Grouped accessories by series for <optgroup> dropdowns ─────────────────────
+function buildGroupedAccessories(accessories: AccessoryOption[]) {
+  const map: Record<string, AccessoryOption[]> = {};
+  for (const a of accessories) {
+    const key = a.series || "ทั่วไป";
+    if (!map[key]) map[key] = [];
+    map[key].push(a);
+  }
+  // Sort groups: "ทั่วไป" (General) last, others alphabetically
+  const entries = Object.entries(map).sort(([a], [b]) => {
+    if (a === "ทั่วไป") return 1;
+    if (b === "ทั่วไป") return -1;
+    return a.localeCompare(b);
+  });
+  return entries;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // COMPONENTS SECTION
 // ════════════════════════════════════════════════════════════════════════════
@@ -57,7 +74,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
         {rows.length === 0 && (
           <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
             <Layers className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">ยังไม่มีชิ้นส่วนโปรไฟล์ คลิก "เพิ่มชิ้นส่วนโปรไฟล์" เพื่อเริ่มต้น</p>
+            <p className="text-sm text-gray-400">ยังไม่มีชิ้นส่วนโปรไฟล์ คลิก &quot;เพิ่มชิ้นส่วนโปรไฟล์&quot; เพื่อเริ่มต้น</p>
           </div>
         )}
 
@@ -403,10 +420,14 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                     className={inp}
                   >
                     <option value="">— เลือกอุปกรณ์เสริม —</option>
-                    {accessoryOptions.map((acc) => (
-                      <option key={acc.id} value={acc.name}>
-                        {acc.code} — {acc.name}
-                      </option>
+                    {buildGroupedAccessories(accessoryOptions).map(([series, items]) => (
+                      <optgroup key={series} label={series}>
+                        {items.map((acc) => (
+                          <option key={acc.id} value={acc.name}>
+                            {acc.code} — {acc.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>

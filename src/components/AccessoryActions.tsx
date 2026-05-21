@@ -16,6 +16,7 @@ interface AccessoryActionsProps {
     id: string;
     code: string;
     name: string;
+    series: string;
     variants: Variant[];
   };
 }

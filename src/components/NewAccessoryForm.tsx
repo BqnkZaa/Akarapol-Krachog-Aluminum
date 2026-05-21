@@ -24,6 +24,7 @@ export default function NewAccessoryForm({ colors }: Props) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("ชิ้น");
+  const [series, setSeries] = useState("");
   const [description, setDescription] = useState("");
 
   // One price row per color — initialised with empty prices
@@ -53,6 +54,7 @@ export default function NewAccessoryForm({ colors }: Props) {
         code: code.trim(),
         name: name.trim(),
         unit: unit.trim(),
+        series: series.trim() || "ทั่วไป",
         description: description.trim() || undefined,
         variants: filledVariants.map((vp) => ({
           colorId: vp.colorId,
@@ -119,6 +121,29 @@ export default function NewAccessoryForm({ colors }: Props) {
               <option value="แพค">แพค (pack)</option>
               <option value="ชุด">ชุด (set)</option>
             </select>
+          </div>
+
+          {/* Series */}
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              ซีรีส์ / หมวดหมู่ <span className="text-gray-400 font-normal">(Series / Category)</span>
+            </label>
+            <input
+              type="text"
+              list="series-suggestions"
+              value={series}
+              onChange={(e) => setSeries(e.target.value)}
+              placeholder="e.g. ชุดบานเลื่อน, ชุดบานเปิด, บานกระทุ้ง"
+              className={inputCls}
+            />
+            <datalist id="series-suggestions">
+              <option value="ชุดบานเลื่อน" />
+              <option value="ชุดบานเปิด, บานกระทุ้ง" />
+              <option value="ชุดบานเฟี้ยม" />
+            </datalist>
+            <p className="mt-1 text-xs text-gray-400">
+              การจัดหมวดหมู่อุปกรณ์เสริมตามซีรีส์อลูมิเนียม
+            </p>
           </div>
 
           {/* Name */}

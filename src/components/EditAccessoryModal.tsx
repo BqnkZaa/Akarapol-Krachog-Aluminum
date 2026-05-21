@@ -15,6 +15,7 @@ interface EditAccessoryModalProps {
     id: string;
     code: string;
     name: string;
+    series: string;
     variants: Variant[];
   };
   onClose: () => void;
@@ -27,6 +28,7 @@ export default function EditAccessoryModal({ accessory, onClose }: EditAccessory
   // Form state
   const [code, setCode] = useState(accessory.code);
   const [name, setName] = useState(accessory.name);
+  const [series, setSeries] = useState(accessory.series || "ทั่วไป");
   const [variants, setVariants] = useState(
     accessory.variants.map((v) => ({ ...v, unitCost: v.unitCost.toString() }))
   );
@@ -46,6 +48,7 @@ export default function EditAccessoryModal({ accessory, onClose }: EditAccessory
         id: accessory.id,
         code,
         name,
+        series,
         variants: variants.map((v) => ({
           id: v.id,
           unitCost: parseFloat(v.unitCost) || 0,
@@ -108,6 +111,24 @@ export default function EditAccessoryModal({ accessory, onClose }: EditAccessory
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                ซีรีส์ / หมวดหมู่
+              </label>
+              <input
+                type="text"
+                list="edit-series-suggestions"
+                value={series}
+                onChange={(e) => setSeries(e.target.value)}
+                placeholder="e.g. ชุดบานเลื่อน, ชุดบานเปิด, บานกระทุ้ง"
+                className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+              />
+              <datalist id="edit-series-suggestions">
+                <option value="ชุดบานเลื่อน" />
+                <option value="ชุดบานเปิด, บานกระทุ้ง" />
+                <option value="ชุดบานเฟี้ยม" />
+              </datalist>
             </div>
 
             {variants.length > 0 && (

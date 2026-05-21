@@ -148,6 +148,9 @@ model Accessory {
   /// Base cost per unit BEFORE color markup (THB)
   baseCost   Float   @default(0)
 
+  /// Series / category grouping, e.g. "iConiq", "Euro", "ทั่วไป" (General)
+  series     String  @default("ทั่วไป")
+
   description String?
   imageUrl    String?
   sortOrder   Int     @default(0)

@@ -61,6 +61,12 @@ export interface RunEstimationPayload {
   laborCostPerSqM: number;     // THB per m² — multiplied by total opening area
   additionalCost?: number;     // misc flat THB
   discountPercent?: number;    // e.g. 5 → 5%
+
+  // ── Manual Overrides ─────────────────────────────────────────────────────
+  isManualOverride?: boolean;
+  manualMaterials?: CuttingResultSummary[];
+  manualAccessories?: AccessoryDetail[];
+  manualGlass?: GlassDetail[];
 }
 
 // ─── Output Types ─────────────────────────────────────────────────────────────

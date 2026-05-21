@@ -770,6 +770,7 @@ export type AccessoryOption = {
   name: string;
   unit: string;
   baseCost: number;
+  series: string;
 };
 
 /**
@@ -778,8 +779,8 @@ export type AccessoryOption = {
 export async function getAccessoriesForDropdown(): Promise<AccessoryOption[]> {
   const accs = await prisma.accessory.findMany({
     where: { isActive: true },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, code: true, name: true, unit: true, baseCost: true },
+    orderBy: [{ series: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, code: true, name: true, unit: true, baseCost: true, series: true },
   });
   return accs;
 }

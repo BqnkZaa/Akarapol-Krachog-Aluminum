@@ -3,6 +3,24 @@ import { PlusCircle, Tag, Palette, ChevronLeft, ChevronRight, Search } from "luc
 import prisma from "@/lib/prisma";
 import AccessoryActions from "@/components/AccessoryActions";
 
+// ── Series badge ───────────────────────────────────────────────────────────
+const SERIES_COLORS: Record<string, string> = {
+  iConiq: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  Euro: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  "Smart X": "bg-sky-100 text-sky-700 border-sky-200",
+  Vista: "bg-amber-100 text-amber-700 border-amber-200",
+  Flexi: "bg-rose-100 text-rose-700 border-rose-200",
+};
+
+function SeriesBadge({ series }: { series: string }) {
+  const cls = SERIES_COLORS[series] ?? "bg-gray-100 text-gray-600 border-gray-200";
+  return (
+    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
+      {series}
+    </span>
+  );
+}
+
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -30,6 +48,7 @@ async function getAccessories(page: number, query: string) {
     prisma.accessory.findMany({
       where,
       orderBy: [
+        { series: "asc" },
         { code: "asc" },
       ],
       include: {
@@ -163,6 +182,9 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
                     <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[150px] sm:min-w-[200px]">
                       Name
                     </th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap hidden lg:table-cell">
+                      ซีรีส์
+                    </th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap hidden md:table-cell">
                       Unit
                     </th>
@@ -204,6 +226,11 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
                         )}
                       </td>
 
+                      {/* Series badge */}
+                      <td className="py-4 px-4 whitespace-nowrap hidden lg:table-cell">
+                        <SeriesBadge series={acc.series} />
+                      </td>
+
                       {/* Unit */}
                       <td className="py-4 px-4 whitespace-nowrap hidden md:table-cell">
                         <span className="text-gray-600">{acc.unit}</span>
@@ -242,6 +269,7 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
                             id: acc.id,
                             code: acc.code,
                             name: acc.name,
+                            series: acc.series,
                             variants: acc.variants.map(v => ({
                               id: v.id,
                               colorName: v.color.name,
