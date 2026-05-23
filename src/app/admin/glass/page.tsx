@@ -2,20 +2,32 @@ import Link from "next/link";
 import { PlusCircle, FlaskConical, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import prisma from "@/lib/prisma";
 import GlassActions from "@/components/GlassActions";
+import { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "กระจก — SmartQuote",
-};
+interface PageProps {
+  searchParams: Promise<{ page?: string; q?: string; category?: string }>;
+}
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const category = params.category?.trim() ?? "";
+  let title = "กระจก — SmartQuote";
+  if (category) {
+    title = `จัดการข้อมูล: ${category} — SmartQuote`;
+  }
+  return { title };
+}
 
 const PAGE_SIZE = 50;
 
-async function getGlasses(page: number, query: string) {
+async function getGlasses(page: number, query: string, category?: string) {
   const skip = (page - 1) * PAGE_SIZE;
 
   const where = {
     isActive: true,
+    ...(category ? { category } : {}),
     ...(query
       ? {
           name: { contains: query },
@@ -36,21 +48,19 @@ async function getGlasses(page: number, query: string) {
   return { glasses, total };
 }
 
-interface PageProps {
-  searchParams: Promise<{ page?: string; q?: string }>;
-}
-
 export default async function GlassPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? "1", 10));
   const query = params.q?.trim() ?? "";
+  const category = params.category?.trim() ?? "";
 
-  const { glasses, total } = await getGlasses(page, query);
+  const { glasses, total } = await getGlasses(page, query, category);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   function buildUrl(overrides: Record<string, string | number>) {
     const p = new URLSearchParams();
     if (query) p.set("q", query);
+    if (category) p.set("category", category);
     p.set("page", String(page));
     Object.entries(overrides).forEach(([k, v]) => {
       if (v) p.set(k, String(v));
@@ -59,16 +69,21 @@ export default async function GlassPage({ searchParams }: PageProps) {
     return `/admin/glass?${p.toString()}`;
   }
 
+  let pageHeader = "จัดการข้อมูล: กระจกทั้งหมด";
+  if (category) {
+    pageHeader = `จัดการข้อมูล: ${category}`;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Page Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">กระจก</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">{pageHeader}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {total.toLocaleString()} ชนิด{total !== 1 ? "" : ""} ในระบบ
-              {query ? ` — กำลังกรอง` : ""}
+              {query || category ? ` — กำลังกรอง` : ""}
             </p>
           </div>
           <Link
@@ -85,6 +100,7 @@ export default async function GlassPage({ searchParams }: PageProps) {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col sm:flex-row gap-3">
           <form method="GET" action="/admin/glass" className="flex-1 flex gap-2">
+            {category && <input type="hidden" name="category" value={category} />}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
@@ -103,7 +119,7 @@ export default async function GlassPage({ searchParams }: PageProps) {
             </button>
             {query && (
               <Link
-                href="/admin/glass"
+                href={category ? `/admin/glass?category=${encodeURIComponent(category)}` : "/admin/glass"}
                 className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors whitespace-nowrap"
               >
                 ล้าง
@@ -215,6 +231,7 @@ export default async function GlassPage({ searchParams }: PageProps) {
                           glass={{
                             id: g.id,
                             name: g.name,
+                            category: g.category,
                             thicknessMm: g.thicknessMm,
                             pricePerSqM: g.pricePerSqM,
                             description: g.description,

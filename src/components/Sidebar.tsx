@@ -56,13 +56,18 @@ function SidebarNavigation({ closeSidebar }: { closeSidebar: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentSeries = searchParams.get("series");
+  const currentCategory = searchParams.get("category");
 
   const [isAccessoriesOpen, setIsAccessoriesOpen] = useState(false);
+  const [isGlassOpen, setIsGlassOpen] = useState(false);
 
-  // Automatically expand the accessories sub-menu when on the accessories pages
+  // Automatically expand the sub-menus when on their respective pages
   useEffect(() => {
     if (pathname.startsWith("/admin/accessories")) {
       setIsAccessoriesOpen(true);
+    }
+    if (pathname.startsWith("/admin/glass")) {
+      setIsGlassOpen(true);
     }
   }, [pathname]);
 
@@ -76,6 +81,15 @@ function SidebarNavigation({ closeSidebar }: { closeSidebar: () => void }) {
     const url = new URL(subHref, "http://localhost");
     const subSeries = url.searchParams.get("series");
     return pathname === "/admin/accessories" && currentSeries === subSeries;
+  };
+
+  const isGlassSubActive = (subHref: string) => {
+    if (subHref === "/admin/glass") {
+      return pathname === "/admin/glass" && !currentCategory;
+    }
+    const url = new URL(subHref, "http://localhost");
+    const subCategory = url.searchParams.get("category");
+    return pathname === "/admin/glass" && currentCategory === subCategory;
   };
 
   return (
@@ -125,6 +139,66 @@ function SidebarNavigation({ closeSidebar }: { closeSidebar: () => void }) {
                         { href: "/admin/accessories?series=ชุดบานเปลือย", label: "อุปกรณ์บานเปลือย" },
                       ].map((subItem) => {
                         const subActive = isSubActive(subItem.href);
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={closeSidebar}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              subActive
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-gray-400 hover:text-white hover:bg-gray-800"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.href === "/admin/glass") {
+                const active = pathname.startsWith("/admin/glass");
+                const Icon = item.icon;
+                return (
+                  <div key="glass-collapsible" className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsGlassOpen(!isGlassOpen)}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        active
+                          ? "bg-gray-800 text-white"
+                          : "text-gray-400 hover:text-white hover:bg-gray-800"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                          isGlassOpen ? "transform rotate-180 text-white" : "text-gray-500"
+                        }`}
+                      />
+                    </button>
+                    <div
+                      className={`pl-8 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
+                        isGlassOpen ? "max-h-[300px] opacity-100 mt-1" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      {[
+                        { href: "/admin/glass", label: "กระจกทั้งหมด" },
+                        { href: "/admin/glass?category=กระจกธรรมดา", label: "กระจกธรรมดา" },
+                        { href: "/admin/glass?category=กระจกเทมเปอร์", label: "กระจกเทมเปอร์" },
+                        { href: "/admin/glass?category=กระจกลามิเนต", label: "กระจกลามิเนต" },
+                        { href: "/admin/glass?category=กระจกเทมเปอร์ลามิเนต", label: "กระจกเทมเปอร์ลามิเนต" },
+                        { href: "/admin/glass?category=กระจกอินซูเลท", label: "กระจกอินซูเลท" },
+                        { href: "/admin/glass?category=กระจกเทมเปอร์อินซูเลท", label: "กระจกเทมเปอร์อินซูเลท" },
+                      ].map((subItem) => {
+                        const subActive = isGlassSubActive(subItem.href);
                         return (
                           <Link
                             key={subItem.href}

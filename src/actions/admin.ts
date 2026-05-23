@@ -370,6 +370,7 @@ export async function deleteAccessory(id: string): Promise<AdminActionResult> {
 
 export type CreateGlassPayload = {
   name: string;
+  category: string;
   thicknessMm?: number;
   pricePerSqM: number;
   description?: string;
@@ -379,6 +380,7 @@ export type CreateGlassPayload = {
 export type UpdateGlassPayload = {
   id: string;
   name: string;
+  category: string;
   thicknessMm: number | null;
   pricePerSqM: number;
   description: string | null;
@@ -390,6 +392,7 @@ export type UpdateGlassPayload = {
 export async function createGlass(payload: CreateGlassPayload): Promise<AdminActionResult> {
   try {
     if (!payload.name?.trim()) return { success: false, error: "กรุณากรอกชื่อกระจก" };
+    if (!payload.category?.trim()) return { success: false, error: "กรุณาเลือกหมวดหมู่กระจก" };
     if (payload.pricePerSqM < 0) return { success: false, error: "ราคาต่อตารางเมตรต้องไม่ติดลบ" };
 
     // Duplicate name check
@@ -404,6 +407,7 @@ export async function createGlass(payload: CreateGlassPayload): Promise<AdminAct
     const glass = await prisma.glass.create({
       data: {
         name: payload.name.trim(),
+        category: payload.category.trim(),
         thicknessMm: payload.thicknessMm ?? null,
         pricePerSqM: payload.pricePerSqM,
         description: payload.description?.trim() ?? null,
@@ -426,6 +430,7 @@ export async function updateGlass(payload: UpdateGlassPayload): Promise<AdminAct
   try {
     if (!payload.id) return { success: false, error: "ไม่พบ ID ของกระจก" };
     if (!payload.name?.trim()) return { success: false, error: "กรุณากรอกชื่อกระจก" };
+    if (!payload.category?.trim()) return { success: false, error: "กรุณาเลือกหมวดหมู่กระจก" };
     if (payload.pricePerSqM < 0) return { success: false, error: "ราคาต่อตารางเมตรต้องไม่ติดลบ" };
 
     // Check for duplicate name (excluding self)
@@ -441,6 +446,7 @@ export async function updateGlass(payload: UpdateGlassPayload): Promise<AdminAct
       where: { id: payload.id },
       data: {
         name: payload.name.trim(),
+        category: payload.category.trim(),
         thicknessMm: payload.thicknessMm,
         pricePerSqM: payload.pricePerSqM,
         description: payload.description,

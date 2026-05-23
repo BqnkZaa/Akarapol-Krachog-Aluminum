@@ -7,6 +7,7 @@ import { updateGlass, deleteGlass } from "@/actions/admin";
 type GlassData = {
   id: string;
   name: string;
+  category: string;
   thicknessMm: number | null;
   pricePerSqM: number;
   description: string | null;
@@ -93,6 +94,7 @@ export default function GlassActions({ glass }: Props) {
 function EditGlassModal({ glass, onClose }: { glass: GlassData; onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(glass.name);
+  const [category, setCategory] = useState(glass.category);
   const [thicknessMm, setThicknessMm] = useState(glass.thicknessMm?.toString() ?? "");
   const [pricePerSqM, setPricePerSqM] = useState(glass.pricePerSqM.toString());
   const [description, setDescription] = useState(glass.description ?? "");
@@ -116,6 +118,7 @@ function EditGlassModal({ glass, onClose }: { glass: GlassData; onClose: () => v
       const result = await updateGlass({
         id: glass.id,
         name: name.trim(),
+        category: category,
         thicknessMm: thicknessMm ? parseInt(thicknessMm) : null,
         pricePerSqM: price,
         description: description.trim() || null,
@@ -163,6 +166,25 @@ function EditGlassModal({ glass, onClose }: { glass: GlassData; onClose: () => v
               onChange={(e) => setName(e.target.value)}
               className={inputCls}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              หมวดหมู่กระจก <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={inputCls}
+              required
+            >
+              <option value="กระจกธรรมดา">กระจกธรรมดา</option>
+              <option value="กระจกเทมเปอร์">กระจกเทมเปอร์</option>
+              <option value="กระจกลามิเนต">กระจกลามิเนต</option>
+              <option value="กระจกเทมเปอร์ลามิเนต">กระจกเทมเปอร์ลามิเนต</option>
+              <option value="กระจกอินซูเลท">กระจกอินซูเลท</option>
+              <option value="กระจกเทมเปอร์อินซูเลท">กระจกเทมเปอร์อินซูเลท</option>
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

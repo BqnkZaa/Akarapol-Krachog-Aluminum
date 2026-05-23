@@ -11,6 +11,7 @@ export default function NewGlassForm() {
   const [isPending, startTransition] = useTransition();
 
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("กระจกธรรมดา");
   const [thicknessMm, setThicknessMm] = useState("");
   const [pricePerSqM, setPricePerSqM] = useState("");
   const [description, setDescription] = useState("");
@@ -35,6 +36,7 @@ export default function NewGlassForm() {
     startTransition(async () => {
       const result = await createGlass({
         name: name.trim(),
+        category: category,
         thicknessMm: thicknessMm ? parseInt(thicknessMm) : undefined,
         pricePerSqM: price,
         description: description.trim() || undefined,
@@ -84,6 +86,26 @@ export default function NewGlassForm() {
             <p className="mt-1 text-xs text-gray-400">
               ต้องไม่ซ้ำกับกระจกอื่นในระบบ
             </p>
+          </div>
+
+          {/* Category */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              หมวดหมู่กระจก <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={inputCls}
+              required
+            >
+              <option value="กระจกธรรมดา">กระจกธรรมดา</option>
+              <option value="กระจกเทมเปอร์">กระจกเทมเปอร์</option>
+              <option value="กระจกลามิเนต">กระจกลามิเนต</option>
+              <option value="กระจกเทมเปอร์ลามิเนต">กระจกเทมเปอร์ลามิเนต</option>
+              <option value="กระจกอินซูเลท">กระจกอินซูเลท</option>
+              <option value="กระจกเทมเปอร์อินซูเลท">กระจกเทมเปอร์อินซูเลท</option>
+            </select>
           </div>
 
           {/* Thickness */}

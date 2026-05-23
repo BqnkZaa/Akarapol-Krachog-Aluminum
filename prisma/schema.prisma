@@ -208,6 +208,8 @@ model Glass {
   /// Display name shown in dropdowns and on quotes, e.g. "กระจกใส 6มม."
   name        String  @unique
 
+  category    String  @default("กระจกธรรมดา")
+
   /// Thickness in millimeters (optional, informational only)
   thicknessMm Int?
 
