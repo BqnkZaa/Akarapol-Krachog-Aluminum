@@ -322,9 +322,19 @@ export function evalFormula(
       return { ok: false, error: "Formula is empty." };
     }
 
+    // Convert variables from mm to cm for centimeter-based formula evaluation
+    const varsCm: FormulaVariables = {
+      W: vars.W / 10,
+      H: vars.H / 10,
+      W1: vars.W1 !== undefined ? vars.W1 / 10 : undefined,
+      W2: vars.W2 !== undefined ? vars.W2 / 10 : undefined,
+      H1: vars.H1 !== undefined ? vars.H1 / 10 : undefined,
+      H2: vars.H2 !== undefined ? vars.H2 / 10 : undefined,
+    };
+
     const tokens = tokenize(formula.trim());
-    const parser = new Parser(tokens, vars);
-    const value = parser.parseExpression();
+    const parser = new Parser(tokens, varsCm);
+    const valueCm = parser.parseExpression();
 
     // Ensure we consumed the entire formula (no trailing garbage)
     const remaining = parser["peek"](); // access via bracket to keep class clean
@@ -335,11 +345,14 @@ export function evalFormula(
       };
     }
 
-    if (!isFinite(value)) {
+    if (!isFinite(valueCm)) {
       return { ok: false, error: "Formula produced a non-finite result (Infinity or NaN)." };
     }
 
-    return { ok: true, value };
+    // Convert result from cm back to mm
+    const valueMm = valueCm * 10;
+
+    return { ok: true, value: valueMm };
   } catch (err) {
     if (err instanceof FormulaError) {
       return { ok: false, error: err.message };

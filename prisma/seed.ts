@@ -831,11 +831,11 @@ async function main() {
     { code: "iS-0102", label: "เฟรมข้าง (Side Frame)", formula: "H", quantity: 2, sortOrder: 2 },
     { code: "iS-0113", label: "ตบเฟรมบน (Top Header Cover)", formula: "W", quantity: 1, sortOrder: 3 },
     { code: "iS-0114", label: "ตบธรณี (Threshold Cover)", formula: "W", quantity: 1, sortOrder: 4 },
-    { code: "iS-0201", label: "กรอบบานบน-ล่าง (Panel Frame T/B)", formula: "(W / 2) + 20", quantity: 4, sortOrder: 5 },
-    { code: "iS-0201", label: "กรอบบานข้าง (Panel Frame Sides)", formula: "H - 40", quantity: 4, sortOrder: 6 },
-    { code: "iS-0202", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "(W / 2) - 30", quantity: 4, sortOrder: 7 },
-    { code: "iS-0202", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 100", quantity: 4, sortOrder: 8 },
-    { code: "iS-0207", label: "ตบเกี่ยวบาน (Interlock)", formula: "H - 30", quantity: 2, sortOrder: 9 },
+    { code: "iS-0201", label: "กรอบบานบน-ล่าง (Panel Frame T/B)", formula: "(W / 2) + 2", quantity: 4, sortOrder: 5 },
+    { code: "iS-0201", label: "กรอบบานข้าง (Panel Frame Sides)", formula: "H - 4", quantity: 4, sortOrder: 6 },
+    { code: "iS-0202", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "(W / 2) - 3", quantity: 4, sortOrder: 7 },
+    { code: "iS-0202", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 10", quantity: 4, sortOrder: 8 },
+    { code: "iS-0207", label: "ตบเกี่ยวบาน (Interlock)", formula: "H - 3", quantity: 2, sortOrder: 9 },
   ];
 
   for (const comp of components) {
@@ -858,8 +858,8 @@ async function main() {
   await prisma.glassSpecification.create({
     data: {
       templateId: template.id,
-      widthFormula: "(W / 2) - 50",
-      heightFormula: "H - 110",
+      widthFormula: "(W / 2) - 5",
+      heightFormula: "H - 11",
       panelCount: 2,
       glassType: "6mm Clear Tempered",
       pricePerSqM: 51.10,
@@ -939,8 +939,8 @@ async function main() {
     { code: "iF-0101", label: "เฟรมข้าง (Side Frame)",                formula: "H",      quantity: 2, sortOrder: 2 },
     { code: "iF-0102", label: "เฟรมล่าง (Bottom Frame)",              formula: "W",      quantity: 1, sortOrder: 3 },
     { code: "iF-0104", label: "ตบช่องแสง (Trim Cover)",              formula: "W",      quantity: 1, sortOrder: 4 },
-    { code: "iO-0203", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "W - 40", quantity: 2, sortOrder: 5 },
-    { code: "iO-0203", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 60", quantity: 2, sortOrder: 6 },
+    { code: "iO-0203", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "W - 4",  quantity: 2, sortOrder: 5 },
+    { code: "iO-0203", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 6",  quantity: 2, sortOrder: 6 },
   ];
 
   for (const comp of fixedComponents) {
@@ -963,8 +963,8 @@ async function main() {
   await prisma.glassSpecification.create({
     data: {
       templateId: templateFixed.id,
-      widthFormula: "W - 50",
-      heightFormula: "H - 70",
+      widthFormula: "W - 5",
+      heightFormula: "H - 7",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
       pricePerSqM: 51.10,
@@ -1015,10 +1015,10 @@ async function main() {
   const casementComponents: CompSeed[] = [
     { code: "iO-0101", label: "เฟรมบน-ล่าง (Frame Top/Bottom)",     formula: "W",      quantity: 2, sortOrder: 1 },
     { code: "iO-0101", label: "เฟรมข้าง (Frame Sides)",             formula: "H",      quantity: 2, sortOrder: 2 },
-    { code: "iO-0201", label: "กรอบบานบน-ล่าง (Sash Top/Bottom)",   formula: "W - 45", quantity: 2, sortOrder: 3 },
-    { code: "iO-0201", label: "กรอบบานข้าง (Sash Sides)",           formula: "H - 45", quantity: 2, sortOrder: 4 },
-    { code: "iO-0203", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "W - 95", quantity: 2, sortOrder: 5 },
-    { code: "iO-0203", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 95", quantity: 2, sortOrder: 6 },
+    { code: "iO-0201", label: "กรอบบานบน-ล่าง (Sash Top/Bottom)",   formula: "W - 4.5", quantity: 2, sortOrder: 3 },
+    { code: "iO-0201", label: "กรอบบานข้าง (Sash Sides)",           formula: "H - 4.5", quantity: 2, sortOrder: 4 },
+    { code: "iO-0203", label: "คิ้วกรอบบาน แนวนอน (Glazing Bead H)", formula: "W - 9.5", quantity: 2, sortOrder: 5 },
+    { code: "iO-0203", label: "คิ้วกรอบบาน แนวตั้ง (Glazing Bead V)", formula: "H - 9.5", quantity: 2, sortOrder: 6 },
   ];
 
   for (const comp of casementComponents) {
@@ -1040,8 +1040,8 @@ async function main() {
   await prisma.glassSpecification.create({
     data: {
       templateId: templateCasement.id,
-      widthFormula: "W - 105",
-      heightFormula: "H - 105",
+      widthFormula: "W - 10.5",
+      heightFormula: "H - 10.5",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
       pricePerSqM: 51.10,
@@ -1094,10 +1094,10 @@ async function main() {
     { code: "iC-0101", label: "เฟรมบน (Top Frame)",                     formula: "W",      quantity: 1, sortOrder: 1 },
     { code: "iC-0101", label: "เฟรมข้าง (Side Frame)",                  formula: "H",      quantity: 2, sortOrder: 2 },
     { code: "iC-0102", label: "เฟรมล่าง (Bottom Frame)",                formula: "W",      quantity: 1, sortOrder: 3 },
-    { code: "iC-0201", label: "กรอบบานบน-ล่าง (Sash Top/Bottom)",       formula: "W - 45", quantity: 2, sortOrder: 4 },
-    { code: "iC-0201", label: "กรอบบานข้าง (Sash Sides)",               formula: "H - 45", quantity: 2, sortOrder: 5 },
-    { code: "iC-0105", label: "คิ้วช่องแสง แนวนอน (Glazing Bead H)",    formula: "W - 95", quantity: 2, sortOrder: 6 },
-    { code: "iC-0105", label: "คิ้วช่องแสง แนวตั้ง (Glazing Bead V)",    formula: "H - 95", quantity: 2, sortOrder: 7 },
+    { code: "iC-0201", label: "กรอบบานบน-ล่าง (Sash Top/Bottom)",       formula: "W - 4.5", quantity: 2, sortOrder: 4 },
+    { code: "iC-0201", label: "กรอบบานข้าง (Sash Sides)",               formula: "H - 4.5", quantity: 2, sortOrder: 5 },
+    { code: "iC-0105", label: "คิ้วช่องแสง แนวนอน (Glazing Bead H)",    formula: "W - 9.5", quantity: 2, sortOrder: 6 },
+    { code: "iC-0105", label: "คิ้วช่องแสง แนวตั้ง (Glazing Bead V)",    formula: "H - 9.5", quantity: 2, sortOrder: 7 },
   ];
 
   for (const comp of awningComponents) {
@@ -1119,8 +1119,8 @@ async function main() {
   await prisma.glassSpecification.create({
     data: {
       templateId: templateAwning.id,
-      widthFormula: "W - 105",
-      heightFormula: "H - 105",
+      widthFormula: "W - 10.5",
+      heightFormula: "H - 10.5",
       panelCount: 1,
       glassType: "6mm Clear Tempered",
       pricePerSqM: 51.10,
@@ -2645,20 +2645,20 @@ async function main() {
       { templateId: tmplSliding.id, materialId: await mat("SS-X102"), label: "เฟรมล่าง (Track Bottom)",  formula: "W",           quantity: 1, sortOrder: 2 },
       // Outer frame — vertical (sides)
       { templateId: tmplSliding.id, materialId: await mat("SS-X103"), label: "เฟรมข้าง (Side Jamb)",    formula: "H",           quantity: 2, sortOrder: 3 },
-      // Panel top/bottom bars — each panel = W/2 + 20mm overlap
-      { templateId: tmplSliding.id, materialId: await mat("SS-X203"), label: "ขวางบน-ล่างบาน (Panel Top/Bot)", formula: "W / 2 + 20", quantity: 4, sortOrder: 4 },
+      // Panel top/bottom bars — each panel = W/2 + 2cm overlap
+      { templateId: tmplSliding.id, materialId: await mat("SS-X203"), label: "ขวางบน-ล่างบาน (Panel Top/Bot)", formula: "W / 2 + 2",  quantity: 4, sortOrder: 4 },
       // Panel lock stile (SS-X201) and handle stile (SS-X202) — each panel height
-      { templateId: tmplSliding.id, materialId: await mat("SS-X201"), label: "เสากุญแจ (Lock Stile)",   formula: "H - 45",      quantity: 2, sortOrder: 5 },
-      { templateId: tmplSliding.id, materialId: await mat("SS-X202"), label: "เสามือจับ (Handle Stile)", formula: "H - 45",      quantity: 2, sortOrder: 6 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X201"), label: "เสากุญแจ (Lock Stile)",   formula: "H - 4.5",     quantity: 2, sortOrder: 5 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X202"), label: "เสามือจับ (Handle Stile)", formula: "H - 4.5",     quantity: 2, sortOrder: 6 },
       // Glass bead — 4 sides per panel × 2 panels
-      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead H)", formula: "H - 45",  quantity: 4, sortOrder: 7 },
-      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead W)", formula: "W / 2 + 20 - 60", quantity: 4, sortOrder: 8 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead H)", formula: "H - 4.5",     quantity: 4, sortOrder: 7 },
+      { templateId: tmplSliding.id, materialId: await mat("SS-X204"), label: "เสริมร่องกระจก (Glass Bead W)", formula: "W / 2 + 2 - 6", quantity: 4, sortOrder: 8 },
     ],
   });
   // Glass spec — each pane
   await prisma.glassSpecification.deleteMany({ where: { templateId: tmplSliding.id } });
   await prisma.glassSpecification.create({
-    data: { templateId: tmplSliding.id, label: "กระจกบานเลื่อน", widthFormula: "W / 2 - 30", heightFormula: "H - 80", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
+    data: { templateId: tmplSliding.id, label: "กระจกบานเลื่อน", widthFormula: "W / 2 - 3", heightFormula: "H - 8", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   // Accessories
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplSliding.id } });
@@ -2692,16 +2692,16 @@ async function main() {
       { templateId: tmplFixed.id, materialId: await mat("SF-X101"), label: "เฟรมช่องแสง (Frame H)", formula: "W",      quantity: 2, sortOrder: 1 },
       { templateId: tmplFixed.id, materialId: await mat("SF-X101"), label: "เฟรมช่องแสง (Frame V)", formula: "H",      quantity: 2, sortOrder: 2 },
       // Inner bead / stop — SF-X103
-      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop H)",    formula: "W - 10", quantity: 2, sortOrder: 3 },
-      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop V)",    formula: "H - 10", quantity: 2, sortOrder: 4 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop H)",    formula: "W - 1",  quantity: 2, sortOrder: 3 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X103"), label: "ตบช่องแสง (Stop V)",    formula: "H - 1",  quantity: 2, sortOrder: 4 },
       // Glass bead — SF-X108 (12.7mm groove)
-      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead H)",   formula: "W - 40", quantity: 2, sortOrder: 5 },
-      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",   formula: "H - 40", quantity: 2, sortOrder: 6 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead H)",   formula: "W - 4",  quantity: 2, sortOrder: 5 },
+      { templateId: tmplFixed.id, materialId: await mat("SF-X108"), label: "คิ้วกระจก (Bead V)",   formula: "H - 4",  quantity: 2, sortOrder: 6 },
     ],
   });
   await prisma.glassSpecification.deleteMany({ where: { templateId: tmplFixed.id } });
   await prisma.glassSpecification.create({
-    data: { templateId: tmplFixed.id, label: "กระจกช่องแสง", widthFormula: "W - 60", heightFormula: "H - 60", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
+    data: { templateId: tmplFixed.id, label: "กระจกช่องแสง", widthFormula: "W - 6", heightFormula: "H - 6", panelCount: 1, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFixed.id } });
   await prisma.templateAccessory.createMany({
@@ -2824,21 +2824,21 @@ async function main() {
       // Side jambs — SB-0105
       { templateId: tmplFolding.id, materialId: await mat("SB-0105"), label: "เฟรมข้าง (Side Jamb)",      formula: "H",           quantity: 2, sortOrder: 3 },
       // Door stile (pivot post) — SB-0114
-      { templateId: tmplFolding.id, materialId: await mat("SB-0114"), label: "เสาประตู (Pivot Post)",     formula: "H - 20",      quantity: 1, sortOrder: 4 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0114"), label: "เสาประตู (Pivot Post)",     formula: "H - 2",       quantity: 1, sortOrder: 4 },
       // Panel top/bottom — SB-0107 (each leaf = W/number_of_leaves)
-      { templateId: tmplFolding.id, materialId: await mat("SB-0107"), label: "ขวางบน-ล่างบาน (Panel T/B)", formula: "W / 2 - 20",  quantity: 4, sortOrder: 5 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0107"), label: "ขวางบน-ล่างบาน (Panel T/B)", formula: "W / 2 - 2",   quantity: 4, sortOrder: 5 },
       // Panel side — SB-0105 inner
-      { templateId: tmplFolding.id, materialId: await mat("SB-0112"), label: "เฟรมข้างบาน-ใน (Inner Side)", formula: "H - 60",    quantity: 4, sortOrder: 6 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0112"), label: "เฟรมข้างบาน-ใน (Inner Side)", formula: "H - 6",     quantity: 4, sortOrder: 6 },
       // Glass bead — SB-0108
-      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead H)",    formula: "W / 2 - 60",  quantity: 4, sortOrder: 7 },
-      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead V)",    formula: "H - 100",     quantity: 4, sortOrder: 8 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead H)",    formula: "W / 2 - 6",   quantity: 4, sortOrder: 7 },
+      { templateId: tmplFolding.id, materialId: await mat("SB-0108"), label: "คิ้วบาน (Glass Bead V)",    formula: "H - 10",    quantity: 4, sortOrder: 8 },
       // Floor guide — SB-0115
       { templateId: tmplFolding.id, materialId: await mat("SB-0115"), label: "รางกั้นพื้น (Floor Guide)", formula: "W",           quantity: 1, sortOrder: 9 },
     ],
   });
   await prisma.glassSpecification.deleteMany({ where: { templateId: tmplFolding.id } });
   await prisma.glassSpecification.create({
-    data: { templateId: tmplFolding.id, label: "กระจกบานเฟี้ยม", widthFormula: "W / 2 - 80", heightFormula: "H - 120", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
+    data: { templateId: tmplFolding.id, label: "กระจกบานเฟี้ยม", widthFormula: "W / 2 - 8", heightFormula: "H - 12", panelCount: 2, glassType: "5mm Clear Tempered", pricePerSqM: 41.81, sortOrder: 0 },
   });
   await prisma.templateAccessory.deleteMany({ where: { templateId: tmplFolding.id } });
   await prisma.templateAccessory.createMany({
