@@ -50,32 +50,40 @@ function initComponents(data?: TemplateDetail, materials?: MaterialOption[]): Co
   });
 }
 
-function initAccessories(data?: TemplateDetail): AccessoryRow[] {
+function initAccessories(data?: TemplateDetail, accessoryOptions?: AccessoryOption[]): AccessoryRow[] {
   if (!data?.accessories.length) return [];
-  return data.accessories.map((a, i) => ({
-    _key: `a-init-${i}`,
-    name: a.name,
-    quantity: a.quantity,
-    unitCost: a.unitCost,
-    unit: a.unit,
-    sortOrder: a.sortOrder,
-  }));
+  return data.accessories.map((a, i) => {
+    const acc = accessoryOptions?.find(opt => opt.name === a.name);
+    return {
+      _key: `a-init-${i}`,
+      name: a.name,
+      quantity: a.quantity,
+      unitCost: a.unitCost,
+      unit: a.unit,
+      sortOrder: a.sortOrder,
+      seriesFilter: acc?.series || "",
+    };
+  });
 }
 
-function initGlass(data?: TemplateDetail): GlassRow[] {
+function initGlass(data?: TemplateDetail, glassOptions?: GlassOption[]): GlassRow[] {
   if (!data?.glassSpecifications.length) return [];
-  return data.glassSpecifications.map((g, i) => ({
-    _key: `g-init-${i}`,
-    label: g.label,
-    widthFormula: g.widthFormula,
-    widthFormulaError: null,
-    heightFormula: g.heightFormula,
-    heightFormulaError: null,
-    panelCount: g.panelCount,
-    glassType: g.glassType,
-    pricePerSqM: g.pricePerSqM,
-    sortOrder: g.sortOrder,
-  }));
+  return data.glassSpecifications.map((g, i) => {
+    const gls = glassOptions?.find(opt => opt.name === g.glassType);
+    return {
+      _key: `g-init-${i}`,
+      label: g.label,
+      widthFormula: g.widthFormula,
+      widthFormulaError: null,
+      heightFormula: g.heightFormula,
+      heightFormulaError: null,
+      panelCount: g.panelCount,
+      glassType: g.glassType,
+      pricePerSqM: g.pricePerSqM,
+      sortOrder: g.sortOrder,
+      categoryFilter: gls?.category || "",
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -104,8 +112,8 @@ export default function TemplateForm(props: Props) {
 
   // ── Child arrays ──────────────────────────────────────────────────────────
   const [components, setComponents] = useState<ComponentRow[]>(() => initComponents(initialData, materials));
-  const [glassRows, setGlassRows] = useState<GlassRow[]>(() => initGlass(initialData));
-  const [accessories, setAccessories] = useState<AccessoryRow[]>(() => initAccessories(initialData));
+  const [glassRows, setGlassRows] = useState<GlassRow[]>(() => initGlass(initialData, props.glasses));
+  const [accessories, setAccessories] = useState<AccessoryRow[]>(() => initAccessories(initialData, props.accessories));
 
   // ── Feedback ──────────────────────────────────────────────────────────────
   const [error, setError] = useState<string | null>(null);

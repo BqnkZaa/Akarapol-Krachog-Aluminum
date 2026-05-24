@@ -22,6 +22,7 @@ export type AccessoryRow = {
   unitCost: number;
   unit: string;
   sortOrder: number;
+  seriesFilter?: string;
 };
 
 export type GlassRow = {
@@ -35,6 +36,7 @@ export type GlassRow = {
   glassType: string;
   pricePerSqM: number;
   sortOrder: number;
+  categoryFilter?: string;
 };
 
 export function makeEmptyComponent(order: number): ComponentRow {
@@ -59,6 +61,7 @@ export function makeEmptyAccessory(order: number): AccessoryRow {
     unitCost: 0,
     unit: "ชุด",
     sortOrder: order,
+    seriesFilter: "",
   };
 }
 
@@ -74,6 +77,7 @@ export function makeEmptyGlass(order: number): GlassRow {
     glassType: "6mm Clear Tempered",
     pricePerSqM: 0,
     sortOrder: order,
+    categoryFilter: "",
   };
 }
 

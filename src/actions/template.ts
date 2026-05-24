@@ -801,6 +801,7 @@ export async function getAccessoriesForDropdown(): Promise<AccessoryOption[]> {
 export type GlassOption = {
   id: string;
   name: string;
+  category: string;
   thicknessMm: number | null;
   pricePerSqM: number;
 };
@@ -812,7 +813,7 @@ export async function getGlassesForDropdown(): Promise<GlassOption[]> {
   const glasses = await prisma.glass.findMany({
     where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, thicknessMm: true, pricePerSqM: true },
+    select: { id: true, name: true, category: true, thicknessMm: true, pricePerSqM: true },
   });
   return glasses;
 }

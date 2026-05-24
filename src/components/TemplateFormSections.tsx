@@ -221,6 +221,9 @@ type GlassSectionProps = {
 };
 
 export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, onMove }: GlassSectionProps) {
+  // Extract unique categories sorted alphabetically
+  const glassCategories = Array.from(new Set(glassOptions.map(g => g.category || "ทั่วไป"))).sort();
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-sky-400 to-blue-500" />
@@ -271,7 +274,7 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Label / Name */}
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     ชื่อตำแหน่งกระจก <span className="text-red-500">*</span>
                   </label>
@@ -279,6 +282,35 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                     onChange={e => onChange(idx, "label", e.target.value)}
                     placeholder='เช่น "กระจกบานเลื่อน" หรือ "กระจกช่องแสง"'
                     className={inp} />
+                </div>
+
+                {/* Glass Category Filter */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    หมวดหมู่กระจก
+                  </label>
+                  <select
+                    value={row.categoryFilter || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onChange(idx, "categoryFilter", val);
+                      
+                      // Clear selection if current glass type doesn't match the selected category
+                      const currentGls = glassOptions.find((g) => g.name === row.glassType);
+                      if (currentGls && val && (currentGls.category || "ทั่วไป") !== val) {
+                        onChange(idx, "glassType", "");
+                        onChange(idx, "pricePerSqM", 0);
+                      }
+                    }}
+                    className={inp}
+                  >
+                    <option value="">— ทั้งหมด —</option>
+                    {glassCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Glass type dropdown */}
@@ -296,16 +328,28 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                         const found = glassOptions.find(g => g.name === selectedName);
                         if (found) {
                           onChange(idx, "pricePerSqM", found.pricePerSqM);
+                          // Smart Auto-fill category Filter
+                          onChange(idx, "categoryFilter", found.category || "ทั่วไป");
                         }
                       }}
                       className={inp}
                     >
                       <option value="">— เลือกชนิดกระจก —</option>
-                      {glassOptions.map(g => (
-                        <option key={g.id} value={g.name}>
-                          {g.name}
-                        </option>
-                      ))}
+                      {row.categoryFilter ? (
+                        glassOptions
+                          .filter(g => (g.category || "ทั่วไป") === row.categoryFilter)
+                          .map(g => (
+                            <option key={g.id} value={g.name}>
+                              {g.name}
+                            </option>
+                          ))
+                      ) : (
+                        glassOptions.map(g => (
+                          <option key={g.id} value={g.name}>
+                            {g.name}
+                          </option>
+                        ))
+                      )}
                     </select>
                   ) : (
                     <input
@@ -401,6 +445,13 @@ type AccessoriesSectionProps = {
 };
 
 export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, onRemove, onMove }: AccessoriesSectionProps) {
+  // Extract unique series sorted alphabetically
+  const seriesList = Array.from(new Set(accessoryOptions.map(a => a.series || "ทั่วไป"))).sort((a, b) => {
+    if (a === "ทั่วไป") return 1;
+    if (b === "ทั่วไป") return -1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
@@ -449,9 +500,39 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Category (Series) Filter */}
+                <div className="col-span-1 md:col-span-3">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    หมวดหมู่
+                  </label>
+                  <select
+                    value={row.seriesFilter || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onChange(idx, "seriesFilter", val);
+                      
+                      // Clear selection if current accessory doesn't match the selected category
+                      const currentAcc = accessoryOptions.find((a) => a.name === row.name);
+                      if (currentAcc && val && (currentAcc.series || "ทั่วไป") !== val) {
+                        onChange(idx, "name", "");
+                        onChange(idx, "unit", "ชุด");
+                        onChange(idx, "unitCost", 0);
+                      }
+                    }}
+                    className={inp}
+                  >
+                    <option value="">— ทั้งหมด —</option>
+                    {seriesList.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Name Dropdown */}
-                <div className="col-span-2 sm:col-span-2">
+                <div className="col-span-1 md:col-span-3">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
                     ชื่ออุปกรณ์ <span className="text-red-500">*</span>
                   </label>
@@ -465,32 +546,44 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                       if (acc) {
                         onChange(idx, "unit", acc.unit);
                         onChange(idx, "unitCost", acc.baseCost);
+                        // Smart Auto-fill series filter
+                        onChange(idx, "seriesFilter", acc.series || "ทั่วไป");
                       }
                     }}
                     className={inp}
                   >
                     <option value="">— เลือกอุปกรณ์เสริม —</option>
-                    {buildGroupedAccessories(accessoryOptions).map(([series, items]) => (
-                      <optgroup key={series} label={series}>
-                        {items.map((acc) => (
+                    {row.seriesFilter ? (
+                      accessoryOptions
+                        .filter((acc) => (acc.series || "ทั่วไป") === row.seriesFilter)
+                        .map((acc) => (
                           <option key={acc.id} value={acc.name}>
                             {acc.code} — {acc.name}
                           </option>
-                        ))}
-                      </optgroup>
-                    ))}
+                        ))
+                    ) : (
+                      buildGroupedAccessories(accessoryOptions).map(([series, items]) => (
+                        <optgroup key={series} label={series}>
+                          {items.map((acc) => (
+                            <option key={acc.id} value={acc.name}>
+                              {acc.code} — {acc.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                    )}
                   </select>
                 </div>
 
                 {/* Unit */}
-                <div>
+                <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">หน่วยนับ</label>
                   <input type="text" value={row.unit} onChange={e => onChange(idx, "unit", e.target.value)}
                     placeholder="ชุด" className={`${inpSm} w-full`} />
                 </div>
 
                 {/* Qty */}
-                <div>
+                <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">จำนวน</label>
                   <input type="number" min={1} value={row.quantity}
                     onChange={e => onChange(idx, "quantity", parseInt(e.target.value) || 1)}
@@ -498,7 +591,7 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                 </div>
 
                 {/* Unit cost */}
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">ราคาต่อหน่วย (฿) <span className="text-red-500">*</span></label>
                   <input type="number" min={0} step={0.01} value={row.unitCost}
                     onChange={e => onChange(idx, "unitCost", parseFloat(e.target.value) || 0)}
