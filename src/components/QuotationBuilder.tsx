@@ -1271,16 +1271,37 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                       <button
                         key={t.id}
                         onClick={() => handleSelectTemplate(t)}
-                        className="text-left p-5 rounded-2xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 transition-all group relative overflow-hidden"
+                        className="text-left rounded-2xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 hover:shadow-md transition-all group relative overflow-hidden flex flex-col h-full"
                       >
-                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ArrowRight className="w-5 h-5 text-blue-600" />
+                        {/* Image preview / fallback */}
+                        <div className="w-full h-40 shrink-0 bg-slate-50 relative overflow-hidden flex items-center justify-center border-b border-slate-100">
+                          {t.imageUrl ? (
+                            <img
+                              src={t.imageUrl}
+                              alt={t.name}
+                              className="w-full h-full object-cover rounded-t-xl transition-transform group-hover:scale-105 duration-300"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400">
+                              <LayoutTemplate className="w-10 h-10 text-slate-300 mb-1 transition-transform group-hover:scale-110 duration-300" />
+                              <span className="text-xs font-medium">ไม่มีรูปภาพตัวอย่าง</span>
+                            </div>
+                          )}
+                          <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <ArrowRight className="w-5 h-5 text-blue-600" />
+                          </div>
                         </div>
-                        <h4 className="text-lg font-bold text-gray-900 leading-tight mb-2 pr-6">{t.name}</h4>
-                        {t.description && <p className="text-sm text-gray-500 mb-4 line-clamp-2">{t.description}</p>}
-                        <div className="flex flex-wrap gap-2 text-xs font-medium text-gray-600">
-                          <span className="bg-gray-100 px-2 py-1 rounded-md">{t.componentCount} ชิ้นส่วน</span>
-                          {t.hasGlass && <span className="bg-cyan-50 text-cyan-700 px-2 py-1 rounded-md">รวมกระจก</span>}
+
+                        {/* Text content area */}
+                        <div className="p-5 flex-1 flex flex-col justify-between w-full">
+                          <div className="mb-4">
+                            <h4 className="text-lg font-bold text-gray-900 leading-tight mb-2 pr-6 group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                            {t.description && <p className="text-sm text-gray-500 line-clamp-2">{t.description}</p>}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs font-medium text-gray-600">
+                            <span className="bg-gray-100 px-2 py-1 rounded-md">{t.componentCount} ชิ้นส่วน</span>
+                            {t.hasGlass && <span className="bg-cyan-50 text-cyan-700 px-2 py-1 rounded-md">รวมกระจก</span>}
+                          </div>
                         </div>
                       </button>
                     ))}
