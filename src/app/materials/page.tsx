@@ -7,7 +7,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Materials — SmartQuote",
+  title: "เส้นอลูมิเนียม — SmartQuote",
 };
 
 const PAGE_SIZE = 50;
@@ -110,9 +110,9 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Materials</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">เส้นอลูมิเนียม</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {total.toLocaleString()} profile{total !== 1 ? "s" : ""} total
+              ทั้งหมด {total.toLocaleString()} รายการ
               {query || categoryId ? ` — filtered view` : ""}
             </p>
           </div>
@@ -121,7 +121,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
           >
             <PlusCircle className="w-4 h-4" />
-            Add Material
+            เพิ่มเส้นอลูมิเนียมใหม่
           </Link>
         </div>
       </div>
@@ -173,19 +173,19 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
           <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
             <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="font-semibold text-gray-700">
-              {query || categoryId ? "No materials match your search" : "No materials yet"}
+              {query || categoryId ? "ไม่พบเส้นอลูมิเนียมที่ตรงกับการค้นหา" : "ยังไม่มีข้อมูลเส้นอลูมิเนียม"}
             </h3>
             <p className="text-sm text-gray-400 mt-1 mb-6">
               {query || categoryId
-                ? "Try adjusting your search term or category filter."
-                : "Add your first aluminum profile to get started."}
+                ? "ลองปรับเปลี่ยนคำค้นหาหรือตัวกรองหมวดหมู่"
+                : "เริ่มต้นโดยการเพิ่มเส้นอลูมิเนียมชิ้นแรกของคุณ"}
             </p>
             {!(query || categoryId) && (
               <Link
                 href="/materials/new"
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
               >
-                <PlusCircle className="w-4 h-4" /> Add First Material
+                <PlusCircle className="w-4 h-4" /> เพิ่มเส้นอลูมิเนียมแรก
               </Link>
             )}
           </div>

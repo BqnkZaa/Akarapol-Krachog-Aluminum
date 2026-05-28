@@ -44,8 +44,8 @@ const navSections: NavSection[] = [
     items: [
       { href: "/admin/categories", label: "ซีรีส์", icon: FolderOpen, exact: false },
       { href: "/admin/templates", label: "รูปแบบงาน", icon: FileBox, exact: false },
-      { href: "/materials", label: "วัสดุ", icon: Layers, exact: false },
-      { href: "/materials/new", label: "เพิ่มวัสดุใหม่", icon: PlusCircle, exact: true },
+      { href: "/materials", label: "เส้นอลูมิเนียม", icon: Layers, exact: false },
+      { href: "/materials/new", label: "เพิ่มเส้นอลูมิเนียมใหม่", icon: PlusCircle, exact: true },
       { href: "/admin/accessories", label: "อุปกรณ์เสริม", icon: Wrench, exact: false },
       { href: "/admin/glass", label: "กระจก", icon: FlaskConical, exact: false },
     ],

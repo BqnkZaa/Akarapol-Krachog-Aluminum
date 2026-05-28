@@ -188,7 +188,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                       <thead>
                         <tr className="text-xs text-gray-400 border-b border-gray-150 bg-gray-50/50">
                           <th className="py-2.5 px-3 font-semibold">ชิ้นส่วน (Component)</th>
-                          <th className="py-2.5 px-3 font-semibold">โปรไฟล์วัสดุ</th>
+                          <th className="py-2.5 px-3 font-semibold">โปรไฟล์เส้นอลูมิเนียม</th>
                           <th className="py-2.5 px-3 font-semibold text-center">สูตรคำนวณ</th>
                           <th className="py-2.5 px-3 font-semibold text-right">ความยาวที่ตัด</th>
                           <th className="py-2.5 px-3 font-semibold text-right">จำนวน</th>
@@ -222,7 +222,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
               {data.cuttingResults && data.cuttingResults.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5 print:border-gray-300 print:p-4 print:space-y-3">
                   <h3 className="font-bold text-gray-900 pb-2 border-b border-gray-100 flex items-center gap-2">
-                    <Box className="w-4 h-4 text-blue-500" /> แผนการจัดเรียงการตัดวัสดุ (1D Cutting Plan)
+                    <Box className="w-4 h-4 text-blue-500" /> แผนการจัดเรียงการตัดเส้นอลูมิเนียม (1D Cutting Plan)
                   </h3>
                   <div className="space-y-6">
                     {data.cuttingResults.map((cr: any, idx: number) => (

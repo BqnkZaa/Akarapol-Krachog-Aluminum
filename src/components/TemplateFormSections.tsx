@@ -105,7 +105,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Category */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    ซีรีส์ของวัสดุ
+                    ซีรีส์ของเส้นอลูมิเนียม
                   </label>
                   <select 
                     value={row.categoryId} 
@@ -126,7 +126,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Material */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    วัสดุ <span className="text-red-500">*</span>
+                    เส้นอลูมิเนียม <span className="text-red-500">*</span>
                   </label>
                   <select 
                     value={row.materialId} 
@@ -143,7 +143,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                     }}
                     className={inp}
                   >
-                    <option value="">— เลือกวัสดุ —</option>
+                    <option value="">— เลือกเส้นอลูมิเนียม —</option>
                     {row.categoryId ? (
                       materials.filter(m => m.categoryId === row.categoryId).map(m => (
                         <option key={m.id} value={m.id}>{m.code} — {m.name}</option>

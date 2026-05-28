@@ -52,7 +52,7 @@ export default async function CategoriesPage() {
                 จัดการซีรีส์
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
-                {activeCount} ซีรีส์ที่เปิดใช้งาน · {totalMaterials} วัสดุ ·{" "}
+                {activeCount} ซีรีส์ที่เปิดใช้งาน · {totalMaterials} เส้นอลูมิเนียม ·{" "}
                 {totalTemplates} รูปแบบงาน
               </p>
             </div>
@@ -75,7 +75,7 @@ export default async function CategoriesPage() {
             <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h3 className="font-semibold text-gray-700">ยังไม่มีซีรีส์</h3>
             <p className="text-sm text-gray-400 mt-1 mb-6">
-              สร้างซีรีส์แรกของคุณเพื่อจัดระเบียบวัสดุและรูปแบบงาน
+              สร้างซีรีส์แรกของคุณเพื่อจัดระเบียบเส้นอลูมิเนียมและรูปแบบงาน
             </p>
             <Link
               href="/admin/categories/new"
@@ -135,7 +135,7 @@ export default async function CategoriesPage() {
                       <span className="font-semibold text-gray-700">
                         {cat._count.materials}
                       </span>
-                      <span>วัสดุ</span>
+                      <span>เส้นอลูมิเนียม</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500">
                       <FileBox className="w-3.5 h-3.5 text-purple-500" />

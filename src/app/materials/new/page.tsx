@@ -5,7 +5,7 @@ import NewMaterialForm from "@/components/NewMaterialForm";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Add Material — SmartQuote",
+  title: "เพิ่มเส้นอลูมิเนียมใหม่ — SmartQuote",
 };
 
 export default async function NewMaterialPage() {
@@ -24,9 +24,9 @@ export default async function NewMaterialPage() {
       {/* Page Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-6 py-6">
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Add Material</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">เพิ่มเส้นอลูมิเนียมใหม่</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Add a new aluminum profile or component with color-specific pricing.
+            เพิ่มเส้นอลูมิเนียมหรือส่วนประกอบใหม่พร้อมกำหนดราคาสีแต่ละประเภท
           </p>
         </div>
       </div>

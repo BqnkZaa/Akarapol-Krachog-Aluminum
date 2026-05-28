@@ -620,7 +620,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
             <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center print:p-3">
               <div className="flex items-center gap-2">
                 <Box className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-900">รายการวัสดุอลูมิเนียม</h3>
+                <h3 className="font-semibold text-gray-900">รายการเส้นอลูมิเนียม</h3>
               </div>
               <button
                 onClick={handleAddMaterial}
@@ -648,7 +648,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                           type="text"
                           value={cr.materialCode}
                           onChange={(e) => handleUpdateMaterial(idx, { materialCode: e.target.value })}
-                          placeholder="รหัสวัสดุ"
+                          placeholder="รหัสเส้นอลูมิเนียม"
                           className="w-28 text-xs text-gray-600 font-mono border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 print:border-none print:bg-transparent print:p-0 print:text-xs print:shadow-none print:outline-none print:focus:ring-0 print:pointer-events-none"
                         />
                         <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -1008,7 +1008,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
               <div className="space-y-3 print:space-y-2 text-sm font-medium text-gray-300 print:text-gray-700">
                 <div className="flex justify-between items-center">
-                  <span>วัสดุอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
+                  <span>เส้นอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
                   <span>฿{computedMaterialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {computedGlassCost > 0 && (

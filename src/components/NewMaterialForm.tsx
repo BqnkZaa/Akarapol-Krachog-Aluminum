@@ -66,7 +66,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
       });
 
       if (result.success) {
-        setMessage({ type: "success", text: "Material added successfully! Redirecting..." });
+        setMessage({ type: "success", text: "เพิ่มเส้นอลูมิเนียมเรียบร้อยแล้ว! กำลังนำทาง..." });
         setTimeout(() => router.push("/materials"), 1200);
       } else {
         setMessage({ type: "error", text: result.error });
@@ -85,7 +85,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
       <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-            Basic Information
+            ข้อมูลพื้นฐาน
           </h2>
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -93,7 +93,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           {/* Category */}
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Category (Brand / Series) <span className="text-red-500">*</span>
+              ซีรีส์ (แบรนด์ / ซีรีส์) <span className="text-red-500">*</span>
             </label>
             <select
               value={categoryId}
@@ -102,7 +102,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
               className={inputCls}
             >
               <option value="" disabled>
-                Select a category...
+                เลือกซีรีส์...
               </option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -115,7 +115,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           {/* Code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Material Code <span className="text-red-500">*</span>
+              รหัสเส้นอลูมิเนียม <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -126,14 +126,14 @@ export default function NewMaterialForm({ categories, colors }: Props) {
               className={`${inputCls} font-mono`}
             />
             <p className="mt-1 text-xs text-gray-400">
-              Must be unique across all materials.
+              ต้องไม่ซ้ำกับเส้นอลูมิเนียมอื่นในระบบ
             </p>
           </div>
 
           {/* Unit */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Unit <span className="text-red-500">*</span>
+              หน่วยนับ <span className="text-red-500">*</span>
             </label>
             <select
               value={unit}
@@ -152,7 +152,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           {/* Name */}
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Material Name <span className="text-red-500">*</span>
+              ชื่อเส้นอลูมิเนียม <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -167,7 +167,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           {/* Description */}
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Description <span className="text-gray-400 font-normal">(optional)</span>
+              คำอธิบายเพิ่มเติม <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
             </label>
             <textarea
               value={description}
@@ -184,10 +184,10 @@ export default function NewMaterialForm({ categories, colors }: Props) {
       <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-            Color Variant Pricing (THB per unit)
+            กำหนดราคาตามสี (บาท ต่อเส้น/ชิ้น)
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Leave a color blank to skip creating that variant.
+            เว้นว่างไว้สำหรับสีที่ไม่มีในซีรีส์นี้
           </p>
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -249,7 +249,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-4 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Materials
+          กลับหน้าหลักเส้นอลูมิเนียม
         </Link>
 
         <button
@@ -262,7 +262,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
           ) : (
             <>
               <Save className="w-4 h-4" />
-              Save Material
+              บันทึกข้อมูล
             </>
           )}
         </button>

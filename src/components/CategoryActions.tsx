@@ -24,7 +24,7 @@ export default function CategoryActions({
   const handleDelete = () => {
     if (materialCount > 0 || templateCount > 0) {
       alert(
-        `ไม่สามารถลบ "${categoryName}" ได้ — มีวัสดุ ${materialCount} รายการ และรูปแบบงาน ${templateCount} รายการ โปรดลบหรือย้ายข้อมูลก่อน`
+        `ไม่สามารถลบ "${categoryName}" ได้ — มีเส้นอลูมิเนียม ${materialCount} รายการ และรูปแบบงาน ${templateCount} รายการ โปรดลบหรือย้ายข้อมูลก่อน`
       );
       return;
     }
