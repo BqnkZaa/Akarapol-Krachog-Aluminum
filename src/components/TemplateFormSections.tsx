@@ -43,7 +43,7 @@ type ComponentsSectionProps = {
   rows: ComponentRow[];
   categories: CategoryOption[];
   materials: MaterialOption[];
-  onChange: (idx: number, field: keyof ComponentRow, value: string | number | null) => void;
+  onChange: (idx: number, updates: Partial<ComponentRow> | keyof ComponentRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -110,9 +110,11 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                   <select 
                     value={row.categoryId} 
                     onChange={e => {
-                      onChange(idx, "categoryId", e.target.value);
-                      onChange(idx, "materialId", "");
-                      onChange(idx, "label", "");
+                      onChange(idx, {
+                        categoryId: e.target.value,
+                        materialId: "",
+                        label: "",
+                      });
                     }}
                     className={inp}
                   >
@@ -132,13 +134,18 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                     value={row.materialId} 
                     onChange={e => {
                       const newMaterialId = e.target.value;
-                      onChange(idx, "materialId", newMaterialId);
-                      
-                      // Auto-populate the label using the selected material's name
                       const selectedMaterial = materials.find(m => m.id === newMaterialId);
                       if (selectedMaterial) {
-                        onChange(idx, "label", selectedMaterial.name);
-                        onChange(idx, "categoryId", selectedMaterial.categoryId);
+                        onChange(idx, {
+                          materialId: newMaterialId,
+                          label: selectedMaterial.name,
+                          categoryId: selectedMaterial.categoryId,
+                        });
+                      } else {
+                        onChange(idx, {
+                          materialId: newMaterialId,
+                          label: "",
+                        });
                       }
                     }}
                     className={inp}
@@ -214,7 +221,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
 type GlassSectionProps = {
   rows: GlassRow[];
   glassOptions: GlassOption[];
-  onChange: (idx: number, field: keyof GlassRow, value: string | number) => void;
+  onChange: (idx: number, updates: Partial<GlassRow> | keyof GlassRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -293,14 +300,15 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                     value={row.categoryFilter || ""}
                     onChange={(e) => {
                       const val = e.target.value;
-                      onChange(idx, "categoryFilter", val);
+                      const updates: Partial<GlassRow> = { categoryFilter: val };
                       
                       // Clear selection if current glass type doesn't match the selected category
                       const currentGls = glassOptions.find((g) => g.name === row.glassType);
                       if (currentGls && val && (currentGls.category || "ทั่วไป") !== val) {
-                        onChange(idx, "glassType", "");
-                        onChange(idx, "pricePerSqM", 0);
+                        updates.glassType = "";
+                        updates.pricePerSqM = 0;
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
@@ -323,14 +331,15 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                       value={row.glassType}
                       onChange={e => {
                         const selectedName = e.target.value;
-                        onChange(idx, "glassType", selectedName);
+                        const updates: Partial<GlassRow> = { glassType: selectedName };
                         // Auto-fill price from master data
                         const found = glassOptions.find(g => g.name === selectedName);
                         if (found) {
-                          onChange(idx, "pricePerSqM", found.pricePerSqM);
+                          updates.pricePerSqM = found.pricePerSqM;
                           // Smart Auto-fill category Filter
-                          onChange(idx, "categoryFilter", found.category || "ทั่วไป");
+                          updates.categoryFilter = found.category || "ทั่วไป";
                         }
+                        onChange(idx, updates);
                       }}
                       className={inp}
                     >
@@ -438,7 +447,7 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
 type AccessoriesSectionProps = {
   rows: AccessoryRow[];
   accessoryOptions: AccessoryOption[];
-  onChange: (idx: number, field: keyof AccessoryRow, value: string | number) => void;
+  onChange: (idx: number, updates: Partial<AccessoryRow> | keyof AccessoryRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -510,15 +519,16 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                     value={row.seriesFilter || ""}
                     onChange={(e) => {
                       const val = e.target.value;
-                      onChange(idx, "seriesFilter", val);
+                      const updates: Partial<AccessoryRow> = { seriesFilter: val };
                       
                       // Clear selection if current accessory doesn't match the selected category
                       const currentAcc = accessoryOptions.find((a) => a.name === row.name);
                       if (currentAcc && val && (currentAcc.series || "ทั่วไป") !== val) {
-                        onChange(idx, "name", "");
-                        onChange(idx, "unit", "ชุด");
-                        onChange(idx, "unitCost", 0);
+                        updates.name = "";
+                        updates.unit = "ชุด";
+                        updates.unitCost = 0;
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
@@ -540,15 +550,16 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                     value={row.name}
                     onChange={(e) => {
                       const selectedName = e.target.value;
-                      onChange(idx, "name", selectedName);
+                      const updates: Partial<AccessoryRow> = { name: selectedName };
                       
                       const acc = accessoryOptions.find((a) => a.name === selectedName);
                       if (acc) {
-                        onChange(idx, "unit", acc.unit);
-                        onChange(idx, "unitCost", acc.baseCost);
+                        updates.unit = acc.unit;
+                        updates.unitCost = acc.baseCost;
                         // Smart Auto-fill series filter
-                        onChange(idx, "seriesFilter", acc.series || "ทั่วไป");
+                        updates.seriesFilter = acc.series || "ทั่วไป";
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
