@@ -1274,12 +1274,12 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                         className="text-left rounded-2xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 hover:shadow-md transition-all group relative overflow-hidden flex flex-col h-full"
                       >
                         {/* Image preview / fallback */}
-                        <div className="w-full h-40 shrink-0 bg-slate-50 relative overflow-hidden flex items-center justify-center border-b border-slate-100">
+                        <div className="w-full h-40 shrink-0 bg-white p-4 relative overflow-hidden flex items-center justify-center border-b border-slate-100 rounded-t-xl">
                           {t.imageUrl ? (
                             <img
                               src={t.imageUrl}
                               alt={t.name}
-                              className="w-full h-full object-cover rounded-t-xl transition-transform group-hover:scale-105 duration-300"
+                              className="max-w-full max-h-full object-contain transition-transform group-hover:scale-105 duration-300"
                             />
                           ) : (
                             <div className="flex flex-col items-center justify-center text-slate-400">
