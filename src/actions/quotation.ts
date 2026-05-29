@@ -173,7 +173,9 @@ export async function getQuotationById(id: string) {
       barLengthMm: cr.barLengthMm,
       barsRequired: cr.barsRequired,
       barUnitCost: cr.barUnitCost,
-      materialLineCost: cr.barsRequired * cr.barUnitCost,
+      materialLineCost: project.aluminumPricingMode === "EXACT_USAGE"
+        ? (cr.totalUsedMm / cr.barLengthMm) * cr.barUnitCost
+        : cr.barsRequired * cr.barUnitCost,
       totalUsedMm: cr.totalUsedMm,
       totalWasteMm: cr.totalWasteMm,
       wastePercent: cr.wastePercent,
@@ -282,6 +284,84 @@ export async function getQuotationById(id: string) {
       }
     }
 
+    // Legacy support: dynamically calculate both modes if not already present or for pricing toggle support
+    let materialCostExact = 0;
+    let materialCostFullLength = 0;
+
+    if (project.cuttingResults && project.cuttingResults.length > 0) {
+      for (const cr of project.cuttingResults) {
+        const costExact = (cr.totalUsedMm / cr.barLengthMm) * cr.barUnitCost;
+        const costFullLength = cr.barsRequired * cr.barUnitCost;
+        materialCostExact += costExact;
+        materialCostFullLength += costFullLength;
+      }
+    } else if (project.template) {
+      try {
+        // Resolve color variant prices
+        const variantPriceMap = new Map<string, number>();
+        for (const comp of project.template.components) {
+          const material = comp.material;
+          const variant = material.variants.find(
+            (v) => v.colorId === project.colorId && v.isActive
+          );
+          if (variant) {
+            variantPriceMap.set(material.id, variant.unitCost);
+          }
+        }
+
+        // Run Formula Engine
+        const formulaInputs: FormulaInput[] = project.template.components.map((comp) => ({
+          label:       comp.label,
+          formula:     comp.formula,
+          quantity:    comp.quantity,
+          materialId:  comp.material.id,
+          barLengthMm: comp.barLengthMm,
+        }));
+
+        const formulaResult = evalFormulasBatch(
+          formulaInputs,
+          {
+            W: project.widthMm,
+            H: project.heightMm,
+            H1: project.h1 || 0,
+            H2: project.h2 || project.heightMm,
+            W1: project.w1 || 0,
+            W2: project.w2 || project.widthMm,
+          },
+          project.template.standardBarLengthMm
+        );
+
+        if (formulaResult.ok) {
+          // Run Cutting Optimizer
+          const cutRequests: CutRequest[] = formulaResult.cuts.map((cut) => ({
+            label:       cut.label,
+            materialId:  cut.materialId,
+            cutLengthMm: cut.cutLengthMm,
+            quantity:    cut.quantity,
+            barLengthMm: cut.barLengthMm ?? project.template.standardBarLengthMm,
+          }));
+
+          const optimizerResult = optimizeCuts({
+            cuts:               cutRequests,
+            defaultBarLengthMm: project.template.standardBarLengthMm,
+            kerfMm:             0,
+          });
+
+          if (optimizerResult.ok) {
+            for (const matResult of optimizerResult.materials) {
+              const barUnitCost = variantPriceMap.get(matResult.materialId) || 0;
+              const costExact = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
+              const costFullLength = matResult.barsRequired * barUnitCost;
+              materialCostExact += costExact;
+              materialCostFullLength += costFullLength;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error dynamically recalculating legacy quotation:", err);
+      }
+    }
+
     return {
       ...project,
       cuttingResults: cuttingResultsWithBars,
@@ -291,6 +371,8 @@ export async function getQuotationById(id: string) {
       accessories,
       isManualOverride,
       userNotes,
+      materialCostExact: materialCostExact || project.materialCost,
+      materialCostFullLength: materialCostFullLength || project.materialCost,
     };
   } catch (error) {
     console.error("[getQuotationById] Error fetching quotation:", error);
@@ -367,11 +449,15 @@ export async function updateQuotation(
     }
 
     // Initialize pricing snapshot values
+    let totalMaterialCostExact = 0;
+    let totalMaterialCostFullLength = 0;
     let totalMaterialCost = 0;
     let totalBarsUsed     = 0;
     let glassCost = 0;
     let totalAccessoryCost = 0;
     let overallWastePercent = 0;
+
+    const pricingMode = payload.aluminumPricingMode || "FULL_LENGTH";
 
     let cuttingResults: CuttingResultSummary[] = [];
     let glassDetail: any = null;
@@ -391,11 +477,14 @@ export async function updateQuotation(
       // ── MANUAL OVERRIDE PATH ──
       // Sum custom material costs
       const manualMaterials = payload.manualMaterials || [];
+      totalMaterialCost = 0;
       for (const mm of manualMaterials) {
         mm.materialLineCost = mm.barsRequired * mm.barUnitCost;
         totalMaterialCost += mm.materialLineCost;
         totalBarsUsed += mm.barsRequired;
       }
+      totalMaterialCostExact = totalMaterialCost;
+      totalMaterialCostFullLength = totalMaterialCost;
       cuttingResults = manualMaterials;
 
       // Sum custom glass costs
@@ -506,11 +595,16 @@ export async function updateQuotation(
           const material    = materialMap.get(matResult.materialId)!;
           const barUnitCost = variantPriceMap.get(matResult.materialId)!;
 
-          // Pro-rated cost: exact length used
-          const lineCost = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
+          // Pro-rated cost
+          const costExact = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
+          // Full length cost
+          const costFullLength = matResult.barsRequired * barUnitCost;
 
-          totalMaterialCost += lineCost;
+          totalMaterialCostExact += costExact;
+          totalMaterialCostFullLength += costFullLength;
           totalBarsUsed     += matResult.barsRequired;
+
+          const lineCost = pricingMode === "EXACT_USAGE" ? costExact : costFullLength;
 
           return {
             materialId:         matResult.materialId,
@@ -533,6 +627,8 @@ export async function updateQuotation(
           };
         }
       );
+
+      totalMaterialCost = pricingMode === "EXACT_USAGE" ? totalMaterialCostExact : totalMaterialCostFullLength;
 
       // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
       glassDetail = [];
@@ -653,6 +749,7 @@ export async function updateQuotation(
           laborCost:           laborCost,
           additionalCost:      additional,
           discountPercent:     discount,
+          aluminumPricingMode: pricingMode,
 
           glassCost:     summary.glassCost,
           accessoryCost: summary.accessoryCost,
@@ -721,6 +818,8 @@ export async function updateQuotation(
       glassDetail:    glassDetail,
       accessories,
       summary,
+      totalMaterialCostExact,
+      totalMaterialCostFullLength,
     };
   } catch (err) {
     console.error("[updateQuotation] Unexpected error:", err);

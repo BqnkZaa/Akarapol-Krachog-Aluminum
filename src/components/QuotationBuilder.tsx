@@ -75,6 +75,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [editableGlass, setEditableGlass] = useState<any[]>([]);
   const [isSavingOverride, setIsSavingOverride] = useState<boolean>(false);
   const [showPrintTip, setShowPrintTip] = useState(false);
+  const [pricingMode, setPricingMode] = useState<string>("FULL_LENGTH");
 
   // --- Effects ---
   useEffect(() => {
@@ -150,6 +151,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       setEditableAccessories(hydratedAccessories);
       setEditableGlass(hydratedGlass);
       setIsManualOverride(project.isManualOverride || false);
+      setPricingMode(project.aluminumPricingMode || "FULL_LENGTH");
 
       // Hydrate result view immediately with snapshotted details
       setResult({
@@ -281,6 +283,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       profitMarginPercent: marginPercent,
       laborCostPerSqM,
       discountPercent,
+      aluminumPricingMode: pricingMode,
     };
 
     const res = editId
@@ -314,6 +317,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setErrorMsg(res.error);
+      alert(res.error);
     }
   };
 
@@ -461,6 +465,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       manualMaterials: editableMaterials,
       manualAccessories: editableAccessories,
       manualGlass: editableGlass,
+      aluminumPricingMode: pricingMode,
     };
 
     try {
@@ -484,6 +489,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         alert("บันทึกการแก้ไขแบบกำหนดเองเรียบร้อยแล้ว!");
       } else {
         setErrorMsg(res.error);
+        alert(res.error);
       }
     } catch (err: any) {
       setIsSavingOverride(false);
@@ -494,7 +500,16 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   // --- RENDER: Result View ────────────────────────────────────────────────────────
   if (result) {
     // Dynamic real-time calculation of subtotal and totals based on local editable states
-    const computedMaterialCost = editableMaterials.reduce((sum, item) => sum + (item.barsRequired * item.barUnitCost), 0);
+    const computedMaterialCostExact = editableMaterials.reduce((sum, item) => {
+      const usedMm = item.totalUsedMm !== undefined ? item.totalUsedMm : (item.totalCutsMm || 0);
+      if (usedMm > 0 && item.barLengthMm > 0) {
+        return sum + (usedMm / item.barLengthMm * item.barUnitCost);
+      }
+      return sum + (item.barsRequired * item.barUnitCost);
+    }, 0);
+    const computedMaterialCostFullLength = editableMaterials.reduce((sum, item) => sum + (item.barsRequired * item.barUnitCost), 0);
+
+    const computedMaterialCost = pricingMode === "EXACT_USAGE" ? computedMaterialCostExact : computedMaterialCostFullLength;
     const computedGlassCost = editableGlass.reduce((sum, item) => sum + (item.glassCost || 0), 0);
     const computedAccessoryCost = editableAccessories.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0);
 
@@ -1016,8 +1031,42 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
               </h2>
 
               <div className="space-y-3 print:space-y-2 text-sm font-medium text-gray-300 print:text-gray-700">
+                {/* รูปแบบการคิดราคาอลูมิเนียม Toggle */}
+                <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-3 mb-4 print:hidden">
+                  <label className="block text-xs font-semibold text-gray-400 mb-2">รูปแบบการคิดราคาอลูมิเนียม</label>
+                  <div className="grid grid-cols-2 gap-2 bg-gray-950 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode("FULL_LENGTH")}
+                      className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        pricingMode === "FULL_LENGTH"
+                          ? "bg-blue-600 text-white shadow"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      คิดเต็มเส้น (Full Length)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode("EXACT_USAGE")}
+                      className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        pricingMode === "EXACT_USAGE"
+                          ? "bg-blue-600 text-white shadow"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      ใช้จริง (Exact Usage)
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center">
-                  <span>เส้นอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
+                  <div className="flex flex-col">
+                    <span>เส้นอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
+                    <span className="text-[10px] text-gray-500 font-medium hidden print:inline">
+                      {pricingMode === "EXACT_USAGE" ? "(คิดตามส่วนที่ใช้จริง)" : "(คิดราคาเต็มเส้น)"}
+                    </span>
+                  </div>
                   <span>฿{computedMaterialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {computedGlassCost > 0 && (

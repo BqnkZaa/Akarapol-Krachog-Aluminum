@@ -17,6 +17,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [showPrintTip, setShowPrintTip] = useState(false);
+  const [viewPricingMode, setViewPricingMode] = useState<string>("FULL_LENGTH");
 
   useEffect(() => {
     if (!isOpen || !quotationId) {
@@ -31,6 +32,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
         const res = await getQuotationById(quotationId);
         if (res) {
           setData(res);
+          setViewPricingMode(res.aluminumPricingMode || "FULL_LENGTH");
         } else {
           setError("ไม่พบข้อมูลใบเสนอราคานี้");
         }
@@ -42,6 +44,41 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
   }, [isOpen, quotationId]);
 
   if (!isOpen) return null;
+
+  // Dynamic pricing recalculations in View Modal
+  let currentMaterialCost = 0;
+  let currentSubtotal = 0;
+  let currentMarginAmount = 0;
+  let currentBeforeDiscount = 0;
+  let currentDiscountAmount = 0;
+  let currentFinalPrice = 0;
+
+  if (data) {
+    const calculatedMaterialCostExact = (data.cuttingResults && data.cuttingResults.length > 0)
+      ? (data.isManualOverride
+          ? data.materialCost
+          : data.cuttingResults.reduce((sum: number, cr: any) => {
+              const usedMm = cr.totalUsedMm !== undefined ? cr.totalUsedMm : 0;
+              if (usedMm > 0 && cr.barLengthMm > 0) {
+                return sum + (usedMm / cr.barLengthMm * cr.barUnitCost);
+              }
+              return sum + (cr.barsRequired * cr.barUnitCost);
+            }, 0))
+      : (data.materialCostExact !== undefined ? data.materialCostExact : data.materialCost);
+
+    const calculatedMaterialCostFullLength = (data.cuttingResults && data.cuttingResults.length > 0)
+      ? (data.isManualOverride
+          ? data.materialCost
+          : data.cuttingResults.reduce((sum: number, cr: any) => sum + (cr.barsRequired * cr.barUnitCost), 0))
+      : (data.materialCostFullLength !== undefined ? data.materialCostFullLength : data.materialCost);
+
+    currentMaterialCost = viewPricingMode === "EXACT_USAGE" ? calculatedMaterialCostExact : calculatedMaterialCostFullLength;
+    currentSubtotal = currentMaterialCost + data.glassCost + data.accessoryCost;
+    currentMarginAmount = currentSubtotal * (data.profitMarginPercent / 100);
+    currentBeforeDiscount = currentSubtotal + currentMarginAmount + data.laborCost + data.additionalCost;
+    currentDiscountAmount = currentBeforeDiscount * (data.discountPercent / 100);
+    currentFinalPrice = currentBeforeDiscount - currentDiscountAmount;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:absolute print:inset-0 print:block print:p-0 print:bg-white print:z-0">
@@ -359,6 +396,42 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                 )}
               </div>
 
+              {/* Toggle for Pricing Mode */}
+              <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-3 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 print:hidden">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-300">รูปแบบราคาทีเปิดดู:</span>
+                  {data.aluminumPricingMode !== viewPricingMode && (
+                    <span className="text-[10px] bg-amber-500/25 border border-amber-500/50 text-amber-300 px-2 py-0.5 rounded font-semibold animate-pulse">
+                      เปรียบเทียบราคาต่างโหมด
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1 bg-gray-950 p-1 rounded-lg w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewPricingMode("FULL_LENGTH")}
+                    className={`py-1 px-3 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                      viewPricingMode === "FULL_LENGTH"
+                        ? "bg-blue-600 text-white shadow"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    ราคาเต็มเส้น (Full Length)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewPricingMode("EXACT_USAGE")}
+                    className={`py-1 px-3 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                      viewPricingMode === "EXACT_USAGE"
+                        ? "bg-blue-600 text-white shadow"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    ราคาตามจริง (Exact Usage)
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-gray-900 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden print:bg-white print:text-black print:shadow-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid print:mt-4">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-transparent pointer-events-none print:hidden" />
                 <h3 className="font-bold text-base mb-6 flex items-center gap-2 text-white/90 print:text-black print:mb-4">
@@ -368,9 +441,16 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm print:block print:space-y-4">
                   {/* Detailed lines */}
                   <div className="space-y-3.5 text-gray-400 font-medium print:text-gray-700 print:space-y-2">
-                    <div className="flex justify-between">
-                      <span>อลูมิเนียม ({data.totalBarsUsed} เส้น)</span>
-                      <span className="text-white print:text-black">฿{data.materialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col">
+                        <span>อลูมิเนียม ({data.totalBarsUsed} เส้น)</span>
+                        <span className="text-[10px] text-gray-400 print:text-gray-500 font-medium leading-normal mt-0.5">
+                          {viewPricingMode === "EXACT_USAGE" 
+                            ? "(คิดตามส่วนที่ใช้จริง)" 
+                            : "(คิดราคาเต็มเส้น)"}
+                        </span>
+                      </div>
+                      <span className="text-white print:text-black">฿{currentMaterialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     {data.glassCost > 0 && (
                       <div className="flex justify-between">
@@ -387,7 +467,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                     <div className="h-px bg-gray-800 my-2 print:bg-gray-200" />
                     <div className="flex justify-between text-white print:text-black font-semibold">
                       <span>ราคารวมต้นทุน</span>
-                      <span className="print:text-black">฿{data.summary.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span className="print:text-black">฿{currentSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
@@ -396,7 +476,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                     <div className="space-y-3.5 print:space-y-2">
                       <div className="flex justify-between text-blue-300 print:text-blue-700">
                         <span>กำไร (+{data.profitMarginPercent}%)</span>
-                        <span className="print:text-blue-700">฿{data.summary.marginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="print:text-blue-700">฿{currentMarginAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                       <div className="flex justify-between text-emerald-300 print:text-emerald-700">
                         <span>ค่าแรงติดตั้ง</span>
@@ -411,7 +491,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                       {data.discountPercent > 0 && (
                         <div className="flex justify-between text-red-400 border-t border-gray-800 pt-2.5 print:text-red-600 print:border-gray-250 print:pt-2">
                           <span>ส่วนลด (-{data.discountPercent}%)</span>
-                          <span className="print:text-red-600">-฿{data.summary.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="print:text-red-600">-฿{currentDiscountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                       )}
                     </div>
@@ -419,7 +499,7 @@ export default function ViewQuotationModal({ isOpen, onClose, quotationId }: Vie
                     <div className="flex justify-between items-end pt-4 border-t border-gray-800 mt-2 flex-wrap gap-2 print:border-gray-200 print:pt-2">
                       <span className="text-gray-400 font-bold print:text-gray-700">ราคาสุทธิเสนอราคา</span>
                       <span className="text-3xl font-extrabold text-blue-400 tracking-tight leading-none print:text-black">
-                        ฿{data.summary.finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ฿{currentFinalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>

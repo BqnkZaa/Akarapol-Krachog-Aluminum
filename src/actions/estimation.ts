@@ -71,6 +71,9 @@ export interface RunEstimationPayload {
   manualMaterials?: CuttingResultSummary[];
   manualAccessories?: AccessoryDetail[];
   manualGlass?: GlassDetail[];
+
+  // ── Pricing Mode ─────────────────────────────────────────────────────────
+  aluminumPricingMode?: string; // "FULL_LENGTH" | "EXACT_USAGE"
 }
 
 // ─── Output Types ─────────────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ export interface CuttingResultSummary {
   barLengthMm: number;
   barsRequired: number;
   barUnitCost: number;         // THB per bar for selected color
-  materialLineCost: number;    // barsRequired × barUnitCost
+  materialLineCost: number;    // pro-rated or full-length cost depending on mode
   totalCutsMm: number;
   totalWasteMm: number;
   wastePercent: number;
@@ -114,7 +117,7 @@ export interface AccessoryDetail {
 
 /** Complete pricing breakdown */
 export interface QuotationSummary {
-  materialCost: number;        // sum of all pro-rated bar costs (exact usage)
+  materialCost: number;        // sum of all bar costs depending on mode
   glassCost: number;
   accessoryCost: number;
   subtotal: number;            // materialCost + glassCost + accessoryCost
@@ -142,6 +145,8 @@ export type RunEstimationResult =
       glassDetail: GlassDetail[];
       accessories: AccessoryDetail[];
       summary: QuotationSummary;
+      totalMaterialCostExact?: number;
+      totalMaterialCostFullLength?: number;
     }
   | {
       success: false;
@@ -345,19 +350,27 @@ export async function runParametricEstimation(
       template.components.map((c) => [c.material.id, c.material])
     );
 
-    let totalMaterialCost = 0;
+    let totalMaterialCostExact = 0;
+    let totalMaterialCostFullLength = 0;
     let totalBarsUsed     = 0;
+
+    const pricingMode = payload.aluminumPricingMode || "FULL_LENGTH";
 
     const cuttingResults: CuttingResultSummary[] = optimizerResult.materials.map(
       (matResult: MaterialOptimizationResult) => {
         const material    = materialMap.get(matResult.materialId)!;
         const barUnitCost = variantPriceMap.get(matResult.materialId)!;
 
-        // Pro-rated cost: charge for exact length consumed, not whole bars
-        const lineCost = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
+        // Pro-rated cost
+        const costExact = (matResult.totalUsedMm / matResult.barLengthMm) * barUnitCost;
+        // Full length cost
+        const costFullLength = matResult.barsRequired * barUnitCost;
 
-        totalMaterialCost += lineCost;
+        totalMaterialCostExact += costExact;
+        totalMaterialCostFullLength += costFullLength;
         totalBarsUsed     += matResult.barsRequired; // keep full-bar count for BOM/cut list
+
+        const lineCost = pricingMode === "EXACT_USAGE" ? costExact : costFullLength;
 
         return {
           materialId:         matResult.materialId,
@@ -380,6 +393,8 @@ export async function runParametricEstimation(
         };
       }
     );
+
+    const totalMaterialCost = pricingMode === "EXACT_USAGE" ? totalMaterialCostExact : totalMaterialCostFullLength;
 
     // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
     // REQ-1: Glass area is now in Sq.Ft using the conversion:
@@ -506,6 +521,7 @@ export async function runParametricEstimation(
           laborCost:           laborCost,
           additionalCost:      additional,
           discountPercent:     discount,
+          aluminumPricingMode: pricingMode,
 
           // Snapshot computed costs so this quote is immutable to future price changes
           glassCost:     summary.glassCost,
@@ -562,6 +578,8 @@ export async function runParametricEstimation(
       glassDetail,
       accessories,
       summary,
+      totalMaterialCostExact,
+      totalMaterialCostFullLength,
     };
   } catch (err) {
     console.error("[runParametricEstimation] Unexpected error:", err);
@@ -639,6 +657,7 @@ export interface EstimationProjectDetail {
   heightMm: number;
   status: string;
   createdAt: Date;
+  aluminumPricingMode: string;
 
   // Snapshotted pricing
   glassCost: number;
@@ -714,6 +733,7 @@ export async function getEstimationProjectById(
     heightMm:        project.heightMm,
     status:          project.status,
     createdAt:       project.createdAt,
+    aluminumPricingMode: project.aluminumPricingMode,
 
     glassCost:           project.glassCost,
     accessoryCost:       project.accessoryCost,
@@ -732,7 +752,9 @@ export async function getEstimationProjectById(
       barLengthMm:      cr.barLengthMm,
       barsRequired:     cr.barsRequired,
       barUnitCost:      cr.barUnitCost,
-      materialLineCost: cr.barsRequired * cr.barUnitCost,
+      materialLineCost: project.aluminumPricingMode === "EXACT_USAGE"
+        ? (cr.totalUsedMm / cr.barLengthMm) * cr.barUnitCost
+        : cr.barsRequired * cr.barUnitCost,
       totalUsedMm:      cr.totalUsedMm,
       totalWasteMm:     cr.totalWasteMm,
       wastePercent:     cr.wastePercent,
