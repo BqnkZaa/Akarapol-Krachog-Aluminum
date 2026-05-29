@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers, Coins } from "lucide-react";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
 import type { MaterialOption, CategoryOption, AccessoryOption, GlassOption } from "@/actions/template";
 
@@ -611,6 +611,73 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEFAULT PRICING SECTION
+// ════════════════════════════════════════════════════════════════════════════
+type DefaultPricingSectionProps = {
+  defaultProfitMargin: number;
+  setDefaultProfitMargin: (val: number) => void;
+  defaultLaborCost: number;
+  setDefaultLaborCost: (val: number) => void;
+};
+
+export function DefaultPricingSection({
+  defaultProfitMargin,
+  setDefaultProfitMargin,
+  defaultLaborCost,
+  setDefaultLaborCost,
+}: DefaultPricingSectionProps) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+      <div className="p-5 sm:p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+            <Coins className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">การตั้งราคาเริ่มต้น / Default Pricing</h3>
+            <p className="text-xs text-gray-400">กำหนดอัตรากำไรและค่าแรงต่อตารางเมตรสำหรับเป็นค่าเริ่มต้นของรูปแบบงานนี้</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Profit Margin */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              อัตรากำไรเริ่มต้น (%) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={defaultProfitMargin}
+              onChange={(e) => setDefaultProfitMargin(parseFloat(e.target.value) || 0)}
+              className={inp}
+            />
+            <p className="text-xs text-gray-400 mt-1">ใช้เป็นค่าเริ่มต้นในระบบเสนอราคา (เช่น 20%)</p>
+          </div>
+
+          {/* Labor Cost */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              ค่าแรงเริ่มต้นต่อ ตร.ม. (฿/ตร.ม.) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={defaultLaborCost}
+              onChange={(e) => setDefaultLaborCost(parseFloat(e.target.value) || 0)}
+              className={inp}
+            />
+            <p className="text-xs text-gray-400 mt-1">ใช้คำนวณค่าแรงตามขนาดความกว้างและสูงของงาน</p>
+          </div>
         </div>
       </div>
     </div>

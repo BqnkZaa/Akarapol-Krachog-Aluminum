@@ -253,6 +253,9 @@ model ProductTemplate {
   sortOrder Int     @default(0)
   isActive  Boolean @default(true)
 
+  defaultProfitMargin Float @default(20)
+  defaultLaborCost    Float @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

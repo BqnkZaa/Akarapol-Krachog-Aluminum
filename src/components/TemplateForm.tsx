@@ -11,7 +11,7 @@ import {
 } from "@/actions/template";
 import { validateFormula } from "@/lib/formulaParser";
 import {
-  ComponentsSection, GlassSection, AccessoriesSection,
+  ComponentsSection, GlassSection, AccessoriesSection, DefaultPricingSection,
 } from "./TemplateFormSections";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
 import {
@@ -103,6 +103,8 @@ export default function TemplateForm(props: Props) {
   const [kerfMm] = useState(0);
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
+  const [defaultProfitMargin, setDefaultProfitMargin] = useState(initialData?.defaultProfitMargin ?? 20);
+  const [defaultLaborCost, setDefaultLaborCost] = useState(initialData?.defaultLaborCost ?? 0);
 
   // ── Auto-slug ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -261,6 +263,8 @@ export default function TemplateForm(props: Props) {
         kerfMm: 0,
         sortOrder,
         isActive,
+        defaultProfitMargin,
+        defaultLaborCost,
         components: components.map((c, i) => ({
           materialId: c.materialId,
           label: c.label,
@@ -395,6 +399,14 @@ export default function TemplateForm(props: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── SECTION: Default Pricing ────────────────────────────────────── */}
+      <DefaultPricingSection
+        defaultProfitMargin={defaultProfitMargin}
+        setDefaultProfitMargin={setDefaultProfitMargin}
+        defaultLaborCost={defaultLaborCost}
+        setDefaultLaborCost={setDefaultLaborCost}
+      />
 
       {/* ── SECTION 2: Profile Components ─────────────────────────────────── */}
       <ComponentsSection

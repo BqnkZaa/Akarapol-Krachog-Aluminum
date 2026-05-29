@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   ArrowRight, AlertCircle, Printer,
   Calculator, Box, Check, Ruler, Settings2, LayoutTemplate, Palette, ArrowLeft, Image as ImageIcon,
-  Loader2, Trash2
+  Loader2, Trash2, Percent, CheckCircle2
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -238,6 +238,15 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
   const handleSelectTemplate = (template: TemplateOption) => {
     setSelectedTemplate(template);
+    
+    // Auto-hydrate default pricing values from the selected template
+    if (template.defaultProfitMargin !== undefined && template.defaultProfitMargin !== null) {
+      setMarginPercent(template.defaultProfitMargin);
+    }
+    if (template.defaultLaborCost !== undefined && template.defaultLaborCost !== null) {
+      setLaborCostPerSqM(template.defaultLaborCost);
+    }
+
     setSelectedColor(null);
     setIsLoadingColors(true);
     setCurrentStep(2);
@@ -1204,23 +1213,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         </div>
       )}
 
-      {/* Wizard Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="bg-blue-50/50 p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Calculator className="w-6 h-6 text-blue-600" /> ตัวช่วยประเมินราคา (Parametric Wizard)
-          </h2>
-          <div className="hidden sm:flex items-center gap-3 text-sm font-medium text-gray-400">
-            <span className={currentStep >= 1 ? "text-blue-600" : ""}>1. รูปแบบงาน</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 2 ? "text-blue-600" : ""}>2. สี</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 3 ? "text-blue-600" : ""}>3. ข้อมูลจำเพาะ</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 4 ? "text-blue-600" : ""}>4. คำนวณ</span>
-          </div>
-        </div>
-
         <div className="p-6 md:p-8">
 
           {/* Step 1: Template Selection (Hierarchical) */}
@@ -1535,38 +1528,39 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                 <Settings2 className="w-5 h-5 text-gray-500" /> ตั้งราคา
               </h3>
 
-              <div className="space-y-8 max-w-lg mb-10">
-                <div>
-                  <div className="flex justify-between items-end mb-2">
-                    <label className="block text-sm font-bold text-gray-700">อัตรากำไร (%)</label>
-                    <span className="text-xl font-bold text-blue-600">{marginPercent}%</span>
+              <div className="max-w-md mx-auto space-y-6 mb-10 text-left">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                      <Percent className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">ส่วนลดพิเศษ (Discount)</h4>
+                      <p className="text-xs text-slate-400">ระบุเปอร์เซ็นต์ส่วนลดเพิ่มเติมสำหรับใบเสนอราคานี้</p>
+                    </div>
                   </div>
-                  <input
-                    type="range" min="0" max="100" step="5"
-                    value={marginPercent} onChange={(e) => setMarginPercent(Number(e.target.value))}
-                    className="w-full accent-blue-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
+                  
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="100"
+                      value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-bold text-lg text-right pr-12"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                  </div>
                 </div>
 
-
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงต่อ ตร.ม. (฿/m²)</label>
-                  <p className="text-xs text-gray-500 mb-2">คูณกับพื้นที่ช่องเปิด ({((widthCm * heightCm) / 10_000).toFixed(4)} m²)</p>
-                  <input
-                    type="number" min="0" step="50"
-                    value={laborCostPerSqM} onChange={(e) => setLaborCostPerSqM(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">ส่วนลด (%)</label>
-                  <input
-                    type="number" min="0" max="100"
-                    value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
-                  />
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 text-sm text-emerald-800 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-emerald-900 font-semibold">การตั้งราคาเริ่มต้นตามรูปแบบงานสำเร็จ</p>
+                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                      ระบบจะคำนวณราคาโดยใช้อัตรากำไรเริ่มต้นที่ <strong className="text-emerald-900 font-bold">{marginPercent}%</strong> 
+                      และค่าแรงเริ่มต้น <strong className="text-emerald-900 font-bold">{laborCostPerSqM.toLocaleString()} ฿/ตร.ม.</strong> 
+                      ที่ตั้งไว้สำหรับรูปแบบ <strong className="text-emerald-900 font-bold">{selectedTemplate.name}</strong> โดยอัตโนมัติ
+                    </p>
+                  </div>
                 </div>
               </div>
 

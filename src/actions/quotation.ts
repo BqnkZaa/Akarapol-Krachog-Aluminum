@@ -34,6 +34,7 @@ export interface QuotationListItem {
   createdAt: Date;
   finalPrice: number;
   status: string;
+  imageUrl?: string | null;
 }
 
 export async function getQuotations(page: number = 1) {
@@ -60,6 +61,7 @@ export async function getQuotations(page: number = 1) {
         template: {
           select: {
             name: true,
+            imageUrl: true,
           },
         },
       },
@@ -83,6 +85,7 @@ export async function getQuotations(page: number = 1) {
       createdAt: p.createdAt,
       finalPrice: Math.round(finalPrice * 100) / 100,
       status: p.status,
+      imageUrl: p.template.imageUrl,
     };
   });
 

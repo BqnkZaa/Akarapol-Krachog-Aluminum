@@ -757,6 +757,8 @@ export interface TemplateOption {
   componentCount: number;
   hasGlass: boolean;
   accessoryCount: number;
+  defaultProfitMargin: number;
+  defaultLaborCost: number;
 }
 
 /**
@@ -786,6 +788,8 @@ export async function getTemplates(): Promise<TemplateOption[]> {
     componentCount:      t._count.components,
     hasGlass:            t.glassSpecifications.length > 0,
     accessoryCount:      t._count.accessories,
+    defaultProfitMargin: t.defaultProfitMargin,
+    defaultLaborCost:    t.defaultLaborCost,
   }));
 }
 
