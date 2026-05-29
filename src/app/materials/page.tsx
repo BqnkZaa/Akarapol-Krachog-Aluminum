@@ -203,26 +203,26 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[800px]">
+            <div className="w-full bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="w-full max-w-full overflow-x-auto">
+                <table className="w-full text-sm min-w-[800px] text-left border-collapse">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/70">
-                      <th className="text-left py-3 px-4 sm:px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
+                      <th className="text-left py-3 pl-6 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
                         Code
                       </th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[150px] sm:min-w-[200px]">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[150px] sm:min-w-[200px] whitespace-nowrap">
                         Name
                       </th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap hidden md:table-cell">
                         Unit
                       </th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide min-w-[200px] sm:min-w-[250px]">
+                      <th className="text-left py-3 px-4 font-semibold text-gray-500 text-xs uppercase tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <Palette className="w-3.5 h-3.5" /> Color Prices
                         </span>
                       </th>
-                      <th className="text-right py-3 px-4 sm:px-5 font-semibold text-gray-500 text-xs uppercase tracking-wide whitespace-nowrap">
+                      <th className="w-[150px] min-w-[150px] whitespace-nowrap text-right py-3 pl-4 pr-8 font-semibold text-gray-500 text-xs uppercase tracking-wide">
                         Actions
                       </th>
                     </tr>
@@ -234,14 +234,14 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
                         className={`hover:bg-gray-50/60 transition-colors ${!mat.isActive ? "opacity-50" : ""}`}
                       >
                         {/* Code */}
-                        <td className="py-4 px-4 sm:px-5 whitespace-nowrap">
+                        <td className="align-top py-4 pl-6 pr-4 whitespace-nowrap">
                           <span className="font-mono text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
                             {mat.code}
                           </span>
                         </td>
 
                         {/* Name */}
-                        <td className="py-4 px-4 min-w-[150px] sm:min-w-[200px]">
+                        <td className="align-top p-4 min-w-[150px] sm:min-w-[200px] whitespace-nowrap">
                           <p className="font-medium text-gray-900">{mat.name}</p>
                           {mat.description && (
                             <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs">
@@ -256,26 +256,26 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
                         </td>
 
                         {/* Unit */}
-                        <td className="py-4 px-4 whitespace-nowrap hidden md:table-cell">
+                        <td className="align-top p-4 whitespace-nowrap hidden md:table-cell">
                           <span className="text-gray-600">{mat.unit}</span>
                         </td>
 
                         {/* Variants */}
-                        <td className="py-4 px-4 min-w-[200px] sm:min-w-[250px]">
-                          <div className="flex flex-wrap gap-2">
+                        <td className="align-top p-4">
+                          <div className="flex flex-row flex-wrap items-center gap-1.5">
                             {mat.variants.map((v) => (
                               <div
                                 key={v.id}
-                                className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-2.5 py-1 text-xs"
+                                title={v.color.name}
+                                className="inline-flex items-center w-max gap-1.5 bg-white border border-slate-200 rounded-md px-2 py-1 text-xs shadow-sm whitespace-nowrap cursor-help"
                               >
                                 {v.color.hexCode && (
                                   <span
-                                    className="w-3 h-3 rounded-full border border-gray-300 shrink-0"
+                                    className="w-3 h-3 rounded-full border border-slate-300 shrink-0"
                                     style={{ backgroundColor: v.color.hexCode }}
                                   />
                                 )}
-                                <span className="text-gray-600">{v.color.name}</span>
-                                <span className="font-semibold text-gray-800">
+                                <span className="font-semibold text-slate-900">
                                   ฿{v.unitCost.toLocaleString()}
                                 </span>
                               </div>
@@ -287,7 +287,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-4 px-5 text-right">
+                        <td className="align-top py-4 pl-4 pr-8 text-right whitespace-nowrap w-[150px] min-w-[150px]">
                           <MaterialActions 
                             material={{
                               id: mat.id,
