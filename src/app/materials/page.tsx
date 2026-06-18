@@ -3,6 +3,7 @@ import { PlusCircle, Tag, Palette, ChevronLeft, ChevronRight, Search } from "luc
 import prisma from "@/lib/prisma";
 import MaterialActions from "@/components/MaterialActions";
 import CategoryFilter from "@/components/CategoryFilter";
+import HashRowHighlighter from "@/components/HashRowHighlighter";
 
 export const dynamic = "force-dynamic";
 
@@ -231,7 +232,8 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
                     {items.map((mat) => (
                       <tr
                         key={mat.id}
-                        className={`hover:bg-gray-50/60 transition-colors ${!mat.isActive ? "opacity-50" : ""}`}
+                        id={`material-${mat.id}`}
+                        className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors duration-500 ${!mat.isActive ? "opacity-50" : ""}`}
                       >
                         {/* Code */}
                         <td className="align-top py-4 pl-6 pr-4 whitespace-nowrap">
@@ -360,6 +362,7 @@ export default async function MaterialsPage({ searchParams }: PageProps) {
             </div>
           </div>
         )}
+        <HashRowHighlighter />
       </div>
     </div>
   );

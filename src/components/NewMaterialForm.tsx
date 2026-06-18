@@ -67,7 +67,7 @@ export default function NewMaterialForm({ categories, colors }: Props) {
 
       if (result.success) {
         setMessage({ type: "success", text: "เพิ่มเส้นอลูมิเนียมเรียบร้อยแล้ว! กำลังนำทาง..." });
-        setTimeout(() => router.push("/materials"), 1200);
+        setTimeout(() => router.push(`/materials#material-${result.id}`), 1200);
       } else {
         setMessage({ type: "error", text: result.error });
       }

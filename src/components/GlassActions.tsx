@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Trash2, X, Save, AlertCircle, CheckCircle2 } from "lucide-react";
 import { updateGlass, deleteGlass } from "@/actions/admin";
 
@@ -92,6 +93,7 @@ export default function GlassActions({ glass }: Props) {
 // ── Inline Edit Modal ─────────────────────────────────────────────────────────
 
 function EditGlassModal({ glass, onClose }: { glass: GlassData; onClose: () => void }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(glass.name);
   const [category, setCategory] = useState(glass.category);
@@ -126,6 +128,7 @@ function EditGlassModal({ glass, onClose }: { glass: GlassData; onClose: () => v
 
       if (result.success) {
         setMessage({ type: "success", text: "บันทึกสำเร็จ!" });
+        router.push(`/admin/glass#glass-${glass.id}`);
         setTimeout(onClose, 800);
       } else {
         setMessage({ type: "error", text: result.error });

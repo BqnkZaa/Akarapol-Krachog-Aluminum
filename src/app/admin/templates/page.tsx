@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getTemplatesForAdmin } from "@/actions/template";
 import TemplateActions from "@/components/TemplateActions";
+import HashRowHighlighter from "@/components/HashRowHighlighter";
 
 // Force TS server reload
 export const dynamic = "force-dynamic";
@@ -137,7 +138,7 @@ export default async function TemplatesPage() {
                         <tr
                           key={t.id}
                           id={`template-${t.id}`}
-                          className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors ${!t.isActive ? "opacity-55" : ""}`}
+                          className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors duration-500 ${!t.isActive ? "opacity-55" : ""}`}
                         >
                           {/* Template name */}
                           <td className="py-4 px-5">
@@ -246,7 +247,7 @@ export default async function TemplatesPage() {
                   <div
                     key={t.id}
                     id={`template-${t.id}`}
-                    className={`scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm relative overflow-hidden ${!t.isActive ? "opacity-75 bg-gray-50" : ""}`}
+                    className={`scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm relative overflow-hidden transition-all duration-500 ${!t.isActive ? "opacity-75 bg-gray-50" : ""}`}
                   >
                     <div className={`absolute top-0 left-0 w-full h-1 ${t.isActive ? "bg-green-500" : "bg-gray-300"}`} />
                     
@@ -304,6 +305,7 @@ export default async function TemplatesPage() {
             </section>
           ))
         )}
+        <HashRowHighlighter />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { X, Save, AlertCircle } from "lucide-react";
 import { updateMaterial } from "@/actions/admin";
 
@@ -21,6 +22,7 @@ interface EditMaterialModalProps {
 }
 
 export default function EditMaterialModal({ material, onClose }: EditMaterialModalProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +58,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
       if (!res.success) {
         setError(res.error || "Failed to update material.");
       } else {
+        router.push(`/materials#material-${material.id}`);
         onClose();
       }
     });

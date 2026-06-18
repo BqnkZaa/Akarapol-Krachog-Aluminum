@@ -64,7 +64,7 @@ export default function NewAccessoryForm({ colors }: Props) {
 
       if (result.success) {
         setMessage({ type: "success", text: "Accessory added successfully! Redirecting..." });
-        setTimeout(() => router.push("/admin/accessories"), 1200);
+        setTimeout(() => router.push(`/admin/accessories#accessory-${result.id}`), 1200);
       } else {
         setMessage({ type: "error", text: result.error });
       }

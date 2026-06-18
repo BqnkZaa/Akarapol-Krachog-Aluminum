@@ -3,6 +3,7 @@ import { PlusCircle, FlaskConical, ChevronLeft, ChevronRight, Search } from "luc
 import prisma from "@/lib/prisma";
 import GlassActions from "@/components/GlassActions";
 import { Metadata } from "next";
+import HashRowHighlighter from "@/components/HashRowHighlighter";
 
 export const dynamic = "force-dynamic";
 
@@ -180,7 +181,8 @@ export default async function GlassPage({ searchParams }: PageProps) {
                   {glasses.map((g) => (
                     <tr
                       key={g.id}
-                      className={`hover:bg-gray-50/60 transition-colors ${!g.isActive ? "opacity-50" : ""}`}
+                      id={`glass-${g.id}`}
+                      className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors duration-500 ${!g.isActive ? "opacity-50" : ""}`}
                     >
                       {/* Name */}
                       <td className="py-4 px-4 sm:px-5 min-w-[200px]">
@@ -291,6 +293,7 @@ export default async function GlassPage({ searchParams }: PageProps) {
             </div>
           </div>
         )}
+        <HashRowHighlighter />
       </div>
     </div>
   );

@@ -45,7 +45,7 @@ export default function NewGlassForm() {
 
       if (result.success) {
         setMessage({ type: "success", text: "เพิ่มข้อมูลกระจกสำเร็จ! กำลังกลับไปหน้ารายการ..." });
-        setTimeout(() => router.push("/admin/glass"), 1200);
+        setTimeout(() => router.push(`/admin/glass#glass-${result.id}`), 1200);
       } else {
         setMessage({ type: "error", text: result.error });
       }

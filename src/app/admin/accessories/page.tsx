@@ -3,6 +3,7 @@ import { PlusCircle, Tag, Palette, ChevronLeft, ChevronRight, Search } from "luc
 import prisma from "@/lib/prisma";
 import AccessoryActions from "@/components/AccessoryActions";
 import { Metadata } from "next";
+import HashRowHighlighter from "@/components/HashRowHighlighter";
 
 // ── Series badge ───────────────────────────────────────────────────────────
 const SERIES_COLORS: Record<string, string> = {
@@ -244,7 +245,8 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
                   {accessories.map((acc) => (
                     <tr
                       key={acc.id}
-                      className={`hover:bg-gray-50/60 transition-colors ${!acc.isActive ? "opacity-50" : ""}`}
+                      id={`accessory-${acc.id}`}
+                      className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors duration-500 ${!acc.isActive ? "opacity-50" : ""}`}
                     >
                       {/* Code */}
                       <td className="align-top py-4 pl-6 pr-4 whitespace-nowrap">
@@ -378,6 +380,7 @@ export default async function AccessoriesPage({ searchParams }: PageProps) {
             </div>
           </div>
         )}
+        <HashRowHighlighter />
       </div>
     </div>
   );
