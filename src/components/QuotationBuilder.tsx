@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   ArrowRight, AlertCircle, Printer,
   Calculator, Box, Check, Ruler, Settings2, LayoutTemplate, Palette, ArrowLeft, Image as ImageIcon,
-  Loader2, Trash2
+  Loader2, Trash2, Percent, CheckCircle2
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -75,6 +75,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [editableGlass, setEditableGlass] = useState<any[]>([]);
   const [isSavingOverride, setIsSavingOverride] = useState<boolean>(false);
   const [showPrintTip, setShowPrintTip] = useState(false);
+  const [pricingMode, setPricingMode] = useState<string>("FULL_LENGTH");
 
   // --- Effects ---
   useEffect(() => {
@@ -150,6 +151,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       setEditableAccessories(hydratedAccessories);
       setEditableGlass(hydratedGlass);
       setIsManualOverride(project.isManualOverride || false);
+      setPricingMode(project.aluminumPricingMode || "FULL_LENGTH");
 
       // Hydrate result view immediately with snapshotted details
       setResult({
@@ -238,6 +240,15 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
 
   const handleSelectTemplate = (template: TemplateOption) => {
     setSelectedTemplate(template);
+    
+    // Auto-hydrate default pricing values from the selected template
+    if (template.defaultProfitMargin !== undefined && template.defaultProfitMargin !== null) {
+      setMarginPercent(template.defaultProfitMargin);
+    }
+    if (template.defaultLaborCost !== undefined && template.defaultLaborCost !== null) {
+      setLaborCostPerSqM(template.defaultLaborCost);
+    }
+
     setSelectedColor(null);
     setIsLoadingColors(true);
     setCurrentStep(2);
@@ -272,6 +283,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       profitMarginPercent: marginPercent,
       laborCostPerSqM,
       discountPercent,
+      aluminumPricingMode: pricingMode,
     };
 
     const res = editId
@@ -305,6 +317,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setErrorMsg(res.error);
+      alert(res.error);
     }
   };
 
@@ -452,6 +465,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       manualMaterials: editableMaterials,
       manualAccessories: editableAccessories,
       manualGlass: editableGlass,
+      aluminumPricingMode: pricingMode,
     };
 
     try {
@@ -475,6 +489,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         alert("บันทึกการแก้ไขแบบกำหนดเองเรียบร้อยแล้ว!");
       } else {
         setErrorMsg(res.error);
+        alert(res.error);
       }
     } catch (err: any) {
       setIsSavingOverride(false);
@@ -485,7 +500,16 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   // --- RENDER: Result View ────────────────────────────────────────────────────────
   if (result) {
     // Dynamic real-time calculation of subtotal and totals based on local editable states
-    const computedMaterialCost = editableMaterials.reduce((sum, item) => sum + (item.barsRequired * item.barUnitCost), 0);
+    const computedMaterialCostExact = editableMaterials.reduce((sum, item) => {
+      const usedMm = item.totalUsedMm !== undefined ? item.totalUsedMm : (item.totalCutsMm || 0);
+      if (usedMm > 0 && item.barLengthMm > 0) {
+        return sum + (usedMm / item.barLengthMm * item.barUnitCost);
+      }
+      return sum + (item.barsRequired * item.barUnitCost);
+    }, 0);
+    const computedMaterialCostFullLength = editableMaterials.reduce((sum, item) => sum + (item.barsRequired * item.barUnitCost), 0);
+
+    const computedMaterialCost = pricingMode === "EXACT_USAGE" ? computedMaterialCostExact : computedMaterialCostFullLength;
     const computedGlassCost = editableGlass.reduce((sum, item) => sum + (item.glassCost || 0), 0);
     const computedAccessoryCost = editableAccessories.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0);
 
@@ -620,7 +644,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
             <div className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center print:p-3">
               <div className="flex items-center gap-2">
                 <Box className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-900">รายการวัสดุอลูมิเนียม</h3>
+                <h3 className="font-semibold text-gray-900">รายการเส้นอลูมิเนียม</h3>
               </div>
               <button
                 onClick={handleAddMaterial}
@@ -648,7 +672,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                           type="text"
                           value={cr.materialCode}
                           onChange={(e) => handleUpdateMaterial(idx, { materialCode: e.target.value })}
-                          placeholder="รหัสวัสดุ"
+                          placeholder="รหัสเส้นอลูมิเนียม"
                           className="w-28 text-xs text-gray-600 font-mono border border-gray-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500 print:border-none print:bg-transparent print:p-0 print:text-xs print:shadow-none print:outline-none print:focus:ring-0 print:pointer-events-none"
                         />
                         <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -1007,8 +1031,42 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
               </h2>
 
               <div className="space-y-3 print:space-y-2 text-sm font-medium text-gray-300 print:text-gray-700">
+                {/* รูปแบบการคิดราคาอลูมิเนียม Toggle */}
+                <div className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-3 mb-4 print:hidden">
+                  <label className="block text-xs font-semibold text-gray-400 mb-2">รูปแบบการคิดราคาอลูมิเนียม</label>
+                  <div className="grid grid-cols-2 gap-2 bg-gray-950 p-1 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode("FULL_LENGTH")}
+                      className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        pricingMode === "FULL_LENGTH"
+                          ? "bg-blue-600 text-white shadow"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      คิดเต็มเส้น (Full Length)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPricingMode("EXACT_USAGE")}
+                      className={`py-1.5 px-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        pricingMode === "EXACT_USAGE"
+                          ? "bg-blue-600 text-white shadow"
+                          : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      ใช้จริง (Exact Usage)
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center">
-                  <span>วัสดุอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
+                  <div className="flex flex-col">
+                    <span>เส้นอลูมิเนียม ({editableMaterials.reduce((sum, c) => sum + c.barsRequired, 0)} เส้น)</span>
+                    <span className="text-[10px] text-gray-500 font-medium hidden print:inline">
+                      {pricingMode === "EXACT_USAGE" ? "(คิดตามส่วนที่ใช้จริง)" : "(คิดราคาเต็มเส้น)"}
+                    </span>
+                  </div>
                   <span>฿{computedMaterialCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {computedGlassCost > 0 && (
@@ -1204,23 +1262,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         </div>
       )}
 
-      {/* Wizard Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="bg-blue-50/50 p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Calculator className="w-6 h-6 text-blue-600" /> ตัวช่วยประเมินราคา (Parametric Wizard)
-          </h2>
-          <div className="hidden sm:flex items-center gap-3 text-sm font-medium text-gray-400">
-            <span className={currentStep >= 1 ? "text-blue-600" : ""}>1. รูปแบบงาน</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 2 ? "text-blue-600" : ""}>2. สี</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 3 ? "text-blue-600" : ""}>3. ข้อมูลจำเพาะ</span>
-            <ArrowRight className="w-4 h-4" />
-            <span className={currentStep >= 4 ? "text-blue-600" : ""}>4. คำนวณ</span>
-          </div>
-        </div>
-
         <div className="p-6 md:p-8">
 
           {/* Step 1: Template Selection (Hierarchical) */}
@@ -1271,16 +1313,37 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                       <button
                         key={t.id}
                         onClick={() => handleSelectTemplate(t)}
-                        className="text-left p-5 rounded-2xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 transition-all group relative overflow-hidden"
+                        className="text-left rounded-2xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/50 hover:shadow-md transition-all group relative overflow-hidden flex flex-col h-full"
                       >
-                        <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ArrowRight className="w-5 h-5 text-blue-600" />
+                        {/* Image preview / fallback */}
+                        <div className="w-full h-40 shrink-0 bg-white p-4 relative overflow-hidden flex items-center justify-center border-b border-slate-100 rounded-t-xl">
+                          {t.imageUrl ? (
+                            <img
+                              src={t.imageUrl}
+                              alt={t.name}
+                              className="max-w-full max-h-full object-contain transition-transform group-hover:scale-105 duration-300"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400">
+                              <LayoutTemplate className="w-10 h-10 text-slate-300 mb-1 transition-transform group-hover:scale-110 duration-300" />
+                              <span className="text-xs font-medium">ไม่มีรูปภาพตัวอย่าง</span>
+                            </div>
+                          )}
+                          <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <ArrowRight className="w-5 h-5 text-blue-600" />
+                          </div>
                         </div>
-                        <h4 className="text-lg font-bold text-gray-900 leading-tight mb-2 pr-6">{t.name}</h4>
-                        {t.description && <p className="text-sm text-gray-500 mb-4 line-clamp-2">{t.description}</p>}
-                        <div className="flex flex-wrap gap-2 text-xs font-medium text-gray-600">
-                          <span className="bg-gray-100 px-2 py-1 rounded-md">{t.componentCount} ชิ้นส่วน</span>
-                          {t.hasGlass && <span className="bg-cyan-50 text-cyan-700 px-2 py-1 rounded-md">รวมกระจก</span>}
+
+                        {/* Text content area */}
+                        <div className="p-5 flex-1 flex flex-col justify-between w-full">
+                          <div className="mb-4">
+                            <h4 className="text-lg font-bold text-gray-900 leading-tight mb-2 pr-6 group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                            {t.description && <p className="text-sm text-gray-500 line-clamp-2">{t.description}</p>}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs font-medium text-gray-600">
+                            <span className="bg-gray-100 px-2 py-1 rounded-md">{t.componentCount} ชิ้นส่วน</span>
+                            {t.hasGlass && <span className="bg-cyan-50 text-cyan-700 px-2 py-1 rounded-md">รวมกระจก</span>}
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -1514,38 +1577,39 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                 <Settings2 className="w-5 h-5 text-gray-500" /> ตั้งราคา
               </h3>
 
-              <div className="space-y-8 max-w-lg mb-10">
-                <div>
-                  <div className="flex justify-between items-end mb-2">
-                    <label className="block text-sm font-bold text-gray-700">อัตรากำไร (%)</label>
-                    <span className="text-xl font-bold text-blue-600">{marginPercent}%</span>
+              <div className="max-w-md mx-auto space-y-6 mb-10 text-left">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                      <Percent className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">ส่วนลดพิเศษ (Discount)</h4>
+                      <p className="text-xs text-slate-400">ระบุเปอร์เซ็นต์ส่วนลดเพิ่มเติมสำหรับใบเสนอราคานี้</p>
+                    </div>
                   </div>
-                  <input
-                    type="range" min="0" max="100" step="5"
-                    value={marginPercent} onChange={(e) => setMarginPercent(Number(e.target.value))}
-                    className="w-full accent-blue-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
+                  
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="100"
+                      value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-bold text-lg text-right pr-12"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                  </div>
                 </div>
 
-
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">ค่าแรงต่อ ตร.ม. (฿/m²)</label>
-                  <p className="text-xs text-gray-500 mb-2">คูณกับพื้นที่ช่องเปิด ({((widthCm * heightCm) / 10_000).toFixed(4)} m²)</p>
-                  <input
-                    type="number" min="0" step="50"
-                    value={laborCostPerSqM} onChange={(e) => setLaborCostPerSqM(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">ส่วนลด (%)</label>
-                  <input
-                    type="number" min="0" max="100"
-                    value={discountPercent} onChange={(e) => setDiscountPercent(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-semibold"
-                  />
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 text-sm text-emerald-800 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-emerald-900 font-semibold">การตั้งราคาเริ่มต้นตามรูปแบบงานสำเร็จ</p>
+                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                      ระบบจะคำนวณราคาโดยใช้อัตรากำไรเริ่มต้นที่ <strong className="text-emerald-900 font-bold">{marginPercent}%</strong> 
+                      และค่าแรงเริ่มต้น <strong className="text-emerald-900 font-bold">{laborCostPerSqM.toLocaleString()} ฿/ตร.ม.</strong> 
+                      ที่ตั้งไว้สำหรับรูปแบบ <strong className="text-emerald-900 font-bold">{selectedTemplate.name}</strong> โดยอัตโนมัติ
+                    </p>
+                  </div>
                 </div>
               </div>
 

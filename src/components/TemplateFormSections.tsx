@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, PlusCircle, FlaskConical, ShoppingBag, Layers, Coins } from "lucide-react";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
 import type { MaterialOption, CategoryOption, AccessoryOption, GlassOption } from "@/actions/template";
 
@@ -43,7 +43,7 @@ type ComponentsSectionProps = {
   rows: ComponentRow[];
   categories: CategoryOption[];
   materials: MaterialOption[];
-  onChange: (idx: number, field: keyof ComponentRow, value: string | number | null) => void;
+  onChange: (idx: number, updates: Partial<ComponentRow> | keyof ComponentRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -105,14 +105,16 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Category */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    ซีรีส์ของวัสดุ
+                    ซีรีส์ของเส้นอลูมิเนียม
                   </label>
                   <select 
                     value={row.categoryId} 
                     onChange={e => {
-                      onChange(idx, "categoryId", e.target.value);
-                      onChange(idx, "materialId", "");
-                      onChange(idx, "label", "");
+                      onChange(idx, {
+                        categoryId: e.target.value,
+                        materialId: "",
+                        label: "",
+                      });
                     }}
                     className={inp}
                   >
@@ -126,24 +128,29 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
                 {/* Material */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
-                    วัสดุ <span className="text-red-500">*</span>
+                    เส้นอลูมิเนียม <span className="text-red-500">*</span>
                   </label>
                   <select 
                     value={row.materialId} 
                     onChange={e => {
                       const newMaterialId = e.target.value;
-                      onChange(idx, "materialId", newMaterialId);
-                      
-                      // Auto-populate the label using the selected material's name
                       const selectedMaterial = materials.find(m => m.id === newMaterialId);
                       if (selectedMaterial) {
-                        onChange(idx, "label", selectedMaterial.name);
-                        onChange(idx, "categoryId", selectedMaterial.categoryId);
+                        onChange(idx, {
+                          materialId: newMaterialId,
+                          label: selectedMaterial.name,
+                          categoryId: selectedMaterial.categoryId,
+                        });
+                      } else {
+                        onChange(idx, {
+                          materialId: newMaterialId,
+                          label: "",
+                        });
                       }
                     }}
                     className={inp}
                   >
-                    <option value="">— เลือกวัสดุ —</option>
+                    <option value="">— เลือกเส้นอลูมิเนียม —</option>
                     {row.categoryId ? (
                       materials.filter(m => m.categoryId === row.categoryId).map(m => (
                         <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
@@ -214,7 +221,7 @@ export function ComponentsSection({ rows, categories, materials, onChange, onAdd
 type GlassSectionProps = {
   rows: GlassRow[];
   glassOptions: GlassOption[];
-  onChange: (idx: number, field: keyof GlassRow, value: string | number) => void;
+  onChange: (idx: number, updates: Partial<GlassRow> | keyof GlassRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -293,14 +300,15 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                     value={row.categoryFilter || ""}
                     onChange={(e) => {
                       const val = e.target.value;
-                      onChange(idx, "categoryFilter", val);
+                      const updates: Partial<GlassRow> = { categoryFilter: val };
                       
                       // Clear selection if current glass type doesn't match the selected category
                       const currentGls = glassOptions.find((g) => g.name === row.glassType);
                       if (currentGls && val && (currentGls.category || "ทั่วไป") !== val) {
-                        onChange(idx, "glassType", "");
-                        onChange(idx, "pricePerSqM", 0);
+                        updates.glassType = "";
+                        updates.pricePerSqM = 0;
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
@@ -323,14 +331,15 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
                       value={row.glassType}
                       onChange={e => {
                         const selectedName = e.target.value;
-                        onChange(idx, "glassType", selectedName);
+                        const updates: Partial<GlassRow> = { glassType: selectedName };
                         // Auto-fill price from master data
                         const found = glassOptions.find(g => g.name === selectedName);
                         if (found) {
-                          onChange(idx, "pricePerSqM", found.pricePerSqM);
+                          updates.pricePerSqM = found.pricePerSqM;
                           // Smart Auto-fill category Filter
-                          onChange(idx, "categoryFilter", found.category || "ทั่วไป");
+                          updates.categoryFilter = found.category || "ทั่วไป";
                         }
+                        onChange(idx, updates);
                       }}
                       className={inp}
                     >
@@ -438,7 +447,7 @@ export function GlassSection({ rows, glassOptions, onChange, onAdd, onRemove, on
 type AccessoriesSectionProps = {
   rows: AccessoryRow[];
   accessoryOptions: AccessoryOption[];
-  onChange: (idx: number, field: keyof AccessoryRow, value: string | number) => void;
+  onChange: (idx: number, updates: Partial<AccessoryRow> | keyof AccessoryRow, value?: any) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, dir: -1 | 1) => void;
@@ -510,15 +519,16 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                     value={row.seriesFilter || ""}
                     onChange={(e) => {
                       const val = e.target.value;
-                      onChange(idx, "seriesFilter", val);
+                      const updates: Partial<AccessoryRow> = { seriesFilter: val };
                       
                       // Clear selection if current accessory doesn't match the selected category
                       const currentAcc = accessoryOptions.find((a) => a.name === row.name);
                       if (currentAcc && val && (currentAcc.series || "ทั่วไป") !== val) {
-                        onChange(idx, "name", "");
-                        onChange(idx, "unit", "ชุด");
-                        onChange(idx, "unitCost", 0);
+                        updates.name = "";
+                        updates.unit = "ชุด";
+                        updates.unitCost = 0;
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
@@ -540,15 +550,16 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
                     value={row.name}
                     onChange={(e) => {
                       const selectedName = e.target.value;
-                      onChange(idx, "name", selectedName);
+                      const updates: Partial<AccessoryRow> = { name: selectedName };
                       
                       const acc = accessoryOptions.find((a) => a.name === selectedName);
                       if (acc) {
-                        onChange(idx, "unit", acc.unit);
-                        onChange(idx, "unitCost", acc.baseCost);
+                        updates.unit = acc.unit;
+                        updates.unitCost = acc.baseCost;
                         // Smart Auto-fill series filter
-                        onChange(idx, "seriesFilter", acc.series || "ทั่วไป");
+                        updates.seriesFilter = acc.series || "ทั่วไป";
                       }
+                      onChange(idx, updates);
                     }}
                     className={inp}
                   >
@@ -600,6 +611,73 @@ export function AccessoriesSection({ rows, accessoryOptions, onChange, onAdd, on
               </div>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEFAULT PRICING SECTION
+// ════════════════════════════════════════════════════════════════════════════
+type DefaultPricingSectionProps = {
+  defaultProfitMargin: number;
+  setDefaultProfitMargin: (val: number) => void;
+  defaultLaborCost: number;
+  setDefaultLaborCost: (val: number) => void;
+};
+
+export function DefaultPricingSection({
+  defaultProfitMargin,
+  setDefaultProfitMargin,
+  defaultLaborCost,
+  setDefaultLaborCost,
+}: DefaultPricingSectionProps) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+      <div className="p-5 sm:p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+            <Coins className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">การตั้งราคาเริ่มต้น / Default Pricing</h3>
+            <p className="text-xs text-gray-400">กำหนดอัตรากำไรและค่าแรงต่อตารางเมตรสำหรับเป็นค่าเริ่มต้นของรูปแบบงานนี้</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Profit Margin */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              อัตรากำไรเริ่มต้น (%) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={defaultProfitMargin}
+              onChange={(e) => setDefaultProfitMargin(parseFloat(e.target.value) || 0)}
+              className={inp}
+            />
+            <p className="text-xs text-gray-400 mt-1">ใช้เป็นค่าเริ่มต้นในระบบเสนอราคา (เช่น 20%)</p>
+          </div>
+
+          {/* Labor Cost */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              ค่าแรงเริ่มต้นต่อ ตร.ม. (฿/ตร.ม.) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={defaultLaborCost}
+              onChange={(e) => setDefaultLaborCost(parseFloat(e.target.value) || 0)}
+              className={inp}
+            />
+            <p className="text-xs text-gray-400 mt-1">ใช้คำนวณค่าแรงตามขนาดความกว้างและสูงของงาน</p>
+          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   CheckCircle2,
   XCircle,
+  LayoutTemplate,
 } from "lucide-react";
 import { getTemplatesForAdmin } from "@/actions/template";
 import TemplateActions from "@/components/TemplateActions";
@@ -140,12 +141,30 @@ export default async function TemplatesPage() {
                         >
                           {/* Template name */}
                           <td className="py-4 px-5">
-                            <p className="font-semibold text-gray-900">{t.name}</p>
-                            {t.description && (
-                              <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">
-                                {t.description}
-                              </p>
-                            )}
+                            <div className="flex items-center gap-4">
+                              {/* Thumbnail preview / fallback */}
+                              <div className="w-12 h-12 shrink-0 bg-white border border-slate-200 rounded-md p-1 flex items-center justify-center overflow-hidden">
+                                {t.imageUrl ? (
+                                  <img
+                                    src={t.imageUrl}
+                                    alt={t.name}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-300 rounded">
+                                    <LayoutTemplate className="w-5 h-5" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 truncate max-w-xs md:max-w-md">{t.name}</p>
+                                {t.description && (
+                                  <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs" title={t.description}>
+                                    {t.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </td>
 
                           {/* Profile count */}

@@ -490,3 +490,180 @@ export async function deleteGlass(id: string): Promise<AdminActionResult> {
     return { success: false, error: "ไม่สามารถลบข้อมูลกระจกได้" };
   }
 }
+
+/**
+ * Move a material to the Accessory table inside a Prisma transaction.
+ * Maps colors and codes appropriately and deletes the original material.
+ */
+export async function moveMaterialToAccessory(
+  materialId: string,
+  targetSeries: string
+): Promise<AdminActionResult> {
+  try {
+    if (!materialId) return { success: false, error: "กรุณาระบุ ID ของเส้นอลูมิเนียม" };
+    if (!targetSeries) return { success: false, error: "กรุณาระบุหมวดหมู่อุปกรณ์เสริมปลายทาง" };
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Fetch material with variants
+      const mat = await tx.material.findUnique({
+        where: { id: materialId },
+        include: { variants: true },
+      });
+
+      if (!mat) {
+        throw new Error("ไม่พบข้อมูลเส้นอลูมิเนียมที่ต้องการย้าย");
+      }
+
+      // 2. Check for code duplicate in Accessory
+      const existingAcc = await tx.accessory.findUnique({
+        where: { code: mat.code },
+        select: { id: true },
+      });
+      if (existingAcc) {
+        throw new Error(`รหัสอุปกรณ์เสริม "${mat.code}" มีอยู่ในระบบแล้ว ไม่สามารถย้ายซ้ำได้`);
+      }
+
+      // 3. Create new accessory
+      const acc = await tx.accessory.create({
+        data: {
+          code: mat.code,
+          name: mat.name,
+          unit: mat.unit,
+          baseCost: mat.baseCost,
+          series: targetSeries,
+          description: mat.description,
+          imageUrl: mat.imageUrl,
+          sortOrder: mat.sortOrder,
+          isActive: mat.isActive,
+        },
+      });
+
+      // 4. Create accessory variants
+      if (mat.variants.length > 0) {
+        await tx.accessoryVariant.createMany({
+          data: mat.variants.map((v) => ({
+            accessoryId: acc.id,
+            colorId: v.colorId,
+            unitCost: v.unitCost,
+            isActive: v.isActive,
+          })),
+        });
+      }
+
+      // 5. Delete original material (cascades variants automatically)
+      await tx.material.delete({
+        where: { id: materialId },
+      });
+
+      return acc;
+    });
+
+    // Revalidate paths
+    revalidatePath("/materials");
+    revalidatePath("/admin/accessories");
+    revalidatePath("/");
+
+    return { success: true, id: result.id };
+  } catch (err: any) {
+    console.error("[moveMaterialToAccessory] Error:", err);
+    if (err.code === "P2003") {
+      return {
+        success: false,
+        error: "ไม่สามารถย้ายได้ เนื่องจากเส้นอลูมิเนียมนี้ถูกใช้งานอยู่ในรูปแบบงาน (Template) หรือใบเสนอราคา โปรดลบหรือแก้ไขจุดที่เชื่อมโยงก่อนทำการย้ายข้อมูล",
+      };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "เกิดข้อผิดพลาดที่ไม่คาดคิดในการย้ายข้อมูล" };
+  }
+}
+
+/**
+ * Move an accessory to the Material (Aluminum Profile) table inside a Prisma transaction.
+ * Maps variants and codes appropriately and deletes the original accessory.
+ */
+export async function moveAccessoryToMaterial(
+  accessoryId: string,
+  targetCategoryId: string
+): Promise<AdminActionResult> {
+  try {
+    if (!accessoryId) return { success: false, error: "กรุณาระบุ ID ของอุปกรณ์เสริม" };
+    if (!targetCategoryId) return { success: false, error: "กรุณาระบุหมวดหมู่เส้นอลูมิเนียมปลายทาง" };
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Fetch accessory with variants
+      const acc = await tx.accessory.findUnique({
+        where: { id: accessoryId },
+        include: { variants: true },
+      });
+
+      if (!acc) {
+        throw new Error("ไม่พบข้อมูลอุปกรณ์เสริมที่ต้องการย้าย");
+      }
+
+      // 2. Check for code duplicate in Material
+      const existingMat = await tx.material.findUnique({
+        where: { code: acc.code },
+        select: { id: true },
+      });
+      if (existingMat) {
+        throw new Error(`รหัสเส้นอลูมิเนียม "${acc.code}" มีอยู่ในระบบแล้ว ไม่สามารถย้ายซ้ำได้`);
+      }
+
+      // 3. Create new material
+      const mat = await tx.material.create({
+        data: {
+          categoryId: targetCategoryId,
+          code: acc.code,
+          name: acc.name,
+          unit: acc.unit,
+          baseCost: acc.baseCost,
+          description: acc.description,
+          imageUrl: acc.imageUrl,
+          sortOrder: acc.sortOrder,
+          isActive: acc.isActive,
+        },
+      });
+
+      // 4. Create material variants
+      if (acc.variants.length > 0) {
+        await tx.materialVariant.createMany({
+          data: acc.variants.map((v) => ({
+            materialId: mat.id,
+            colorId: v.colorId,
+            unitCost: v.unitCost,
+            isActive: v.isActive,
+          })),
+        });
+      }
+
+      // 5. Delete original accessory (cascades variants automatically)
+      await tx.accessory.delete({
+        where: { id: accessoryId },
+      });
+
+      return mat;
+    });
+
+    // Revalidate paths
+    revalidatePath("/materials");
+    revalidatePath("/admin/accessories");
+    revalidatePath("/");
+
+    return { success: true, id: result.id };
+  } catch (err: any) {
+    console.error("[moveAccessoryToMaterial] Error:", err);
+    if (err.code === "P2003") {
+      return {
+        success: false,
+        error: "ไม่สามารถย้ายได้ เนื่องจากอุปกรณ์เสริมนี้ถูกใช้งานอยู่ในระบบที่มีการอ้างอิงเชิงสัมพันธ์ โปรดตรวจสอบและลบจุดที่เชื่อมโยงก่อนทำการย้ายข้อมูล",
+      };
+    }
+    if (err instanceof Error) {
+      return { success: false, error: err.message };
+    }
+    return { success: false, error: "เกิดข้อผิดพลาดที่ไม่คาดคิดในการย้ายข้อมูล" };
+  }
+}
+

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Image } from "lucide-react";
 import { getQuotations } from "@/actions/quotation";
 import QuotationActions from "@/components/QuotationActions";
 
@@ -111,11 +111,29 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                         </td>
 
                         {/* Customer / Project */}
-                        <td className="py-4 px-4 min-w-[150px]">
-                          <p className="font-medium text-gray-900">{item.projectName}</p>
-                          {item.customerName && (
-                            <p className="text-xs text-gray-500 mt-0.5">{item.customerName}</p>
-                          )}
+                        <td className="py-4 px-4 min-w-[200px]">
+                          <div className="flex items-center gap-3">
+                            {/* Thumbnail preview / fallback */}
+                            <div className="w-12 h-12 shrink-0 bg-white border border-slate-200 rounded-md p-1 flex items-center justify-center overflow-hidden shadow-sm">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.projectName}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-400 rounded">
+                                  <Image className="w-5 h-5" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate max-w-[220px] md:max-w-xs">{item.projectName}</p>
+                              {item.customerName && (
+                                <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[220px]">{item.customerName}</p>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         {/* Template */}
@@ -150,17 +168,41 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                   key={item.id}
                   className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      {/* Project Name (prominent) */}
-                      <h3 className="font-bold text-gray-900 text-base leading-snug">
-                        {item.projectName}
-                      </h3>
+                  <div className="flex gap-4 items-start">
+                    {/* Thumbnail preview / fallback */}
+                    <div className="w-16 h-16 shrink-0 bg-white border border-slate-200 rounded-md p-1 flex items-center justify-center overflow-hidden shadow-sm">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.projectName}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-slate-50 flex items-center justify-center text-slate-400 rounded">
+                          <Image className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stacked contents on the right */}
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        {/* Project Name */}
+                        <h3 className="font-bold text-gray-900 text-base leading-snug truncate">
+                          {item.projectName}
+                        </h3>
+                        {/* Quotation ID badge */}
+                        <span className="font-mono text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md shrink-0">
+                          {item.id.slice(-6).toUpperCase()}
+                        </span>
+                      </div>
+
                       {item.customerName && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 truncate">
                           ลูกค้า: {item.customerName}
                         </p>
                       )}
+
                       {/* Date */}
                       <p className="text-xs text-gray-400">
                         {item.createdAt.toLocaleDateString("th-TH", {
@@ -169,23 +211,19 @@ export default async function QuotationsPage({ searchParams }: PageProps) {
                           day: "numeric",
                         })}
                       </p>
-                    </div>
-                    {/* Quotation ID badge */}
-                    <span className="font-mono text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-md shrink-0">
-                      {item.id.slice(-6).toUpperCase()}
-                    </span>
-                  </div>
 
-                  {/* Form template name & Total Price */}
-                  <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                    <span className="inline-flex items-center text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">
-                      {item.templateName}
-                    </span>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">ยอดรวมสุทธิ</span>
-                      <span className="font-bold text-gray-900 text-lg">
-                        ฿{item.finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
+                      {/* Template Name & Price stacked */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <span className="inline-flex items-center text-[10px] font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">
+                          {item.templateName}
+                        </span>
+                        <div className="text-right">
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">ยอดรวมสุทธิ</span>
+                          <span className="font-bold text-gray-900 text-base">
+                            ฿{item.finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

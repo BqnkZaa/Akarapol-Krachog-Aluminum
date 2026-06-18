@@ -18,7 +18,7 @@ export default async function DashboardPage() {
 
   const stats = [
     { label: "ซีรีส์", value: categoryCount, color: "bg-purple-100 text-purple-700" },
-    { label: "วัสดุ", value: materialCount, color: "bg-blue-100 text-blue-700" },
+    { label: "เส้นอลูมิเนียม", value: materialCount, color: "bg-blue-100 text-blue-700" },
     { label: "รูปแบบงาน", value: templateCount, color: "bg-indigo-100 text-indigo-700" },
     { label: "ประเมินราคา", value: projectCount, color: "bg-green-100 text-green-700" },
   ];
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
                 <Layers className="w-5 h-5 text-purple-600 group-hover:text-white transition-colors" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">ดูข้อมูลวัสดุ</p>
+                <p className="font-semibold text-gray-900">ดูข้อมูลเส้นอลูมิเนียม</p>
                 <p className="text-xs text-gray-400 mt-0.5">เรียกดูแคตตาล็อก</p>
               </div>
             </Link>
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
                 <PlusCircle className="w-5 h-5 text-green-600 group-hover:text-white transition-colors" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">เพิ่มวัสดุใหม่</p>
+                <p className="font-semibold text-gray-900">เพิ่มเส้นอลูมิเนียมใหม่</p>
                 <p className="text-xs text-gray-400 mt-0.5">เพิ่มโปรไฟล์อลูมิเนียมใหม่</p>
               </div>
             </Link>

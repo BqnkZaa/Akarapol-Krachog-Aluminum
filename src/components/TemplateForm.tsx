@@ -11,7 +11,7 @@ import {
 } from "@/actions/template";
 import { validateFormula } from "@/lib/formulaParser";
 import {
-  ComponentsSection, GlassSection, AccessoriesSection,
+  ComponentsSection, GlassSection, AccessoriesSection, DefaultPricingSection,
 } from "./TemplateFormSections";
 import type { ComponentRow, AccessoryRow, GlassRow } from "./TemplateFormTypes";
 import {
@@ -103,6 +103,8 @@ export default function TemplateForm(props: Props) {
   const [kerfMm] = useState(0);
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder ?? 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
+  const [defaultProfitMargin, setDefaultProfitMargin] = useState(initialData?.defaultProfitMargin ?? 20);
+  const [defaultLaborCost, setDefaultLaborCost] = useState(initialData?.defaultLaborCost ?? 0);
 
   // ── Auto-slug ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -120,13 +122,19 @@ export default function TemplateForm(props: Props) {
   const [success, setSuccess] = useState<string | null>(null);
 
   // ── Component handlers ────────────────────────────────────────────────────
-  const updateComp = (idx: number, field: keyof ComponentRow, value: string | number | null) => {
+  const updateComp = (
+    idx: number,
+    updates: Partial<ComponentRow> | keyof ComponentRow,
+    value?: any
+  ) => {
+    const fields = typeof updates === "object" ? updates : { [updates]: value };
     setComponents(prev => prev.map((row, i) => {
       if (i !== idx) return row;
-      const updated = { ...row, [field]: value };
+      const updated = { ...row, ...fields };
       // Live formula validation
-      if (field === "formula") {
-        const v = typeof value === "string" ? value : "";
+      if ("formula" in fields) {
+        const fVal = fields.formula;
+        const v = typeof fVal === "string" ? fVal : "";
         if (v.trim()) {
           const res = validateFormula(v.trim());
           updated.formulaError = res.valid ? null : res.error;
@@ -157,12 +165,18 @@ export default function TemplateForm(props: Props) {
 
   const removeGlassRow = (idx: number) => setGlassRows(prev => prev.filter((_, i) => i !== idx));
 
-  const updateGlassRow = (idx: number, field: keyof GlassRow, value: string | number) => {
+  const updateGlassRow = (
+    idx: number,
+    updates: Partial<GlassRow> | keyof GlassRow,
+    value?: any
+  ) => {
+    const fields = typeof updates === "object" ? updates : { [updates]: value };
     setGlassRows(prev => prev.map((row, i) => {
       if (i !== idx) return row;
-      const updated = { ...row, [field]: value };
-      if (field === "widthFormula") {
-        const v = typeof value === "string" ? value : "";
+      const updated = { ...row, ...fields };
+      if ("widthFormula" in fields) {
+        const fVal = fields.widthFormula;
+        const v = typeof fVal === "string" ? fVal : "";
         if (v.trim()) {
           const res = validateFormula(v.trim());
           updated.widthFormulaError = res.valid ? null : res.error;
@@ -170,8 +184,9 @@ export default function TemplateForm(props: Props) {
           updated.widthFormulaError = null;
         }
       }
-      if (field === "heightFormula") {
-        const v = typeof value === "string" ? value : "";
+      if ("heightFormula" in fields) {
+        const fVal = fields.heightFormula;
+        const v = typeof fVal === "string" ? fVal : "";
         if (v.trim()) {
           const res = validateFormula(v.trim());
           updated.heightFormulaError = res.valid ? null : res.error;
@@ -198,8 +213,13 @@ export default function TemplateForm(props: Props) {
 
   const removeAcc = (idx: number) => setAccessories(prev => prev.filter((_, i) => i !== idx));
 
-  const updateAcc = (idx: number, field: keyof AccessoryRow, value: string | number) => {
-    setAccessories(prev => prev.map((row, i) => i !== idx ? row : { ...row, [field]: value }));
+  const updateAcc = (
+    idx: number,
+    updates: Partial<AccessoryRow> | keyof AccessoryRow,
+    value?: any
+  ) => {
+    const fields = typeof updates === "object" ? updates : { [updates]: value };
+    setAccessories(prev => prev.map((row, i) => i !== idx ? row : { ...row, ...fields }));
   };
 
   const moveAcc = (idx: number, dir: -1 | 1) => {
@@ -243,6 +263,8 @@ export default function TemplateForm(props: Props) {
         kerfMm: 0,
         sortOrder,
         isActive,
+        defaultProfitMargin,
+        defaultLaborCost,
         components: components.map((c, i) => ({
           materialId: c.materialId,
           label: c.label,
@@ -377,6 +399,14 @@ export default function TemplateForm(props: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── SECTION: Default Pricing ────────────────────────────────────── */}
+      <DefaultPricingSection
+        defaultProfitMargin={defaultProfitMargin}
+        setDefaultProfitMargin={setDefaultProfitMargin}
+        defaultLaborCost={defaultLaborCost}
+        setDefaultLaborCost={setDefaultLaborCost}
+      />
 
       {/* ── SECTION 2: Profile Components ─────────────────────────────────── */}
       <ComponentsSection

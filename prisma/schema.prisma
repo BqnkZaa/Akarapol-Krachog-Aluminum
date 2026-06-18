@@ -253,6 +253,9 @@ model ProductTemplate {
   sortOrder Int     @default(0)
   isActive  Boolean @default(true)
 
+  defaultProfitMargin Float @default(20)
+  defaultLaborCost    Float @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -415,6 +418,7 @@ model EstimationProject {
   wastePercent  Float @default(0)   // weighted average waste % from optimization
 
   status String @default("DRAFT")   // DRAFT | QUOTED | ACCEPTED | REJECTED
+  aluminumPricingMode String @default("FULL_LENGTH") // FULL_LENGTH | EXACT_USAGE
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -66,6 +66,8 @@ export type TemplatePayload = {
   kerfMm: number;                // e.g. 5
   sortOrder?: number;
   isActive?: boolean;
+  defaultProfitMargin?: number;
+  defaultLaborCost?: number;
 
   // ─── Child entities ──────────────────────────────────────────
   components: TemplateComponentInput[];
@@ -101,6 +103,8 @@ export type TemplateListItem = {
   projectCount: number;      // how many estimation projects reference this
   createdAt: Date;
   updatedAt: Date;
+  defaultProfitMargin: number;
+  defaultLaborCost: number;
 };
 
 /** Full DTO for the edit form — includes all child arrays */
@@ -116,6 +120,8 @@ export type TemplateDetail = {
   isActive: boolean;
   categoryId: string;
   categoryName: string;
+  defaultProfitMargin: number;
+  defaultLaborCost: number;
 
   components: {
     id: string;
@@ -190,6 +196,13 @@ function validatePayload(payload: TemplatePayload): string | null {
 
   const slug = payload.slug?.trim() || generateSlug(payload.name);
   if (!slug) return "Could not generate a valid slug.";
+
+  if (payload.defaultProfitMargin !== undefined && payload.defaultProfitMargin < 0) {
+    return "Profit margin cannot be negative.";
+  }
+  if (payload.defaultLaborCost !== undefined && payload.defaultLaborCost < 0) {
+    return "Labor cost cannot be negative.";
+  }
 
   if (!payload.standardBarLengthMm || payload.standardBarLengthMm <= 0) {
     return "Standard bar length must be a positive number (mm).";
@@ -299,6 +312,8 @@ export async function getTemplatesForAdmin(): Promise<TemplateListItem[]> {
     projectCount: t._count.projects,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    defaultProfitMargin: t.defaultProfitMargin,
+    defaultLaborCost: t.defaultLaborCost,
   }));
 }
 
@@ -336,6 +351,8 @@ export async function getTemplateById(id: string): Promise<TemplateDetail | null
     isActive: t.isActive,
     categoryId: t.categoryId,
     categoryName: t.category.name,
+    defaultProfitMargin: t.defaultProfitMargin,
+    defaultLaborCost: t.defaultLaborCost,
 
     components: t.components.map((c) => ({
       id: c.id,
@@ -454,6 +471,8 @@ export async function createTemplate(
           kerfMm: payload.kerfMm,
           sortOrder: payload.sortOrder ?? 0,
           isActive: payload.isActive ?? true,
+          defaultProfitMargin: payload.defaultProfitMargin ?? 20,
+          defaultLaborCost: payload.defaultLaborCost ?? 0,
         },
       });
 
@@ -611,6 +630,8 @@ export async function updateTemplate(
           kerfMm: payload.kerfMm,
           sortOrder: payload.sortOrder ?? 0,
           isActive: payload.isActive ?? true,
+          defaultProfitMargin: payload.defaultProfitMargin ?? 20,
+          defaultLaborCost: payload.defaultLaborCost ?? 0,
         },
       });
 

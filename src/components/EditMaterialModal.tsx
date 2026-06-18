@@ -66,7 +66,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Edit Material</h2>
+          <h2 className="text-lg font-bold text-gray-900">แก้ไขเส้นอลูมิเนียม</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -87,7 +87,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
           <form id="edit-material-form" onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Material Code
+                รหัสเส้นอลูมิเนียม
               </label>
               <input
                 type="text"
@@ -99,7 +99,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Material Name
+                ชื่อเส้นอลูมิเนียม
               </label>
               <input
                 type="text"
@@ -113,7 +113,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
             {variants.length > 0 && (
               <div className="pt-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Variant Pricing (฿)
+                  ราคาย่อยตามสี (฿)
                 </label>
                 <div className="space-y-3">
                   {variants.map((v, idx) => (
@@ -152,7 +152,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
             disabled={isPending}
             className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            Cancel
+            ยกเลิก
           </button>
           <button
             type="submit"
@@ -161,7 +161,7 @@ export default function EditMaterialModal({ material, onClose }: EditMaterialMod
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            {isPending ? "Saving..." : "Save Changes"}
+            {isPending ? "กำลังบันทึก..." : "บันทึกการเปลี่ยนแปลง"}
           </button>
         </div>
       </div>
