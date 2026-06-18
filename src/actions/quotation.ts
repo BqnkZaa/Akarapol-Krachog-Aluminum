@@ -218,7 +218,33 @@ export async function getQuotationById(id: string) {
 
     // Initialize override state
     let isManualOverride = false;
+    let overriddenGlassId = "";
     let userNotes = project.notes || "";
+    
+    if (project.notes) {
+      try {
+        const parsed = JSON.parse(project.notes);
+        if (parsed && typeof parsed === "object") {
+          if (parsed.overriddenGlassId) {
+            overriddenGlassId = parsed.overriddenGlassId;
+          }
+          if (parsed.isManualOverride === true) {
+            isManualOverride = true;
+          }
+          userNotes = typeof parsed.userNotes === "string" ? parsed.userNotes : "";
+        }
+      } catch (e) {
+        // Not a JSON string, treat as regular notes
+      }
+    }
+
+    let overriddenGlass = null;
+    if (overriddenGlassId) {
+      overriddenGlass = await prisma.glass.findUnique({
+        where: { id: overriddenGlassId },
+      });
+    }
+
     let accessories = project.template.accessories.map((acc) => ({
       name: acc.name,
       quantity: acc.quantity,
@@ -228,59 +254,61 @@ export async function getQuotationById(id: string) {
     }));
 
     let glassDetail: any[] = [];
-    if (project.template.glassSpecifications && project.template.glassSpecifications.length > 0) {
-      for (const g of project.template.glassSpecifications) {
-        const glassWResult = evalFormula(g.widthFormula, {
-          W: project.widthMm,
-          H: project.heightMm,
-          H1: project.h1 || 0,
-          H2: project.h2 || project.heightMm,
-          W1: project.w1 || 0,
-          W2: project.w2 || project.widthMm,
-        });
-        const glassHResult = evalFormula(g.heightFormula, {
-          W: project.widthMm,
-          H: project.heightMm,
-          H1: project.h1 || 0,
-          H2: project.h2 || project.heightMm,
-          W1: project.w1 || 0,
-          W2: project.w2 || project.widthMm,
-        });
-        const widthPerPanelMm = glassWResult.ok ? Math.round(glassWResult.value) : 0;
-        const heightPerPanelMm = glassHResult.ok ? Math.round(glassHResult.value) : 0;
-
-        const MM2_PER_SQFT = 92903.04;
-        const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
-        const cost = areaSqFt * g.pricePerSqM;
-
-        glassDetail.push({
-          label: g.label,
-          glassType: g.glassType,
-          panelCount: g.panelCount,
-          widthPerPanelMm,
-          heightPerPanelMm,
-          areaSqFt: Math.round(areaSqFt * 10000) / 10000,
-          pricePerSqFt: g.pricePerSqM,
-          glassCost: Math.round(cost * 100) / 100,
-        });
+    if (isManualOverride) {
+      if (project.notes) {
+        try {
+          const parsed = JSON.parse(project.notes);
+          if (parsed && typeof parsed === "object") {
+            if (Array.isArray(parsed.accessories)) {
+              accessories = parsed.accessories;
+            }
+            if (parsed.glassDetail) {
+              glassDetail = parsed.glassDetail;
+            }
+          }
+        } catch (e) {}
       }
-    }
+    } else {
+      if (project.template.glassSpecifications && project.template.glassSpecifications.length > 0) {
+        for (const g of project.template.glassSpecifications) {
+          const glassWResult = evalFormula(g.widthFormula, {
+            W: project.widthMm,
+            H: project.heightMm,
+            H1: project.h1 || 0,
+            H2: project.h2 || project.heightMm,
+            W1: project.w1 || 0,
+            W2: project.w2 || project.widthMm,
+          });
+          const glassHResult = evalFormula(g.heightFormula, {
+            W: project.widthMm,
+            H: project.heightMm,
+            H1: project.h1 || 0,
+            H2: project.h2 || project.heightMm,
+            W1: project.w1 || 0,
+            W2: project.w2 || project.widthMm,
+          });
+          const widthPerPanelMm = glassWResult.ok ? Math.round(glassWResult.value) : 0;
+          const heightPerPanelMm = glassHResult.ok ? Math.round(glassHResult.value) : 0;
 
-    if (project.notes) {
-      try {
-        const parsed = JSON.parse(project.notes);
-        if (parsed && typeof parsed === "object" && parsed.isManualOverride === true) {
-          isManualOverride = true;
-          if (Array.isArray(parsed.accessories)) {
-            accessories = parsed.accessories;
-          }
-          if (parsed.glassDetail) {
-            glassDetail = parsed.glassDetail;
-          }
-          userNotes = typeof parsed.userNotes === "string" ? parsed.userNotes : "";
+          const MM2_PER_SQFT = 92903.04;
+          const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
+
+          const glassPriceVal = overriddenGlass ? overriddenGlass.pricePerSqM : g.pricePerSqM;
+          const glassTypeStr = overriddenGlass ? overriddenGlass.name : g.glassType;
+
+          const cost = areaSqFt * glassPriceVal;
+
+          glassDetail.push({
+            label: g.label,
+            glassType: glassTypeStr,
+            panelCount: g.panelCount,
+            widthPerPanelMm,
+            heightPerPanelMm,
+            areaSqFt: Math.round(areaSqFt * 10000) / 10000,
+            pricePerSqFt: glassPriceVal,
+            glassCost: Math.round(cost * 100) / 100,
+          });
         }
-      } catch (e) {
-        // Not a JSON string, treat as regular notes
       }
     }
 
@@ -373,6 +401,7 @@ export async function getQuotationById(id: string) {
       userNotes,
       materialCostExact: materialCostExact || project.materialCost,
       materialCostFullLength: materialCostFullLength || project.materialCost,
+      overriddenGlassId,
     };
   } catch (error) {
     console.error("[getQuotationById] Error fetching quotation:", error);
@@ -632,6 +661,13 @@ export async function updateQuotation(
 
       // ── Step 7: Calculate Glass Cost ─────────────────────────────────────────
       glassDetail = [];
+      let overriddenGlass = null;
+      if (payload.overriddenGlassId) {
+        overriddenGlass = await prisma.glass.findUnique({
+          where: { id: payload.overriddenGlassId, isActive: true },
+        });
+      }
+
       if (template.glassSpecifications && template.glassSpecifications.length > 0) {
         for (const g of template.glassSpecifications) {
           const glassWResult = evalFormula(g.widthFormula,  {
@@ -672,17 +708,20 @@ export async function updateQuotation(
           const MM2_PER_SQFT = 92903.04;
           const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
 
-          const cost = areaSqFt * g.pricePerSqM;
+          const glassPriceVal = overriddenGlass ? overriddenGlass.pricePerSqM : g.pricePerSqM;
+          const glassTypeStr = overriddenGlass ? overriddenGlass.name : g.glassType;
+
+          const cost = areaSqFt * glassPriceVal;
           glassCost += cost;
 
           glassDetail.push({
             label:             g.label,
-            glassType:         g.glassType,
+            glassType:         glassTypeStr,
             panelCount:        g.panelCount,
             widthPerPanelMm,
             heightPerPanelMm,
             areaSqFt:          Math.round(areaSqFt * 10000) / 10000,
-            pricePerSqFt:      g.pricePerSqM,
+            pricePerSqFt:      glassPriceVal,
             glassCost:         Math.round(cost * 100) / 100,
           });
         }
@@ -720,6 +759,11 @@ export async function updateQuotation(
         isManualOverride: true,
         accessories: payload.manualAccessories || [],
         glassDetail: payload.manualGlass || [],
+        userNotes: payload.notes || "",
+      });
+    } else if (payload.overriddenGlassId) {
+      notesToSave = JSON.stringify({
+        overriddenGlassId: payload.overriddenGlassId,
         userNotes: payload.notes || "",
       });
     }

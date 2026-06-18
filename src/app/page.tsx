@@ -1,5 +1,6 @@
 import QuotationBuilder from "@/components/QuotationBuilder";
 import { getTemplates } from "@/actions/estimation";
+import { getGlassesForDropdown } from "@/actions/template";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export const metadata = {
 
 export default async function NewQuotationPage() {
   const templates = await getTemplates();
+  const glasses = await getGlassesForDropdown();
 
   return (
     <main className="min-h-screen bg-gray-50 pb-24 print:bg-white print:pb-0">
@@ -33,7 +35,7 @@ export default async function NewQuotationPage() {
         </div>
       </div>
 
-      <QuotationBuilder initialTemplates={templates} />
+      <QuotationBuilder initialTemplates={templates} initialGlasses={glasses} />
     </main>
   );
 }

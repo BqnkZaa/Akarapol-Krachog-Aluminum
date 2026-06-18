@@ -74,6 +74,9 @@ export interface RunEstimationPayload {
 
   // ── Pricing Mode ─────────────────────────────────────────────────────────
   aluminumPricingMode?: string; // "FULL_LENGTH" | "EXACT_USAGE"
+
+  // ── Glass selection override ─────────────────────────────────────────────
+  overriddenGlassId?: string;
 }
 
 // ─── Output Types ─────────────────────────────────────────────────────────────
@@ -403,6 +406,13 @@ export async function runParametricEstimation(
     const glassDetail: GlassDetail[] = [];
     let glassCost = 0;
 
+    let overriddenGlass = null;
+    if (payload.overriddenGlassId) {
+      overriddenGlass = await prisma.glass.findUnique({
+        where: { id: payload.overriddenGlassId, isActive: true },
+      });
+    }
+
     if (template.glassSpecifications && template.glassSpecifications.length > 0) {
       for (const g of template.glassSpecifications) {
         const glassWResult = evalFormula(g.widthFormula,  {
@@ -444,17 +454,20 @@ export async function runParametricEstimation(
         const MM2_PER_SQFT = 92903.04;
         const areaSqFt = g.panelCount * (widthPerPanelMm * heightPerPanelMm) / MM2_PER_SQFT;
 
-        const cost = areaSqFt * g.pricePerSqM;
+        const glassPriceVal = overriddenGlass ? overriddenGlass.pricePerSqM : g.pricePerSqM;
+        const glassTypeStr = overriddenGlass ? overriddenGlass.name : g.glassType;
+
+        const cost = areaSqFt * glassPriceVal;
         glassCost += cost;
 
         glassDetail.push({
           label:             g.label,
-          glassType:         g.glassType,
+          glassType:         glassTypeStr,
           panelCount:        g.panelCount,
           widthPerPanelMm,
           heightPerPanelMm,
           areaSqFt:          Math.round(areaSqFt * 10000) / 10000, // 4 decimal places
-          pricePerSqFt:      g.pricePerSqM,
+          pricePerSqFt:      glassPriceVal,
           glassCost:         Math.round(cost * 100) / 100,
         });
       }
@@ -498,6 +511,15 @@ export async function runParametricEstimation(
     // ── Step 10: Persist atomically in a Prisma transaction ──────────────────
     // All records are created or NONE — no partial saves.
     const savedProject = await prisma.$transaction(async (tx) => {
+      // Build notes field (serialize overriddenGlassId if present)
+      let notesToSave: string | null = payload.notes?.trim() ?? null;
+      if (payload.overriddenGlassId) {
+        notesToSave = JSON.stringify({
+          overriddenGlassId: payload.overriddenGlassId,
+          userNotes: payload.notes || "",
+        });
+      }
+
       // Create the EstimationProject
       const project = await tx.estimationProject.create({
         data: {
@@ -505,7 +527,7 @@ export async function runParametricEstimation(
           customerName:    payload.customerName?.trim()    ?? null,
           customerPhone:   payload.customerPhone?.trim()   ?? null,
           customerAddress: payload.customerAddress?.trim() ?? null,
-          notes:           payload.notes?.trim()            ?? null,
+          notes:           notesToSave,
 
           templateId: payload.templateId,
           colorId:    payload.colorId,
@@ -781,6 +803,7 @@ export interface TemplateOption {
   accessoryCount: number;
   defaultProfitMargin: number;
   defaultLaborCost: number;
+  defaultGlassType?: string;
 }
 
 /**
@@ -794,7 +817,11 @@ export async function getTemplates(): Promise<TemplateOption[]> {
     include: {
       category:    { select: { name: true } },
       _count:      { select: { components: true, accessories: true } },
-      glassSpecifications: { select: { id: true } },
+      glassSpecifications: {
+        select: { glassType: true },
+        orderBy: { sortOrder: "asc" },
+        take: 1
+      },
     },
   });
 
@@ -812,6 +839,7 @@ export async function getTemplates(): Promise<TemplateOption[]> {
     accessoryCount:      t._count.accessories,
     defaultProfitMargin: t.defaultProfitMargin,
     defaultLaborCost:    t.defaultLaborCost,
+    defaultGlassType:    t.glassSpecifications[0]?.glassType,
   }));
 }
 

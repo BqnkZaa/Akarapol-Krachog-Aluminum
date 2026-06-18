@@ -16,8 +16,11 @@ import {
 } from "@/actions/estimation";
 import { getQuotationById, updateQuotation } from "@/actions/quotation";
 
+import { type GlassOption } from "@/actions/template";
+
 type QuotationBuilderProps = {
   initialTemplates: TemplateOption[];
+  initialGlasses?: GlassOption[];
 };
 
 interface EstimationResultWithComponents {
@@ -29,7 +32,7 @@ interface EstimationResultWithComponents {
   }>;
 }
 
-export default function QuotationBuilder({ initialTemplates }: QuotationBuilderProps) {
+export default function QuotationBuilder({ initialTemplates, initialGlasses }: QuotationBuilderProps) {
   // --- Search Params & Edit Mode ---
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
@@ -58,6 +61,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
   const [marginPercent, setMarginPercent] = useState<number>(20);
   const [laborCostPerSqM, setLaborCostPerSqM] = useState<number>(0);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [selectedGlassId, setSelectedGlassId] = useState<string>("");
 
   // --- Flexible Pricing & Quantity Overrides ---
   const [setsCount, setSetsCount] = useState<number>(1);
@@ -86,6 +90,31 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       });
     }
   }, [selectedTemplate]);
+
+  // Auto-select template's default glass type
+  useEffect(() => {
+    if (editId) {
+      // Do not auto-select template default glass during initial hydration in edit mode
+      return;
+    }
+    if (selectedTemplate && selectedTemplate.hasGlass && initialGlasses) {
+      const defaultTypeName = selectedTemplate.defaultGlassType;
+      if (defaultTypeName) {
+        const matchedGlass = initialGlasses.find(
+          (g) => g.name.toLowerCase() === defaultTypeName.toLowerCase()
+        );
+        if (matchedGlass) {
+          setSelectedGlassId(matchedGlass.id);
+        } else {
+          setSelectedGlassId("");
+        }
+      } else {
+        setSelectedGlassId("");
+      }
+    } else {
+      setSelectedGlassId("");
+    }
+  }, [selectedTemplate, initialGlasses, editId]);
 
   // Hydration effect for Edit Mode
   useEffect(() => {
@@ -121,6 +150,12 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
         ? Math.round(project.laborCost / openingAreaSqM) 
         : 0;
       setLaborCostPerSqM(laborPerSqM);
+
+      if ((project as any).overriddenGlassId) {
+        setSelectedGlassId((project as any).overriddenGlassId);
+      } else {
+        setSelectedGlassId("");
+      }
 
       // Hydrate selected Template matching the ID from initialTemplates
       const templateOpt = initialTemplates.find((t) => t.id === project.templateId);
@@ -284,6 +319,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       laborCostPerSqM,
       discountPercent,
       aluminumPricingMode: pricingMode,
+      overriddenGlassId: selectedGlassId || undefined,
     };
 
     const res = editId
@@ -466,6 +502,7 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
       manualAccessories: editableAccessories,
       manualGlass: editableGlass,
       aluminumPricingMode: pricingMode,
+      overriddenGlassId: selectedGlassId || undefined,
     };
 
     try {
@@ -1448,6 +1485,24 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                   </div>
                 </div>
 
+                {selectedTemplate.hasGlass && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">ชนิดกระจก (Glass Type)</label>
+                    <select
+                      value={selectedGlassId}
+                      onChange={(e) => setSelectedGlassId(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-base font-semibold text-gray-900 bg-white"
+                    >
+                      <option value="">— ใช้กระจกเริ่มต้นของรูปแบบงาน —</option>
+                      {initialGlasses?.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} (฿{g.pricePerSqM} / ตร.ฟุต)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="col-span-full mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm">
                   <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
@@ -1578,6 +1633,52 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
               </h3>
 
               <div className="max-w-md mx-auto space-y-6 mb-10 text-left">
+                {/* Profit Margin Override Card */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                      <Percent className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">อัตรากำไร (%) (Profit Margin)</h4>
+                      <p className="text-xs text-slate-400">ระบุเปอร์เซ็นต์กำไรที่ต้องการสำหรับใบเสนอราคานี้</p>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="100"
+                      value={marginPercent} onChange={(e) => setMarginPercent(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-bold text-lg text-right pr-12"
+                      placeholder="20"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">%</span>
+                  </div>
+                </div>
+
+                {/* Labor Cost Override Card */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+                      <Calculator className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">ค่าแรงต่อ ตร.ม. (฿/m²) (Labor Cost)</h4>
+                      <p className="text-xs text-slate-400">ระบุค่าแรงติดตั้งต่อตารางเมตรสำหรับใบเสนอราคานี้</p>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <input
+                      type="number" min="0"
+                      value={laborCostPerSqM} onChange={(e) => setLaborCostPerSqM(Number(e.target.value))}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 font-bold text-lg text-right pr-12"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-lg">฿/m²</span>
+                  </div>
+                </div>
+
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
@@ -1603,11 +1704,9 @@ export default function QuotationBuilder({ initialTemplates }: QuotationBuilderP
                 <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-5 text-sm text-emerald-800 flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold text-emerald-900 font-semibold">การตั้งราคาเริ่มต้นตามรูปแบบงานสำเร็จ</p>
+                    <p className="font-bold text-emerald-900 font-semibold">การตั้งราคาและค่าแรงเริ่มต้น</p>
                     <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
-                      ระบบจะคำนวณราคาโดยใช้อัตรากำไรเริ่มต้นที่ <strong className="text-emerald-900 font-bold">{marginPercent}%</strong> 
-                      และค่าแรงเริ่มต้น <strong className="text-emerald-900 font-bold">{laborCostPerSqM.toLocaleString()} ฿/ตร.ม.</strong> 
-                      ที่ตั้งไว้สำหรับรูปแบบ <strong className="text-emerald-900 font-bold">{selectedTemplate.name}</strong> โดยอัตโนมัติ
+                      ค่าเริ่มต้นถูกดึงมาจากรูปแบบสำเร็จ <strong className="text-emerald-900 font-bold">{selectedTemplate.name}</strong> คุณสามารถปรับเปลี่ยนค่าข้างต้นเพื่อใช้เฉพาะสำหรับใบเสนอราคานี้ได้ตามต้องการ
                     </p>
                   </div>
                 </div>
