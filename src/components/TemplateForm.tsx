@@ -278,7 +278,7 @@ export default function TemplateForm(props: Props) {
         return;
       }
       setSuccess(mode === "edit" ? "อัปเดตรูปแบบงานสำเร็จ!" : "สร้างรูปแบบงานสำเร็จ!");
-      setTimeout(() => router.push("/admin/templates"), 800);
+      setTimeout(() => router.push(`/admin/templates#template-${result.id}`), 800);
     });
   };
 
@@ -431,8 +431,11 @@ export default function TemplateForm(props: Props) {
           {accessories.length} อุปกรณ์เสริม
         </p>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => router.push("/admin/templates")}
-            className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            onClick={() => router.push(initialData?.id ? `/admin/templates#template-${initialData.id}` : "/admin/templates")}
+            className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+          >
             ยกเลิก
           </button>
           <button type="submit" disabled={isPending} id="submit-template-btn"

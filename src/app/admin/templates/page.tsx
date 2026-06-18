@@ -135,8 +135,8 @@ export default async function TemplatesPage() {
                       {items.map((t) => (
                         <tr
                           key={t.id}
-                          id={`template-row-${t.slug}`}
-                          className={`hover:bg-gray-50/60 transition-colors ${!t.isActive ? "opacity-55" : ""}`}
+                          id={`template-${t.id}`}
+                          className={`scroll-mt-24 hover:bg-gray-50/60 transition-colors ${!t.isActive ? "opacity-55" : ""}`}
                         >
                           {/* Template name */}
                           <td className="py-4 px-5">
@@ -224,7 +224,11 @@ export default async function TemplatesPage() {
               {/* Mobile Cards */}
               <div className="md:hidden space-y-4">
                 {items.map((t) => (
-                  <div key={t.id} className={`bg-white rounded-2xl border border-gray-200 p-5 shadow-sm relative overflow-hidden ${!t.isActive ? "opacity-75 bg-gray-50" : ""}`}>
+                  <div
+                    key={t.id}
+                    id={`template-${t.id}`}
+                    className={`scroll-mt-24 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm relative overflow-hidden ${!t.isActive ? "opacity-75 bg-gray-50" : ""}`}
+                  >
                     <div className={`absolute top-0 left-0 w-full h-1 ${t.isActive ? "bg-green-500" : "bg-gray-300"}`} />
                     
                     <div className="flex justify-between items-start mb-3 mt-1">

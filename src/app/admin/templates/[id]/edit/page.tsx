@@ -39,7 +39,7 @@ export default async function EditTemplatePage({
         <div className="max-w-5xl mx-auto px-6 py-6">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <Link
-              href="/admin/templates"
+              href={`/admin/templates#template-${id}`}
               className="hover:text-gray-600 transition-colors inline-flex items-center gap-1"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
