@@ -27,17 +27,13 @@ class HomeScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: ToolkitColors.royalBlue,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: const Icon(
-                      Icons.architecture_rounded,
-                      color: Colors.white,
-                      size: 25,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Image.asset(
+                      'assets/images/app_logo_3d.png',
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(width: 12),

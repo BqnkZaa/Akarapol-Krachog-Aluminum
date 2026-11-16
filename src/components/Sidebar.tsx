@@ -253,7 +253,12 @@ function SidebarNavigation({ closeSidebar }: { closeSidebar: () => void }) {
 }
 
 export default function Sidebar() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  if (pathname?.startsWith("/download")) {
+    return null;
+  }
 
   const closeSidebar = () => setIsOpen(false);
 

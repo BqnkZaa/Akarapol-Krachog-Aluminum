@@ -33,6 +33,7 @@ flutter:
   assets:
     - assets/data/
     - assets/fonts/
+    - assets/images/
 
   fonts:
     - family: Sarabun
