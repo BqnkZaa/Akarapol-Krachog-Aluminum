@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  Smartphone,
 } from "lucide-react";
 
 type NavItem = {
@@ -48,6 +49,12 @@ const navSections: NavSection[] = [
       { href: "/materials/new", label: "เพิ่มเส้นอลูมิเนียมใหม่", icon: PlusCircle, exact: true },
       { href: "/admin/accessories", label: "อุปกรณ์เสริม", icon: Wrench, exact: false },
       { href: "/admin/glass", label: "กระจก", icon: FlaskConical, exact: false },
+    ],
+  },
+  {
+    title: "แอปมือถือ (Android)",
+    items: [
+      { href: "/download", label: "ดาวน์โหลดแอป (.apk)", icon: Smartphone, exact: true },
     ],
   },
 ];

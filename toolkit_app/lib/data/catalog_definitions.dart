@@ -1,0 +1,2408 @@
+import '../models/app_models.dart';
+
+class CatalogDefinitions {
+  CatalogDefinitions._();
+
+  // ===========================================================================
+  // Reusable Option Groups (Verbatim Thai Labels from Toolkit v0.1.7)
+  // ===========================================================================
+  static const List<OptionGroupDef> marketSlidingOptions = [
+    OptionGroupDef(
+      id: 'usage_type',
+      title: 'ประเภทงาน',
+      choices: [
+        OptionChoice(
+            id: 'window',
+            label: 'หน้าต่าง',
+            subtitle: 'ใช้สูตรมาตรฐานตามประเภทงาน'),
+        OptionChoice(
+            id: 'door',
+            label: 'ประตู',
+            subtitle: 'ใช้สูตรมาตรฐานตามประเภทงาน'),
+        OptionChoice(
+            id: 'ext_door',
+            label: 'ประตูภายนอก',
+            subtitle: 'แทนมือจับล็อกธรรมดา 1 ชุดด้วยรุ่นมีกุญแจ'),
+      ],
+      defaultValue: 'window',
+    ),
+    OptionGroupDef(
+      id: 'frame_mode',
+      title: 'ระบบเฟรม',
+      choices: [
+        OptionChoice(
+            id: 'plain',
+            label: 'เฟรมไม่ติดกล่อง',
+            subtitle: 'สูตรเจ้าของโครงการ (พร้อมใช้งาน)'),
+        OptionChoice(
+            id: 'smooth_box',
+            label: 'เฟรมไม่ติดกล่อง + กล่องเรียบ',
+            subtitle: 'สูตรเจ้าของโครงการ (พร้อมใช้งาน)'),
+        OptionChoice(
+            id: 'box_frame',
+            label: 'เฟรมติดกล่อง',
+            subtitle: 'สูตรเจ้าของโครงการ (พร้อมใช้งาน)'),
+      ],
+      defaultValue: 'plain',
+    ),
+    OptionGroupDef(
+      id: 'bumper_rubber',
+      title: 'ยางกันกระแทก',
+      choices: [
+        OptionChoice(id: 'round', label: 'ยางกันกระแทกแบบกลม'),
+        OptionChoice(id: 'square', label: 'ยางกันกระแทกแบบสี่เหลี่ยม'),
+      ],
+      defaultValue: 'round',
+    ),
+  ];
+
+  static const List<OptionGroupDef> marketUnionOptions = [
+    OptionGroupDef(
+      id: 'hinge_size',
+      title: 'ขนาดบานพับกระทุ้งยูเนี่ยน',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '4 นิ้ว', label: '4 นิ้ว'),
+        OptionChoice(id: '6 นิ้ว', label: '6 นิ้ว'),
+        OptionChoice(id: '8 นิ้ว', label: '8 นิ้ว'),
+      ],
+      defaultValue: '6 นิ้ว',
+    ),
+    OptionGroupDef(
+      id: 'handle_side',
+      title: 'ทิศทางมือจับ',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: 'ซ้าย', label: 'ซ้าย'),
+        OptionChoice(id: 'ขวา', label: 'ขวา'),
+      ],
+      defaultValue: 'ซ้าย',
+    ),
+  ];
+
+  static const List<OptionGroupDef> ormAsianSlidingOptions = [
+    OptionGroupDef(
+      id: 'usage_type',
+      title: 'ประเภทงาน',
+      choices: [
+        OptionChoice(id: 'door', label: 'ประตู'),
+        OptionChoice(id: 'window', label: 'หน้าต่าง'),
+      ],
+      defaultValue: 'door',
+    ),
+    OptionGroupDef(
+      id: 'stile_size',
+      title: 'ขนาดเสา',
+      choices: [
+        OptionChoice(id: '53', label: '53 มม.'),
+        OptionChoice(id: '65', label: '65 มม.'),
+        OptionChoice(id: '75', label: '75 มม.'),
+      ],
+      defaultValue: '53',
+    ),
+    OptionGroupDef(
+      id: 'jamb_size',
+      title: 'เฟรมข้าง',
+      choices: [
+        OptionChoice(id: '20', label: '20 มม.'),
+        OptionChoice(id: '30', label: '30 มม.'),
+      ],
+      defaultValue: '20',
+    ),
+    OptionGroupDef(
+      id: 'sill_type',
+      title: 'ธรณีล่าง',
+      choices: [
+        OptionChoice(id: 'low', label: 'ธรณีต่ำ'),
+        OptionChoice(id: 'high', label: 'ธรณีสูง'),
+      ],
+      defaultValue: 'low',
+    ),
+  ];
+
+  static const List<OptionGroupDef> ormAsianCasementOptions = [
+    OptionGroupDef(
+      id: 'open_mode',
+      title: 'ประเภทบาน',
+      choices: [
+        OptionChoice(id: 'awning', label: 'บานกระทุ้ง'),
+        OptionChoice(id: 'casement', label: 'บานเปิด'),
+      ],
+      defaultValue: 'awning',
+    ),
+    OptionGroupDef(
+      id: 'outer_frame',
+      title: 'วงกบนอก',
+      choices: [
+        OptionChoice(id: '803-01', label: '803-01 · 9 ซม.'),
+        OptionChoice(id: '802-06', label: '802-06 · 4 นิ้ว'),
+      ],
+      defaultValue: '803-01',
+    ),
+    OptionGroupDef(
+      id: 'bead_code',
+      title: 'ร่องกระจก / คิ้ว',
+      choices: [
+        OptionChoice(id: '803-04', label: '12.6 mm · 803-04'),
+        OptionChoice(id: '803-05', label: '16.9 mm · 803-05'),
+      ],
+      defaultValue: '803-04',
+    ),
+    OptionGroupDef(
+      id: 'striker_code',
+      title: 'จุดรับล็อค',
+      choices: [
+        OptionChoice(id: 'HD-1100', label: 'HD-1100 · รุ่นเจาะ'),
+        OptionChoice(id: 'HD-1101', label: 'HD-1101 · รุ่นสกรู'),
+      ],
+      defaultValue: 'HD-1100',
+    ),
+  ];
+
+  static const List<OptionGroupDef> schimmer250Options = [
+    OptionGroupDef(
+      id: 'glass_thick',
+      title: 'ความหนากระจก',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '5', label: 'กระจก 5 มม.'),
+        OptionChoice(id: '6', label: 'กระจก 6 มม.'),
+      ],
+      defaultValue: '5',
+    ),
+    OptionGroupDef(
+      id: 'handle_set',
+      title: 'ชุดมือจับ',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(
+            id: '00-024', label: '00-024 · มือจับมอร์ทิสล็อกสเตนเลสแบบโค้ง'),
+      ],
+      defaultValue: '00-024',
+    ),
+    OptionGroupDef(
+      id: 'sash_seal',
+      title: 'ซีลกรอบบาน',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '02-031', label: '02-031 · ซีลกรอบบานโฟม'),
+      ],
+      defaultValue: '02-031',
+    ),
+  ];
+
+  static const List<OptionGroupDef> schimmer260Options = [
+    OptionGroupDef(
+      id: 'glass_thick',
+      title: 'ความหนากระจก',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '5', label: 'กระจก 5 มม.'),
+        OptionChoice(id: '6', label: 'กระจก 6 มม.'),
+      ],
+      defaultValue: '5',
+    ),
+    OptionGroupDef(
+      id: 'hinge_family',
+      title: 'ตระกูลบานพับแขนค้ำ',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '03-001', label: 'บานพับแขนค้ำ 03-001-XX'),
+        OptionChoice(id: '03-006', label: 'บานพับแขนค้ำ 03-006-XX'),
+      ],
+      defaultValue: '03-001',
+    ),
+    OptionGroupDef(
+      id: 'hinge_size',
+      title: 'ขนาดบานพับแขนค้ำ',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '08', label: '8 นิ้ว'),
+        OptionChoice(id: '10', label: '10 นิ้ว'),
+        OptionChoice(id: '12', label: '12 นิ้ว'),
+        OptionChoice(id: '14', label: '14 นิ้ว'),
+        OptionChoice(id: '16', label: '16 นิ้ว'),
+        OptionChoice(id: '18', label: '18 นิ้ว'),
+      ],
+      defaultValue: '08',
+    ),
+    OptionGroupDef(
+      id: 'handle',
+      title: 'มือจับ',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(
+            id: '00-017-R · มือจับสี่เหลี่ยม · ขวา',
+            label: '00-017-R · มือจับสี่เหลี่ยม · ขวา'),
+        OptionChoice(
+            id: '00-017-L · มือจับสี่เหลี่ยม · ซ้าย',
+            label: '00-017-L · มือจับสี่เหลี่ยม · ซ้าย'),
+        OptionChoice(
+            id: '00-018-R · มือจับโค้ง · ขวา',
+            label: '00-018-R · มือจับโค้ง · ขวา'),
+        OptionChoice(
+            id: '00-018-L · มือจับโค้ง · ซ้าย',
+            label: '00-018-L · มือจับโค้ง · ซ้าย'),
+      ],
+      defaultValue: '00-017-L · มือจับสี่เหลี่ยม · ซ้าย',
+    ),
+    OptionGroupDef(
+      id: 'drip_tray',
+      title: 'ถาดรองน้ำ (ตัวเลือก)',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: 'none', label: 'ไม่ใช้ถาดรองน้ำ'),
+        OptionChoice(id: 'B10016', label: 'B10016 · ถาดรองน้ำ 112 มม.'),
+        OptionChoice(id: 'B10019', label: 'B10019 · ถาดรองน้ำ 105 มม.'),
+        OptionChoice(id: 'B10023', label: 'B10023 · ถาดรองน้ำ 101.6 มม.'),
+      ],
+      defaultValue: 'none',
+    ),
+    OptionGroupDef(
+      id: 'add_backing_plate',
+      title: 'เพิ่มแผ่นรองบานพับแขนค้ำ 03-007-XX',
+      controlType: OptionControlType.checkbox,
+      choices: [
+        OptionChoice(id: 'false', label: 'ไม่เพิ่ม'),
+        OptionChoice(id: 'true', label: 'เพิ่มแผ่นรองบานพับแขนค้ำ 03-007-XX'),
+      ],
+      defaultValue: 'false',
+    ),
+    OptionGroupDef(
+      id: 'add_rivet',
+      title: 'เพิ่มรีเวท 4.8 มม. (ตัวเลือก)',
+      controlType: OptionControlType.checkbox,
+      choices: [
+        OptionChoice(id: 'false', label: 'ไม่เพิ่ม'),
+        OptionChoice(id: 'true', label: 'เพิ่มรีเวท 4.8 มม. (ตัวเลือก)'),
+      ],
+      defaultValue: 'false',
+    ),
+  ];
+
+  static const List<OptionGroupDef> alumetSmartXSlidingOptions = [
+    OptionGroupDef(
+      id: 'thickness',
+      title: 'ความหนาอะลูมิเนียม',
+      choices: [
+        OptionChoice(id: '1.2', label: '1.2 มม.'),
+        OptionChoice(id: '1.5', label: '1.5 มม.'),
+      ],
+      defaultValue: '1.2',
+    ),
+    OptionGroupDef(
+      id: 'sash_angle',
+      title: 'ประเภทกรอบบาน',
+      choices: [
+        OptionChoice(id: '90', label: 'กรอบบาน 90°'),
+        OptionChoice(id: '45', label: 'กรอบบาน 45°'),
+      ],
+      defaultValue: '90',
+    ),
+    OptionGroupDef(
+      id: 'roller_type',
+      title: 'ชนิดล้อกรอบบาน',
+      choices: [
+        OptionChoice(id: 'cartridge', label: 'ล้อตลับ'),
+        OptionChoice(id: 'market', label: 'ล้อตลาด'),
+      ],
+      defaultValue: 'cartridge',
+    ),
+    OptionGroupDef(
+      id: 'mosquito',
+      title: 'ประเภทมุ้ง',
+      choices: [
+        OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
+        OptionChoice(id: 'small_mkt', label: 'มุ้งตลาดเล็ก'),
+        OptionChoice(
+          id: 'security',
+          label: 'มุ้งนิรภัย',
+          enabled: false,
+          disabledBadge: 'รอสูตรที่ได้รับการยืนยัน',
+        ),
+      ],
+      defaultValue: 'none',
+    ),
+  ];
+
+  static const List<OptionGroupDef> ormPanoSlidingOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'หน้าตัดกรอบบาน',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '804-20', label: '804-20'),
+        OptionChoice(id: '804-15', label: '804-15'),
+      ],
+      defaultValue: '804-20',
+    ),
+  ];
+
+  static const List<OptionGroupDef> fujiSlidingOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'กรอบบาน',
+      choices: [
+        OptionChoice(id: 'F7980', label: 'F7980 · ประตู'),
+        OptionChoice(id: 'F7981', label: 'F7981 · หน้าต่าง'),
+      ],
+      defaultValue: 'F7980',
+    ),
+    OptionGroupDef(
+      id: 'track_mode',
+      title: 'ระบบราง',
+      choices: [
+        OptionChoice(id: '3t', label: 'ระบบ 3 ราง'),
+        OptionChoice(id: '2t', label: 'ระบบ 2 ราง'),
+      ],
+      defaultValue: '3t',
+    ),
+    OptionGroupDef(
+      id: 'mosquito',
+      title: 'มุ้งลวด',
+      controlType: OptionControlType.switchToggle,
+      choices: [
+        OptionChoice(id: 'false', label: 'ไม่รวมมุ้ง'),
+        OptionChoice(id: 'true', label: 'รวมมุ้งลวด'),
+      ],
+      defaultValue: 'false',
+    ),
+  ];
+
+  static const List<OptionGroupDef> iconiqSlidingOptions = [
+    OptionGroupDef(
+      id: 'location_type',
+      title: 'ตำแหน่งใช้งาน',
+      choices: [
+        OptionChoice(id: 'ext', label: 'ภายนอก'),
+        OptionChoice(id: 'int', label: 'ภายใน'),
+      ],
+      defaultValue: 'ext',
+    ),
+    OptionGroupDef(
+      id: 'bead_code',
+      title: 'คิ้วกระจก',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: 'iS-0202', label: 'iS-0202 · มาตรฐาน'),
+        OptionChoice(
+            id: 'iS-0204', label: 'iS-0204 · กระจกทางเลือก (ระยะตัดรอยืนยัน)'),
+      ],
+      defaultValue: 'iS-0202',
+    ),
+  ];
+
+  static const List<OptionGroupDef> smartPlusEuroSlidingOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'กรอบบานเลื่อน',
+      controlType: OptionControlType.dropdown,
+      choices: [
+        OptionChoice(id: '15146', label: '15146 กรอบบานเลื่อน 70 มม.'),
+        OptionChoice(
+            id: '15147', label: '15147 กรอบบานเลื่อนเปิดคิ้ว 70 มม.'),
+        OptionChoice(id: '15209', label: '15209 กรอบบานเลื่อน 95 มม.'),
+      ],
+      defaultValue: '15146',
+    ),
+  ];
+
+  static const List<OptionGroupDef> smartPlusEuroWinOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'ความหนาและรหัสกรอบบาน',
+      choices: [
+        OptionChoice(id: '15117', label: '1.2 มม. — 15117'),
+        OptionChoice(id: '15141', label: '1.5 มม. — 15141'),
+      ],
+      defaultValue: '15117',
+    ),
+  ];
+
+  static const List<OptionGroupDef> smartPlusEuroWinTopOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'ความหนาและรหัสกรอบบาน',
+      choices: [
+        OptionChoice(id: '15117', label: '1.2 มม. — 15117'),
+        OptionChoice(id: '15141', label: '1.5 มม. — 15141'),
+      ],
+      defaultValue: '15117',
+    ),
+    OptionGroupDef(
+      id: 'transom_cols',
+      title: 'แบ่งช่องแสงบน',
+      choices: [
+        OptionChoice(id: '1', label: '1 ช่อง'),
+        OptionChoice(id: '2', label: '2 ช่อง'),
+        OptionChoice(id: '3', label: '3 ช่อง'),
+        OptionChoice(id: '4', label: '4 ช่อง'),
+      ],
+      defaultValue: '1',
+    ),
+  ];
+
+  static const List<OptionGroupDef> smartPlusEuroDoorOptions = [
+    OptionGroupDef(
+      id: 'sash_code',
+      title: 'กรอบบานประตู',
+      choices: [
+        OptionChoice(id: '15141', label: '15141 — กรอบบานกระทุ้ง 80 มิล'),
+        OptionChoice(id: '15144', label: '15144 — กรอบบานกระทุ้ง 100 มิล'),
+      ],
+      defaultValue: '15141',
+    ),
+  ];
+
+  static const List<OptionGroupDef> aluframeSlidingOptions = [
+    OptionGroupDef(
+      id: 'stile_width',
+      title: 'ขนาดเสากุญแจ',
+      choices: [
+        OptionChoice(id: '77', label: '77 มม.'),
+        OptionChoice(id: '87', label: '87 มม.'),
+      ],
+      defaultValue: '77',
+    ),
+  ];
+
+  // ===========================================================================
+  // Helper builders for Category 4 (All 136 Active Folding Cards!)
+  // ===========================================================================
+  static List<PatternCardDef> _buildOrmFoldingCards(
+      {required bool is101Mm}) {
+    const layouts = [
+      [2, 2, 0],
+      [3, 2, 1],
+      [4, 3, 1],
+      [4, 2, 2],
+      [5, 4, 1],
+      [5, 3, 2],
+      [6, 5, 1],
+      [6, 4, 2],
+      [6, 3, 3],
+      [7, 6, 1],
+      [7, 5, 2],
+      [7, 4, 3],
+      [8, 7, 1],
+      [8, 6, 2],
+      [8, 5, 3],
+      [8, 4, 4],
+    ];
+    final fam = is101Mm ? 'orm101' : 'orm90';
+    final sizeLabel = is101Mm ? '101.6 mm' : '90 mm';
+    return layouts.map((cfg) {
+      final n = cfg[0], l = cfg[1], r = cfg[2];
+      final code = '$n-$l-$r';
+      return PatternCardDef(
+        id: 'fold_${fam}_$code',
+        title: 'บานเฟี้ยม $code',
+        subtitle: 'เฟรม $sizeLabel · พับซ้าย $l ขวา $r',
+        foldingFamily: fam,
+        foldingTotalPanels: n,
+        foldingLeftPanels: l,
+        foldingRightPanels: r,
+        optionGroups: const [
+          OptionGroupDef(
+            id: 'sill_mode',
+            title: 'รูปแบบเฟรมล่าง',
+            choices: [
+              OptionChoice(id: 'std', label: 'เฟรมล่างมาตรฐาน'),
+              OptionChoice(id: 'low', label: 'รางธรณีต่ำ'),
+            ],
+            defaultValue: 'std',
+          ),
+        ],
+      );
+    }).toList();
+  }
+
+  static List<PatternCardDef> _buildFujiFoldingCards({required bool isUTrack}) {
+    const layouts = [
+      [2, 2, 0],
+      [3, 3, 0],
+      [3, 2, 1],
+      [4, 4, 0],
+      [4, 3, 1],
+      [4, 2, 2],
+      [5, 5, 0],
+      [5, 4, 1],
+      [5, 3, 2],
+      [6, 6, 0],
+      [6, 5, 1],
+      [6, 4, 2],
+      [6, 3, 3],
+      [7, 7, 0],
+      [7, 6, 1],
+      [7, 5, 2],
+      [7, 4, 3],
+      [8, 8, 0],
+      [8, 7, 1],
+      [8, 6, 2],
+      [8, 5, 3],
+      [8, 4, 4],
+      [9, 8, 1],
+      [9, 7, 2],
+      [9, 6, 3],
+      [9, 5, 4],
+      [10, 9, 1],
+      [10, 8, 2],
+      [10, 7, 3],
+      [10, 6, 4],
+      [10, 5, 5],
+      [10, 10, 0],
+    ];
+    final fam = isUTrack ? 'fuji_u' : 'fuji_std';
+    final suffix = isUTrack ? '-u' : '';
+    final trackDesc = isUTrack ? 'ราง U (F7932)' : 'รางมาตรฐาน (F7969)';
+    return layouts.map((cfg) {
+      final n = cfg[0], l = cfg[1], r = cfg[2];
+      final code = '$n-$l-$r$suffix';
+      return PatternCardDef(
+        id: 'fold_${fam}_${n}_${l}_$r',
+        title: 'บานเฟี้ยม $code',
+        subtitle: '$trackDesc · $n บาน (ซ้าย $l / ขวา $r)',
+        foldingFamily: fam,
+        foldingTotalPanels: n,
+        foldingLeftPanels: l,
+        foldingRightPanels: r,
+      );
+    }).toList();
+  }
+
+  static List<PatternCardDef> _buildSmartPlusFoldingCards() {
+    const layouts = [
+      [2, 2, 0],
+      [3, 2, 1],
+      [3, 3, 0],
+      [4, 3, 1],
+      [4, 2, 2],
+      [4, 4, 0],
+      [5, 4, 1],
+      [5, 3, 2],
+      [5, 5, 0],
+      [6, 5, 1],
+      [6, 4, 2],
+      [6, 3, 3],
+      [7, 6, 1],
+      [7, 5, 2],
+      [7, 4, 3],
+      [8, 7, 1],
+      [8, 6, 2],
+      [8, 5, 3],
+      [8, 4, 4],
+    ];
+    final cards = layouts.map((cfg) {
+      final n = cfg[0], l = cfg[1], r = cfg[2];
+      final code = '$n-$l-$r';
+      return PatternCardDef(
+        id: 'fold_sp_$code',
+        title: 'ชุดบานเฟี้ยม $code',
+        subtitle: 'SMART PLUS EURO · พับซ้าย $l ขวา $r',
+        foldingFamily: 'sp_fold',
+        foldingTotalPanels: n,
+        foldingLeftPanels: l,
+        foldingRightPanels: r,
+      );
+    }).toList();
+
+    // Exact 2 disabled corner cards at bottom of SMART PLUS Folding
+    cards.addAll(const [
+      PatternCardDef(
+        id: 'fold_sp_corner_1',
+        title: 'บานเฟี้ยมเข้ามุม 90° (แบบที่ 1)',
+        enabled: false,
+        disabledBadge: 'ข้อมูลสัดส่วนรออัปเดต',
+      ),
+      PatternCardDef(
+        id: 'fold_sp_corner_2',
+        title: 'บานเฟี้ยมเข้ามุม 90° (แบบที่ 2)',
+        enabled: false,
+        disabledBadge: 'ข้อมูลสัดส่วนรออัปเดต',
+      ),
+    ]);
+    return cards;
+  }
+
+  static List<PatternCardDef> _buildAlumetFoldingCards() {
+    const specs = [
+      [2, 2, 0, '2 Left • 0 Right (2-2-0)'],
+      [3, 2, 1, '2 Left • 1 Right (3-2-1)'],
+      [3, 3, 0, '3 Left • 0 Right (3-3-0)'],
+      [4, 2, 2, '2 Left • 2 Right (4-2-2)'],
+      [4, 3, 1, '3 Left • 1 Right (4-3-1)'],
+      [4, 4, 0, '4-4-0 (Interior – No Threshold)'],
+      [5, 4, 1, '4 Left • 1 Right (5-4-1)'],
+      [5, 3, 2, '3 Left • 2 Right (5-3-2)'],
+      [6, 5, 1, '5 Left • 1 Right (6-5-1)'],
+      [6, 4, 2, '4 Left • 2 Right (6-4-2)'],
+      [6, 3, 3, '6-3-3 (Interior – No Floor Groove)'],
+      [7, 6, 1, '6 Left • 1 Right (7-6-1)'],
+      [7, 5, 2, '5 Left • 2 Right (7-5-2)'],
+      [7, 4, 3, '4 Left • 3 Right (7-4-3)'],
+    ];
+    return specs.map((s) {
+      final n = s[0] as int, l = s[1] as int, r = s[2] as int;
+      final label = s[3] as String;
+      return PatternCardDef(
+        id: 'fold_alu_${n}_${l}_$r',
+        title: label,
+        subtitle: 'ALUMET Smart X Folding',
+        foldingFamily: 'alu_fold',
+        foldingTotalPanels: n,
+        foldingLeftPanels: l,
+        foldingRightPanels: r,
+        optionGroups: const [
+          OptionGroupDef(
+            id: 'sill_code',
+            title: 'ชนิดรางล่าง',
+            choices: [
+              OptionChoice(id: 'SB-0116', label: 'เฟรมล่างบานเฟี้ยมภายใน · SB-0116'),
+              OptionChoice(id: 'SB-0103', label: 'เฟรมล่างบานเฟี้ยมภายนอก · SB-0103'),
+              OptionChoice(id: 'SB-0115', label: 'เฟรมยูฝังพื้น · SB-0115'),
+            ],
+            defaultValue: 'SB-0116',
+          ),
+        ],
+      );
+    }).toList();
+  }
+
+  // ===========================================================================
+  // Complete 5-Category Catalog Tree (1:1 with Toolkit v0.1.7 VIP)
+  // ===========================================================================
+  static final List<CategoryDef> categories = [
+    // -------------------------------------------------------------------------
+    // CATEGORY 1: ชุดตลาด
+    // -------------------------------------------------------------------------
+    const CategoryDef(
+      id: 'cat1_market',
+      title: 'ชุดตลาด',
+      subtitle: 'อลูมิเนียมชุดมาตรฐานท้องตลาดทั่วไป',
+      directSystems: [
+        SubSystemDef(
+          id: 'c1_sys_sliding',
+          title: 'บานเลื่อน',
+          subtitle: 'เลือกได้ทั้งเฟรมไม่ติดกล่อง กล่องเรียบ และเฟรมติดกล่อง',
+          patterns: [
+            PatternCardDef(
+              id: 'c1_pat_s2_alt',
+              title: 'บานเลื่อนแบ่ง 2 สลับ',
+              subtitle: 'เลื่อนสลับ 2 บาน',
+              baseFormulaKey: 'c1_s2_boxframe',
+              optionGroups: marketSlidingOptions,
+            ),
+            PatternCardDef(
+              id: 'c1_pat_s2_1s1f',
+              title: 'บานเลื่อนแบ่ง 2 เลื่อน 1 ตาย 1',
+              subtitle: 'บานเลื่อน 1 บาน + บานตาย 1 บาน',
+              baseFormulaKey: 'c1_s2_1s1f',
+              optionGroups: marketSlidingOptions,
+            ),
+            PatternCardDef(
+              id: 'c1_pat_s4_ctr',
+              title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+              subtitle: 'เลื่อนกลาง 2 บาน + บานตายซ้าย-ขวา',
+              baseFormulaKey: 'c1_s4_center',
+              optionGroups: marketSlidingOptions,
+            ),
+            PatternCardDef(
+              id: 'c1_dis_s3',
+              title: 'บานเลื่อนแบ่ง 3',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_s2_top',
+              title: 'บานเลื่อนแบ่ง 2 สลับ + ช่องแสงบน',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_s2_bot',
+              title: 'บานเลื่อนแบ่ง 2 สลับ + ช่องแสงล่าง',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_1s1f_top',
+              title: 'บานเลื่อน 1 ตาย 1 + ช่องแสงบน',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_1s1f_bot',
+              title: 'บานเลื่อน 1 ตาย 1 + ช่องแสงล่าง',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_s4_top',
+              title: 'บานเลื่อนแบ่ง 4 เปิดกลาง + ช่องแสงบน',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            PatternCardDef(
+              id: 'c1_dis_s4_bot',
+              title: 'บานเลื่อนแบ่ง 4 เปิดกลาง + ช่องแสงล่าง',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+          ],
+        ),
+        SubSystemDef(
+          id: 'c1_sys_swing',
+          title: 'ประตูบานสวิง',
+          subtitle: 'บานสวิงเดี่ยวและบานสวิงคู่',
+          patterns: [
+            PatternCardDef(
+              id: 'c1_pat_swing1',
+              title: 'บานสวิงเดี่ยว',
+              baseFormulaKey: 'c1_swing_1_v2',
+            ),
+            PatternCardDef(
+              id: 'c1_pat_swing2',
+              title: 'บานสวิงคู่',
+              baseFormulaKey: 'c1_swing_2_v2',
+            ),
+          ],
+        ),
+        SubSystemDef(
+          id: 'c1_sys_hang',
+          title: 'บานเลื่อนรางแขวนบน',
+          subtitle: 'ชุดรางแขวนบนเดี่ยวและคู่',
+          patterns: [
+            PatternCardDef(
+              id: 'c1_pat_hang1',
+              title: 'บานเลื่อนรางแขวนบนเดี่ยว',
+              baseFormulaKey: 'c1_hang_1_v2',
+            ),
+            PatternCardDef(
+              id: 'c1_pat_hang2',
+              title: 'บานเลื่อนรางแขวนบนคู่',
+              baseFormulaKey: 'c1_hang_2_v2',
+            ),
+          ],
+        ),
+        SubSystemDef(
+          id: 'c1_sys_union',
+          title: 'บานเปิด / บานกระทุ้ง ยูเนี่ยน',
+          subtitle: 'ชุดกรอบนอก-กรอบในยูเนี่ยน',
+          patterns: [
+            PatternCardDef(
+              id: 'c1_pat_union_case1',
+              title: 'บานเปิดยูเนี่ยน 1 บาน',
+              baseFormulaKey: 'c1_union_case1_v2',
+              optionGroups: marketUnionOptions,
+            ),
+            PatternCardDef(
+              id: 'c1_pat_union_awn1',
+              title: 'บานกระทุ้งยูเนี่ยน 1 บาน',
+              baseFormulaKey: 'c1_union_awn1_v2',
+              optionGroups: marketUnionOptions,
+            ),
+          ],
+        ),
+        SubSystemDef(
+          id: 'c1_sys_fixed',
+          title: 'บานตาย / ช่องแสง',
+          enabled: false,
+          disabledBadge: 'รออัปเดต',
+        ),
+      ],
+    ),
+
+    // -------------------------------------------------------------------------
+    // CATEGORY 2: ชุดพัฒนา
+    // -------------------------------------------------------------------------
+    CategoryDef(
+      id: 'cat2_pattana',
+      title: 'ชุดพัฒนา',
+      subtitle: 'ระบบโปรไฟล์พัฒนาตามแบรนด์ผู้ผลิต',
+      brands: [
+        const BrandDef(
+          id: 'c2_orm',
+          title: 'ORM (Asian Trop)',
+          subtitle: 'ชุดบานเลื่อน บานกระทุ้ง/เปิด และประตูวงกบไม้',
+          priceBrandKey: 'ORM',
+          systems: [
+            SubSystemDef(
+              id: 'c2_orm_sliding',
+              title: 'บานเลื่อน',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_orm_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c2_orm_s2_win75',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_s2_top_card',
+                  title: 'บานเลื่อน 2 บาน + ช่องแสงบน',
+                  baseFormulaKey: 'c2_orm_s2_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_s2_bot_card',
+                  title: 'บานเลื่อน 2 บาน + ช่องแสงล่าง',
+                  baseFormulaKey: 'c2_orm_s2_bot',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_s4_card',
+                  title: 'บานเลื่อน 4 บาน',
+                  baseFormulaKey: 'c2_orm_s4',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_s4_top_card',
+                  title: 'บานเลื่อน 4 บาน + ช่องแสงบน',
+                  baseFormulaKey: 'c2_orm_s4_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_s4_bot_card',
+                  title: 'บานเลื่อน 4 บาน + ช่องแสงล่าง',
+                  baseFormulaKey: 'c2_orm_s4_bot',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: ormAsianSlidingOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_orm_casement',
+              title: 'บานกระทุ้ง / บานเปิด',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_orm_case1_card',
+                  title: 'บานเดี่ยว (ไม่มีช่องแสง)',
+                  baseFormulaKey: 'c2_orm_case1',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_case1_top_card',
+                  title: 'บานเดี่ยว + ช่องแสงบน',
+                  baseFormulaKey: 'c2_orm_case1_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานหลัก (มม.)',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_case1_bot_card',
+                  title: 'บานเดี่ยว + ช่องแสงล่าง',
+                  baseFormulaKey: 'c2_orm_case1_bot',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานหลัก (มม.)',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_case_div2_card',
+                  title: 'แบ่ง 2 บาน',
+                  baseFormulaKey: 'c2_orm_case_div2',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_case_div3_card',
+                  title: 'แบ่ง 3 บาน',
+                  baseFormulaKey: 'c2_orm_case_div3',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_case_div4_card',
+                  title: 'แบ่ง 4 บาน',
+                  baseFormulaKey: 'c2_orm_case_div4',
+                  optionGroups: ormAsianCasementOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_orm_fixed',
+              title: 'บานติดตาย / Fixed',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_orm_fix1_card',
+                  title: 'บานติดตาย / Fixed',
+                  subtitle: 'วัดตามจริง · รหัสหน้าตัดรอยืนยัน',
+                  baseFormulaKey: 'c2_orm_fix1',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_orm_wood',
+              title: 'ประตูบานเปิดวงกบไม้',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_orm_wood1_card',
+                  title: 'ประตูบานเปิดวงกบไม้ · บานเดี่ยว',
+                  baseFormulaKey: 'c2_orm_wood_active',
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_wood2_dis',
+                  title: 'ประตูบานเปิดวงกบไม้ · บานเปิดคู่',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+                PatternCardDef(
+                  id: 'c2_orm_wood_top_dis',
+                  title: 'ประตูบานเปิดวงกบไม้ + ช่องแสงบน',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_schimmer',
+          title: 'SMS SCHIMMER',
+          subtitle: 'HOMELIFE 200 · HOMELIFE 250 · HOMELIFE 260',
+          priceBrandKey: 'SCHIMMER',
+          systems: [
+            SubSystemDef(
+              id: 'c2_sch_200',
+              title: 'HOMELIFE 200 (บานเลื่อน)',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sch_200_001_card',
+                  title: 'SD 200-001 · บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c2_sch_200_s2',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_002_card',
+                  title: 'SD 200-002 · บานเลื่อน 1 + ฟิกซ์ 1 (เลื่อนนอก)',
+                  baseFormulaKey: 'c2_sch_200_003',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_004_card',
+                  title: 'SD 200-004 · ฟิกซ์-เลื่อน-ฟิกซ์ 3 ช่อง',
+                  baseFormulaKey: 'c2_sch_200_004',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_005_card',
+                  title: 'SD 200-005 · บานเลื่อน 1 + ฟิกซ์ 1 (เลื่อนใน)',
+                  baseFormulaKey: 'c2_sch_200_003',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_006_card',
+                  title: 'SD 200-006 · ฟิกซ์-เลื่อน-เลื่อน-ฟิกซ์ 4 ช่อง',
+                  baseFormulaKey: 'c2_sch_200_006',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_008_card',
+                  title: 'SD 200-008 · เลื่อน-เลื่อน-ฟิกซ์ 3 ช่อง',
+                  baseFormulaKey: 'c2_sch_200_008',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_010_card',
+                  title: 'SD 200-010 · ฟิกซ์-เลื่อน 4 บาน-ฟิกซ์ 6 ช่อง',
+                  baseFormulaKey: 'c2_sch_200_010',
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_011_card',
+                  title: 'SD 200-011 · บานเลื่อนเข้ามุม 90° เลื่อนนอก',
+                  baseFormulaKey: 'c2_sch_200_011',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_200_012_card',
+                  title: 'SD 200-012 · บานเลื่อนเข้ามุม 90° เลื่อนใน',
+                  baseFormulaKey: 'c2_sch_200_012',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_sch_250',
+              title: 'HOMELIFE 250 (ประตูบานเปิด)',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sch_250_002_card',
+                  title: '250-002 · ประตูบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c2_sch_250_d1',
+                  tableMode: InputTableMode.singleSet,
+                  optionGroups: schimmer250Options,
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_250_004_card',
+                  title: '250-004-CG · ประตูบานเปิดคู่ช่องกระจกบานตาย',
+                  baseFormulaKey: 'c2_sch_250_004cg',
+                  tableMode: InputTableMode.singleSet,
+                  auxType: AuxDimensionType.sideFixWf,
+                  auxLabel: 'W_f ความกว้างช่องแสงบานตายข้าง (มม.)',
+                  optionGroups: schimmer250Options,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_sch_260',
+              title: 'HOMELIFE 260 (หน้าต่างบานเปิด / กระทุ้ง)',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sch_260_001_card',
+                  title: '260-001 · หน้าต่างบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c2_sch_260_w1',
+                  tableMode: InputTableMode.singleSet,
+                  optionGroups: schimmer260Options,
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_260_cm_card',
+                  title: '260-002-CM · หน้าต่างบานเปิดคู่ เฟรมประกบกลาง',
+                  baseFormulaKey: 'c2_sch_260_cm',
+                  tableMode: InputTableMode.singleSet,
+                  auxType: AuxDimensionType.secondWidthW2,
+                  auxLabel: 'W2 ความกว้างบานที่ 2 (มม.)',
+                  optionGroups: schimmer260Options,
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_260_fm_card',
+                  title: '260-002-FM · หน้าต่างบานเปิดคู่ เสาแบ่งกลาง',
+                  baseFormulaKey: 'c2_sch_260_cm',
+                  tableMode: InputTableMode.singleSet,
+                  auxType: AuxDimensionType.secondWidthW2,
+                  auxLabel: 'W2 ความกว้างบานที่ 2 (มม.)',
+                  optionGroups: schimmer260Options,
+                ),
+                PatternCardDef(
+                  id: 'c2_sch_260_nm_card',
+                  title: '260-002-NM · หน้าต่างบานเปิดคู่ ไม่มีเสากลาง',
+                  baseFormulaKey: 'c2_sch_260_cm',
+                  tableMode: InputTableMode.singleSet,
+                  auxType: AuxDimensionType.secondWidthW2,
+                  auxLabel: 'W2 ความกว้างบานที่ 2 (มม.)',
+                  optionGroups: schimmer260Options,
+                ),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_alumet',
+          title: 'ALUMET (Smart X)',
+          subtitle: 'บานเลื่อน หน้าต่าง และประตู Smart X',
+          priceBrandKey: 'ALUMET',
+          systems: [
+            SubSystemDef(
+              id: 'c2_alu_sliding',
+              title: 'บานเลื่อน Smart X',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_alu_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c2_alu_s2',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_s2_top_card',
+                  title: 'บานเลื่อนสลับ 2 บาน + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_s2_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_s3_card',
+                  title: 'บานเลื่อนแบ่ง 3 บาน',
+                  baseFormulaKey: 'c2_alu_s3',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_s3_top_card',
+                  title: 'บานเลื่อนแบ่ง 3 บาน + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_s3_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_s4_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+                  baseFormulaKey: 'c2_alu_s4',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_s4_top_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_s4_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: alumetSmartXSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_corner22_card',
+                  title: 'บานเลื่อนเข้ามุม 90° (2+2)',
+                  baseFormulaKey: 'c2_alu_s4_corner',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_corner23_card',
+                  title: 'บานเลื่อนเข้ามุม 2+3',
+                  baseFormulaKey: 'c2_alu_s5_23',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_corner32_card',
+                  title: 'บานเลื่อนเข้ามุม 3+2',
+                  baseFormulaKey: 'c2_alu_s5_32',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_corner33_card',
+                  title: 'บานเลื่อนเข้ามุม 3+3',
+                  baseFormulaKey: 'c2_alu_s6_33',
+                  tableMode: InputTableMode.cornerW1W2,
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_hang_dis',
+                  title: 'บานเลื่อนรางแขวนบานเดี่ยว',
+                  enabled: false,
+                  disabledBadge: 'รอข้อมูลสูตร',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_alu_windows',
+              title: 'หน้าต่างบานเปิด / บานกระทุ้ง',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_alu_win1_card',
+                  title: 'หน้าต่างบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c2_alu_win_1',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_win3_card',
+                  title: 'หน้าต่างบานเปิดคู่ + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_win_3',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานหน้าต่าง (มม.)',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_win4_card',
+                  title: 'หน้าต่างบานกระทุ้งเดี่ยว',
+                  baseFormulaKey: 'c2_alu_win_4',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_win5_card',
+                  title: 'หน้าต่างบานกระทุ้งเดี่ยว + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_win_5',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานหน้าต่าง (มม.)',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_win6_card',
+                  title: 'หน้าต่างบานกระทุ้งคู่',
+                  baseFormulaKey: 'c2_alu_win_6',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_win7_card',
+                  title: 'หน้าต่างบานกระทุ้งคู่ + ช่องแสงบน',
+                  baseFormulaKey: 'c2_alu_win_7',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานหน้าต่าง (มม.)',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_alu_doors',
+              title: 'ประตูบานเปิด',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_alu_d1_card',
+                  title: 'ประตูบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c2_alu_d1',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_d2_card',
+                  title: 'ประตูบานเปิดคู่ แม่-ลูก',
+                  baseFormulaKey: 'c2_alu_d2_mc',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_alu_fixed',
+              title: 'บานตาย / ช่องแสง',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_alu_fix1_dis',
+                  title: 'ช่องแสงเดี่ยว',
+                  enabled: false,
+                  disabledBadge: 'รอข้อมูลสูตร',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_fix2_dis',
+                  title: 'ช่องแสงแบ่ง 2 ช่อง',
+                  enabled: false,
+                  disabledBadge: 'รอข้อมูลสูตร',
+                ),
+                PatternCardDef(
+                  id: 'c2_alu_fix3_dis',
+                  title: 'ช่องแสงแบ่ง 3 ช่อง',
+                  enabled: false,
+                  disabledBadge: 'รอข้อมูลสูตร',
+                ),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_smartplus',
+          title: 'SMART PLUS (Semi Euro)',
+          subtitle: 'ชุดบานเลื่อน บานเปิด และบานกระทุ้ง Semi Euro',
+          priceBrandKey: 'SMART_PLUS',
+          systems: [
+            SubSystemDef(
+              id: 'c2_sp_sliding',
+              title: 'ชุดบานเลื่อน',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sp_s2_card',
+                  title: '2 ราง แบ่ง 2',
+                  baseFormulaKey: 'c2_sp_s2',
+                  optionGroups: [
+                    OptionGroupDef(
+                      id: 'sill_height',
+                      title: 'ชนิดเฟรมล่าง',
+                      choices: [
+                        OptionChoice(id: 'low', label: 'ขาเตี้ย'),
+                        OptionChoice(id: 'high', label: 'ขาสูง'),
+                      ],
+                      defaultValue: 'low',
+                    ),
+                  ],
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_s4_card',
+                  title: '2 ราง แบ่ง 4',
+                  baseFormulaKey: 'c2_sp_s4_2t',
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_s3_card',
+                  title: '3 ราง แบ่ง 3',
+                  baseFormulaKey: 'c2_sp_s3_3t',
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_s2_sec_card',
+                  title: '3 ราง แบ่ง 2 มุ้งนิรภัย',
+                  baseFormulaKey: 'c2_sp_s2_3t_sec',
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_more_dis',
+                  title: 'รูปแบบเพิ่มเติม',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดตเวอร์ชันถัดไป',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_sp_case',
+              title: 'บานเปิด',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sp_case1_card',
+                  title: 'บานเปิดเดี่ยว',
+                  baseFormulaKey: 'c2_sp_case1',
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_case1_top_card',
+                  title: 'บานเปิดเดี่ยว + ช่องแสงบน',
+                  baseFormulaKey: 'c2_sp_case1',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด (มม.)',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_sp_awn',
+              title: 'บานกระทุ้ง',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_sp_awn1_card',
+                  title: 'บานกระทุ้งเดี่ยว',
+                  baseFormulaKey: 'c2_sp_awn1',
+                ),
+                PatternCardDef(
+                  id: 'c2_sp_awn1_top_card',
+                  title: 'บานกระทุ้งเดี่ยว + ช่องแสงบน',
+                  baseFormulaKey: 'c2_sp_awn1',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานกระทุ้ง (มม.)',
+                ),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_uai',
+          title: 'UAI (ยูเอไอ)',
+          subtitle: 'ระบบบานเลื่อน Super Frame',
+          priceBrandKey: 'UAI',
+          systems: [
+            SubSystemDef(
+              id: 'c2_uai_sf',
+              title: 'บานเลื่อน Super Frame',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_uai_s2_card',
+                  title: 'บานเลื่อนแบ่งสอง',
+                  baseFormulaKey: 'c2_uai_s2_real',
+                  optionGroups: [
+                    OptionGroupDef(
+                      id: 'mosq_sash',
+                      title: 'ใช้กรอบบานเป็นกรอบมุ้งลวด',
+                      controlType: OptionControlType.switchToggle,
+                      choices: [
+                        OptionChoice(id: 'false', label: 'ปิด'),
+                        OptionChoice(id: 'true', label: 'เปิด'),
+                      ],
+                      defaultValue: 'false',
+                    ),
+                  ],
+                ),
+                PatternCardDef(
+                  id: 'c2_uai_s3_dis',
+                  title: 'บานเลื่อนแบ่ง 3',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+                PatternCardDef(
+                  id: 'c2_uai_s4_card',
+                  title: 'บานเลื่อนแบ่ง 4',
+                  baseFormulaKey: 'c2_uai_s4',
+                ),
+                PatternCardDef(
+                  id: 'c2_uai_s6_card',
+                  title: 'บานเลื่อนแบ่ง 6',
+                  baseFormulaKey: 'c2_uai_s6',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_uai_0024',
+              title: 'บานเปิด / บานกระทุ้ง (UAI-0024)',
+              patterns: [
+                PatternCardDef(
+                    id: 'c2_uai_24_1',
+                    title: 'บานกระทุ้งเดี่ยว',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_24_2',
+                    title: 'บานเปิดเดี่ยว',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_24_3',
+                    title: 'บานเปิดคู่',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_uai_doors',
+              title: 'ประตูบานเปิด',
+              emptyMessage: 'ยังไม่มีระบบที่เปิดใช้งาน',
+            ),
+            SubSystemDef(
+              id: 'c2_uai_0025',
+              title: 'ช่องแสง FIX / ชุดผสม (UAI-0025)',
+              patterns: [
+                PatternCardDef(
+                    id: 'c2_uai_25_1',
+                    title: 'ช่องแสงเดี่ยว',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_25_2',
+                    title: 'ช่องแสงแบ่ง 2',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_25_3',
+                    title: 'ช่องแสงแบ่ง 3',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_25_4',
+                    title: 'ชุดผสมช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_25_5',
+                    title: 'ชุดผสมช่องแสงล่าง',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c2_uai_25_6',
+                    title: 'ชุดผสมช่องแสงซ้าย-ขวา',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_aluframe_dis',
+          title: 'ALUFRAME (อลูเฟรม)',
+          subtitle: 'ชุดพัฒนาอลูเฟรม',
+          priceBrandKey: 'ALUFRAME',
+          enabled: false,
+          disabledBadge: 'รออัปเดต',
+        ),
+      ],
+    ),
+
+    // -------------------------------------------------------------------------
+    // CATEGORY 3: ชุดยูโรโปรไฟล์
+    // -------------------------------------------------------------------------
+    const CategoryDef(
+      id: 'cat3_euro',
+      title: 'ชุดยูโรโปรไฟล์',
+      subtitle: 'ระบบโปรไฟล์มาตรฐานยูโรร่อง C-Groove',
+      brands: [
+        BrandDef(
+          id: 'c3_orm_pano',
+          title: 'ORM (Pano Suit)',
+          subtitle: 'ระบบยูโรโปรไฟล์ Pano Suit',
+          priceBrandKey: 'ORM',
+          systems: [
+            SubSystemDef(
+              id: 'c3_orm_sliding',
+              title: 'บานเลื่อน Pano Suit',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_orm_s2_card',
+                  title: 'บานเลื่อน 2 บาน',
+                  baseFormulaKey: 'c3_orm_s2',
+                  optionGroups: ormPanoSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_orm_s3_card',
+                  title: 'บานเลื่อน 3 บาน',
+                  baseFormulaKey: 'c3_orm_s3',
+                  optionGroups: ormPanoSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_orm_s4_ctr_card',
+                  title: 'บานเลื่อน 4 บาน เปิดกลาง',
+                  baseFormulaKey: 'c3_orm_s4_center',
+                  optionGroups: ormPanoSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_orm_s4_1w_card',
+                  title: 'บานเลื่อน 4 บาน เปิดทางเดียว',
+                  baseFormulaKey: 'c3_orm_s4_oneway',
+                  optionGroups: ormPanoSlidingOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_orm_case',
+              title: 'บานเปิด',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_orm_case1_card',
+                  title: 'บานเปิด · บานเดี่ยว',
+                  baseFormulaKey: 'c3_orm_case1_chk',
+                ),
+                PatternCardDef(
+                  id: 'c3_orm_case2_dis',
+                  title: 'บานเปิด · บานคู่',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_orm_awn',
+              title: 'บานกระทุ้ง',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_orm_awn1_card',
+                  title: 'บานกระทุ้ง · บานเดี่ยว',
+                  baseFormulaKey: 'c3_orm_awn1_chk',
+                ),
+                PatternCardDef(
+                  id: 'c3_orm_awn2_dis',
+                  title: 'บานกระทุ้ง · บานคู่',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_orm_fixed_dis',
+              title: 'บานตาย / ช่องแสง',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+            SubSystemDef(
+              id: 'c3_orm_cw_dis',
+              title: 'ผนังกระจก',
+              enabled: false,
+              disabledBadge: 'รออัปเดต',
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c3_fuji',
+          title: 'Fuji Eurotech',
+          subtitle: 'ระบบยูโรโปรไฟล์ Fuji Eurotech',
+          priceBrandKey: 'FUJI',
+          systems: [
+            SubSystemDef(
+              id: 'c3_fuji_sliding',
+              title: 'บานเลื่อน',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_fuji_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                  optionGroups: fujiSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s2_1s1f_card',
+                  title: 'บานเลื่อน 2 บาน (เลื่อน 1 + ตาย 1)',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                  optionGroups: fujiSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s3_card',
+                  title: 'บานเลื่อน 3 บาน',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                  optionGroups: fujiSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s4_ctr_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                  optionGroups: fujiSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_4t_int_card',
+                  title: 'บานเลื่อน 4 ราง ภายใน',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_5t_int_card',
+                  title: 'บานเลื่อน 5 ราง ภายใน',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s4_2t_card',
+                  title: 'บานเลื่อน 4 บาน (2 ราง)',
+                  baseFormulaKey: 'c3_fuji_s2_f7981_2t',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s4_3t_card',
+                  title: 'บานเลื่อน 4 บาน (3 ราง)',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_s5_card',
+                  title: 'บานเลื่อน 5 บาน',
+                  baseFormulaKey: 'c3_fuji_s2_final',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_1',
+                    title: 'บานเลื่อนสลับ 2 + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_2',
+                    title: 'บานเลื่อนสลับ 2 + ช่องแสงล่าง',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_3',
+                    title: 'บานเลื่อน 3 บาน + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_4',
+                    title: 'บานเลื่อน 3 บาน + ช่องแสงล่าง',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_5',
+                    title: 'บานเลื่อนแบ่ง 4 + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_6',
+                    title: 'บานเลื่อนแบ่ง 4 + ช่องแสงล่าง',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_7',
+                    title: 'บานเลื่อน + บานตายข้างซ้าย',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_8',
+                    title: 'บานเลื่อน + บานตายข้างขวา',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_9',
+                    title: 'บานเลื่อนเข้ามุม 90° (2+2)',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_dis_10',
+                    title: 'บานเลื่อนเข้ามุม 90° (3+3)',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_fuji_windows',
+              title: 'บานกระทุ้ง / บานเปิด',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_fuji_w1_card',
+                  title: 'บานกระทุ้ง 1 บาน',
+                  baseFormulaKey: 'c3_fuji_w1',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_w2_card',
+                  title: 'บานกระทุ้ง 2 บาน / บานเปิดคู่',
+                  baseFormulaKey: 'c3_fuji_w2',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_w1_mosq_card',
+                  title: 'บานเปิด 1 บาน + มุ้งลวด',
+                  baseFormulaKey: 'c3_fuji_w1_mosq',
+                  tableMode: InputTableMode.fujiFourRow,
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_w1_bot_card',
+                  title: 'บานกระทุ้ง 1 บาน + บานตายล่าง',
+                  baseFormulaKey: 'c3_fuji_w1_fixbot',
+                  tableMode: InputTableMode.fujiFourRow,
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด/กระทุ้ง (มม.)',
+                ),
+                PatternCardDef(
+                  id: 'c3_fuji_w2_bot_card',
+                  title: 'บานกระทุ้ง 2 บาน + บานตายล่าง',
+                  baseFormulaKey: 'c3_fuji_w2_fixbot',
+                  tableMode: InputTableMode.fujiFourRow,
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด/กระทุ้ง (มม.)',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_fuji_doors_dis',
+              title: 'ประตูบานเปิด',
+              patterns: [
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis1',
+                    title: 'ประตูบานเปิดเดี่ยว',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis2',
+                    title: 'ประตูบานเปิดคู่',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis3',
+                    title: 'ประตูบานเปิดเดี่ยว + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis4',
+                    title: 'ประตูบานเปิดคู่ + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis5',
+                    title: 'ประตูบานเปิด + ช่องแสงข้าง',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_d_dis6',
+                    title: 'ประตูบานเปิดคู่ + ช่องแสงข้าง',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_fuji_fix_dis',
+              title: 'บานฟิกตาย',
+              patterns: [
+                PatternCardDef(
+                    id: 'c3_fuji_f_dis1',
+                    title: 'บานฟิกเดี่ยว',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_f_dis2',
+                    title: 'บานฟิกแบ่ง 2',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_f_dis3',
+                    title: 'บานฟิกแบ่ง 3',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_f_dis4',
+                    title: 'บานฟิกแบ่ง 4',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+                PatternCardDef(
+                    id: 'c3_fuji_f_dis5',
+                    title: 'บานฟิกเข้ามุม 90°',
+                    enabled: false,
+                    disabledBadge: 'รอสูตรคำนวณ'),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_fuji_wood_dis',
+              title: 'ประตูวงกบไม้',
+              enabled: false,
+              disabledBadge: 'ระบบนี้อยู่ระหว่างจัดทำ',
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c3_alumet_iconiq',
+          title: 'ALUMET (Iconiq Euro)',
+          subtitle: 'ระบบยูโรโปรไฟล์ ICONIQ Series',
+          priceBrandKey: 'ALUMET',
+          systems: [
+            SubSystemDef(
+              id: 'c3_alu_sliding',
+              title: 'บานเลื่อน ICONIQ',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_alu_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c3_alu_s2',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s2_in_mosq_card',
+                  title: 'ประตูบานเลื่อนภายใน + มุ้ง',
+                  baseFormulaKey: 'c3_alu_s2_door_in_mosq',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s2_top_card',
+                  title: 'บานเลื่อนสลับ 2 บาน + ช่องแสงบน',
+                  baseFormulaKey: 'c3_alu_s2_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s3_card',
+                  title: 'บานเลื่อน 3 บาน',
+                  baseFormulaKey: 'c3_alu_s3',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s4_ctr_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+                  baseFormulaKey: 'c3_alu_s4_ctr',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s4_ctr_top_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง + ช่องแสงบน',
+                  baseFormulaKey: 'c3_alu_s4_ctr_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s4_1w_card',
+                  title: 'บานเลื่อน 4 บาน เปิดทางเดียว',
+                  baseFormulaKey: 'c3_alu_s4_1w',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s4_1w_top_card',
+                  title: 'บานเลื่อน 4 บาน เปิดทางเดียว + ช่องแสงบน',
+                  baseFormulaKey: 'c3_alu_s4_1w_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: iconiqSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_s6_corner_dis',
+                  title: 'บานเลื่อนแบ่ง 6 เปิดกลางชนมุม 90°',
+                  enabled: false,
+                  disabledBadge: 'รออัปเดต',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_alu_casement',
+              title: 'บานกระทุ้ง / บานเปิด / ประตู',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_alu_awn1_card',
+                  title: 'บานกระทุ้ง 1 บาน',
+                  baseFormulaKey: 'c3_alu_awn1',
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_awn1_bot_card',
+                  title: 'บานกระทุ้งเดี่ยว + ช่องแสงล่าง',
+                  baseFormulaKey: 'c3_alu_awn1_bot',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานกระทุ้ง (มม.)',
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_case1_card',
+                  title: 'หน้าต่างบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c3_alu_case1',
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_case2_card',
+                  title: 'หน้าต่างบานเปิดคู่ · เปิดกลางโล่ง',
+                  baseFormulaKey: 'c3_alu_case2',
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_d1_card',
+                  title: 'ประตูบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c3_alu_d1',
+                ),
+                PatternCardDef(
+                  id: 'c3_alu_d2_card',
+                  title: 'ประตูบานเปิดคู่',
+                  baseFormulaKey: 'c3_alu_d2',
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_alu_fix_dis',
+              title: 'บานฟิก / ช่องแสง',
+              patterns: [
+                PatternCardDef(
+                    id: 'c3_alu_fix1_dis',
+                    title: 'ช่องแสงเดี่ยว ICONIQ',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c3_alu_fix2_dis',
+                    title: 'ช่องแสงแบ่งหลายช่อง ICONIQ',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+              ],
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c3_smartplus_euro',
+          title: 'SMART PLUS (Euro)',
+          subtitle: 'ระบบบานเลื่อน บานเปิด และประตู EURO PROFILE',
+          priceBrandKey: 'SMART_PLUS',
+          systems: [
+            SubSystemDef(
+              id: 'c3_sp_sliding_hub',
+              title: 'ชุดบานเลื่อน EURO',
+              subTabs: [
+                SubSystemDef(
+                  id: 'c3_sp_45_tab',
+                  title: 'เฟรมประกอบ 45°',
+                  patterns: [
+                    PatternCardDef(
+                      id: 'c3_sp_s2_2t_card',
+                      title: 'บานเลื่อน 2 ราง แบ่ง 2',
+                      baseFormulaKey: 'c3_sp_s2',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s4_2t_card',
+                      title: 'บานเลื่อน 2 ราง แบ่ง 4',
+                      baseFormulaKey: 'c3_sp_s4_2t',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s2_3t_45_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 2',
+                      baseFormulaKey: 'c3_sp_s2_3t',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s3_3t_euro_card',
+                      title: 'ชุดบานเลื่อน EURO 3 ราง แบ่ง 3',
+                      baseFormulaKey: 'c3_sp_s3_3t_euro',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s4_3t_45_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 4',
+                      baseFormulaKey: 'c3_sp_s4_3t',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s4_4t_card',
+                      title: 'บานเลื่อน 4 ราง แบ่ง 4',
+                      baseFormulaKey: 'c3_sp_s4_4t',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s2_3t_sec_card',
+                      title: 'ชุดบานเลื่อน EURO 3 ราง (มุ้งนิรภัย) แบ่ง 2',
+                      baseFormulaKey: 'c3_sp_s2_3t_sec',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_s4_3t_sec_card',
+                      title: 'ชุดบานเลื่อน EURO 3 ราง (มุ้งนิรภัย) แบ่ง 4',
+                      baseFormulaKey: 'c3_sp_s4_3t_sec',
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_corner_dis',
+                      title: 'บานเลื่อน 3 ราง เข้ามุม 90°',
+                      enabled: false,
+                      disabledBadge: 'รออัปเดต',
+                    ),
+                  ],
+                ),
+                SubSystemDef(
+                  id: 'c3_sp_90_tab',
+                  title: 'เฟรมประกอบ 90°',
+                  patterns: [
+                    PatternCardDef(
+                      id: 'c3_sp_90_s2_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 2',
+                      baseFormulaKey: 'c3_sp_90_s2',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_90_s2_top_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 2 + ช่องแสงบน',
+                      baseFormulaKey: 'c3_sp_90_s2_top',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_90_s3_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 3',
+                      baseFormulaKey: 'c3_sp_90_s3',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_90_s3_top_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 3 + ช่องแสงบน',
+                      baseFormulaKey: 'c3_sp_90_s3_top',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_90_s4_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 4',
+                      baseFormulaKey: 'c3_sp_s4_3t',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_sp_90_s4_top_card',
+                      title: 'บานเลื่อน 3 ราง แบ่ง 4 + ช่องแสงบน',
+                      baseFormulaKey: 'c3_sp_90_s4_top',
+                      tableMode: InputTableMode.smartPlus90FourCol,
+                      optionGroups: smartPlusEuroSlidingOptions,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_sp_windows',
+              title: 'บานเปิด / กระทุ้ง EURO',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_sp_win1_top_card',
+                  title: 'บานเปิดเดี่ยว + ช่องแสงบน',
+                  baseFormulaKey: 'c3_sp_win1_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด (มม.)',
+                  optionGroups: smartPlusEuroWinTopOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_sp_win2_card',
+                  title: 'บานเปิดคู่ไม่มีเสากลาง',
+                  baseFormulaKey: 'c3_sp_win2',
+                  optionGroups: smartPlusEuroWinOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_sp_win2_top_card',
+                  title: 'บานเปิดคู่ไม่มีเสากลาง + ช่องแสงบน',
+                  baseFormulaKey: 'c3_sp_win2_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิดคู่ (มม.)',
+                  optionGroups: smartPlusEuroWinTopOptions,
+                ),
+                PatternCardDef(
+                    id: 'c3_sp_w_sec1_dis',
+                    title: 'หน้าต่างบานเปิดเดี่ยว มุ้งนิรภัย',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c3_sp_w_sec2_dis',
+                    title: 'หน้าต่างบานเปิดคู่ มุ้งนิรภัย',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c3_sp_w_sec3_dis',
+                    title: 'หน้าต่างบานกระทุ้ง มุ้งนิรภัย',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c3_sp_w_fix_dis',
+                    title: 'บานติดตาย EURO',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_sp_doors',
+              title: 'ประตูบานเปิด EURO',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_sp_door1_card',
+                  title: 'ประตูบานเปิดเดี่ยว',
+                  baseFormulaKey: 'c3_sp_door1',
+                  optionGroups: smartPlusEuroDoorOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_sp_door2_card',
+                  title: 'ประตูบานเปิดคู่ไม่มีเสากลาง',
+                  baseFormulaKey: 'c3_sp_door2',
+                  optionGroups: smartPlusEuroDoorOptions,
+                ),
+                PatternCardDef(
+                    id: 'c3_sp_door1_top_dis',
+                    title: 'ประตูบานเปิดเดี่ยว + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+                PatternCardDef(
+                    id: 'c3_sp_door2_top_dis',
+                    title: 'ประตูบานเปิดคู่ + ช่องแสงบน',
+                    enabled: false,
+                    disabledBadge: 'รออัปเดต'),
+              ],
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c3_uai_euro_dis',
+          title: 'UAI (Euro)',
+          subtitle: 'ระบบยูโรโปรไฟล์ UAI',
+          priceBrandKey: 'UAI',
+          enabled: false,
+          disabledBadge: 'รออัปเดต',
+        ),
+        BrandDef(
+          id: 'c3_aluframe_euro',
+          title: 'ALUFRAME (อลูเฟรม)',
+          subtitle: 'ระบบบานเลื่อนและบานเปิด/กระทุ้งยูโร ALUFRAME',
+          priceBrandKey: 'ALUFRAME',
+          systems: [
+            SubSystemDef(
+              id: 'c3_af_sliding',
+              title: 'บานเลื่อน ALUFRAME',
+              patterns: [
+                PatternCardDef(
+                  id: 'c3_af_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_af_s3_card',
+                  title: 'บานเลื่อน 3 บาน',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_af_s4_ctr_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_af_s4_std_card',
+                  title: 'บานเลื่อนมาตรฐาน 4 บาน',
+                  warningBadge: 'รางตบรอยืนยัน',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_af_s6_ctr_card',
+                  title: 'บานเลื่อนแบ่ง 6 เปิดกลาง',
+                  warningBadge: 'รางตบรอยืนยัน',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c3_af_s4_flush_card',
+                  title: 'บานเลื่อน 4 บาน รางฝังพื้น',
+                  warningBadge: 'รางตบรอยืนยัน',
+                  baseFormulaKey: 'c3_af_s2',
+                  optionGroups: aluframeSlidingOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c3_af_casement_hub',
+              title: 'บานกระทุ้ง / บานเปิด',
+              subTabs: [
+                SubSystemDef(
+                  id: 'c3_af_tab_win',
+                  title: 'หน้าต่าง',
+                  patterns: [
+                    PatternCardDef(
+                      id: 'c3_af_w1_card',
+                      title: 'บานเดี่ยวไม่มีช่องแสง',
+                      baseFormulaKey: 'c3_af_w1',
+                      tableMode: InputTableMode.singleSet,
+                      optionGroups: [
+                        OptionGroupDef(
+                          id: 'frame_style',
+                          title: 'รูปแบบวงกบ',
+                          choices: [
+                            OptionChoice(id: 'std', label: 'วงกบมาตรฐาน'),
+                            OptionChoice(id: 'plaster', label: 'วงกบซับปลอก'),
+                          ],
+                          defaultValue: 'std',
+                        ),
+                      ],
+                    ),
+                    PatternCardDef(
+                      id: 'c3_af_w1_top_card',
+                      title: 'บานเดี่ยวพร้อมช่องแสงบน',
+                      baseFormulaKey: 'c3_af_w1_top',
+                      tableMode: InputTableMode.singleSet,
+                      auxType: AuxDimensionType.refHeightH1,
+                      auxLabel: 'H1 ความสูงส่วนบานกระทุ้ง/เปิด (มม.)',
+                    ),
+                  ],
+                ),
+                SubSystemDef(
+                  id: 'c3_af_tab_case2',
+                  title: 'บานเปิดคู่',
+                  patterns: [
+                    PatternCardDef(
+                      id: 'c3_af_case2_card',
+                      title: 'บานเปิดคู่ไม่มีช่องแสง',
+                      baseFormulaKey: 'c3_af_case2',
+                      tableMode: InputTableMode.singleSet,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_af_case2_top_card',
+                      title: 'บานเปิดคู่พร้อมช่องแสงบน',
+                      baseFormulaKey: 'c3_af_awn2_top',
+                      tableMode: InputTableMode.singleSet,
+                      auxType: AuxDimensionType.refHeightH1,
+                      auxLabel: 'H1 ความสูงส่วนบานเปิดคู่ (มม.)',
+                    ),
+                  ],
+                ),
+                SubSystemDef(
+                  id: 'c3_af_tab_awn2',
+                  title: 'บานกระทุ้ง',
+                  patterns: [
+                    PatternCardDef(
+                      id: 'c3_af_awn2_card',
+                      title: 'บานกระทุ้งคู่ไม่มีช่องแสง',
+                      baseFormulaKey: 'c3_af_awn2',
+                      tableMode: InputTableMode.singleSet,
+                    ),
+                    PatternCardDef(
+                      id: 'c3_af_awn2_top_card',
+                      title: 'บานกระทุ้งคู่พร้อมช่องแสงบน',
+                      baseFormulaKey: 'c3_af_awn2_top',
+                      tableMode: InputTableMode.singleSet,
+                      auxType: AuxDimensionType.refHeightH1,
+                      auxLabel: 'H1 ความสูงส่วนบานกระทุ้งคู่ (มม.)',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    ),
+
+    // -------------------------------------------------------------------------
+    // CATEGORY 4: ระบบบานเฟี้ยม (All 136 Active Cards + Disabled Badges!)
+    // -------------------------------------------------------------------------
+    CategoryDef(
+      id: 'cat4_folding',
+      title: 'ระบบบานเฟี้ยม',
+      subtitle: 'ระบบบานเฟี้ยมยูโรและชุดพัฒนาครบทุกผังการจัดบาน',
+      brands: [
+        BrandDef(
+          id: 'c4_orm_fold',
+          title: 'ORM Euro Folding',
+          subtitle: 'ORM PANO SUIT Folding (เฟรม 90 mm และ 101.6 mm)',
+          priceBrandKey: 'ORM',
+          systems: [
+            SubSystemDef(
+              id: 'c4_orm_90_sys',
+              title: 'เฟรม 90 mm (805-01 / 02 / 03)',
+              subtitle: '16 รูปแบบการจัดบาน (2-2-0 ถึง 8-4-4)',
+              patterns: _buildOrmFoldingCards(is101Mm: false),
+            ),
+            SubSystemDef(
+              id: 'c4_orm_101_sys',
+              title: 'เฟรม 101.6 mm (805-12 / 13 / 14)',
+              subtitle: '16 รูปแบบการจัดบาน (2-2-0 ถึง 8-4-4)',
+              patterns: _buildOrmFoldingCards(is101Mm: true),
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c4_fuji_fold',
+          title: 'Fuji Eurotech Folding',
+          subtitle: 'รางมาตรฐาน และ ราง U (2-2-0 ถึง 10-5-5)',
+          priceBrandKey: 'FUJI',
+          systems: [
+            SubSystemDef(
+              id: 'c4_fuji_std_sys',
+              title: 'รางมาตรฐาน (F7969)',
+              subtitle: '32 รูปแบบการจัดบาน',
+              patterns: _buildFujiFoldingCards(isUTrack: false),
+            ),
+            SubSystemDef(
+              id: 'c4_fuji_u_sys',
+              title: 'ราง U (F7932)',
+              subtitle: '32 รูปแบบการจัดบาน',
+              patterns: _buildFujiFoldingCards(isUTrack: true),
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c4_schimmer_fold',
+          title: 'SMS SCHIMMER',
+          subtitle: 'HOMELIFE 240 — บานเฟี้ยมเปิดออกนอก',
+          priceBrandKey: 'SCHIMMER',
+          directPatterns: [
+            PatternCardDef(
+              id: 'c4_sch_2l_card',
+              title: 'บานเฟี้ยม 2 บาน เปิดซ้าย (2L)',
+              baseFormulaKey: 'c4_sch',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_3_1l2r_card',
+              title: 'บานเฟี้ยม 3 บาน ซ้าย 1 · ขวา 2 (1L-2R)',
+              baseFormulaKey: 'c4_sch_3_1l2r',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_3_3l_card',
+              title: 'บานเฟี้ยม 3 บาน เปิดซ้าย (3L)',
+              baseFormulaKey: 'c4_sch_3_3l',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_4_1l3r_card',
+              title: 'บานเฟี้ยม 4 บาน ซ้าย 1 · ขวา 3 (1L-3R)',
+              baseFormulaKey: 'c4_sch_4_1l3r',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_4_2l2r_card',
+              title: 'บานเฟี้ยม 4 บาน ซ้าย 2 · ขวา 2 (2L-2R)',
+              baseFormulaKey: 'c4_sch_4_2l2r',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_4_4l_card',
+              title: 'บานเฟี้ยม 4 บาน เปิดซ้าย (4L)',
+              baseFormulaKey: 'c4_sch_4_4l',
+            ),
+            PatternCardDef(
+              id: 'c4_sch_5_4l1r_card',
+              title: 'บานเฟี้ยม 5 บาน ซ้าย 4 · ขวา 1 (4L-1R)',
+              foldingFamily: 'sch240',
+              foldingTotalPanels: 5,
+              foldingLeftPanels: 4,
+              foldingRightPanels: 1,
+            ),
+          ],
+        ),
+        BrandDef(
+          id: 'c4_smartplus_fold',
+          title: 'SMART PLUS (บานเฟี้ยม EURO)',
+          subtitle: 'ชุดบานเฟี้ยม EURO 19 รูปแบบ',
+          priceBrandKey: 'SMART_PLUS',
+          directPatterns: _buildSmartPlusFoldingCards(),
+        ),
+        BrandDef(
+          id: 'c4_alumet_fold',
+          title: 'ALUMET (Smart X Folding)',
+          subtitle: 'Smart X Folding 14 รูปแบบ',
+          priceBrandKey: 'ALUMET',
+          directPatterns: _buildAlumetFoldingCards(),
+        ),
+        const BrandDef(
+          id: 'c4_uai_fold_dis',
+          title: 'UAI Folding',
+          subtitle: 'ระบบบานเฟี้ยม UAI',
+          priceBrandKey: 'UAI',
+          enabled: false,
+          disabledBadge: 'กำหนดทดสอบ 23 ต.ค. 2569',
+        ),
+      ],
+    ),
+
+    // -------------------------------------------------------------------------
+    // CATEGORY 5: บานเปลือย / Shower (All 3 Brands = รอ Open Beta)
+    // -------------------------------------------------------------------------
+    const CategoryDef(
+      id: 'cat5_shower',
+      title: 'บานเปลือย / Shower',
+      subtitle: 'ระบบอุปกรณ์ฟิตติ้งกระจกเปลือยและฉากกั้นอาบน้ำ',
+      brands: [
+        BrandDef(
+          id: 'c5_pbm_dis',
+          title: 'PBM',
+          subtitle: 'ชุดฟิตติ้งบานเปลือยและฉากกั้นอาบน้ำ PBM',
+          priceBrandKey: 'PBM',
+          enabled: false,
+          disabledBadge: 'รอ Open Beta',
+        ),
+        BrandDef(
+          id: 'c5_hyda_dis',
+          title: 'HYDA',
+          subtitle: 'ชุดอุปกรณ์ฮาร์ดแวร์บานเปลือย HYDA',
+          priceBrandKey: 'HYDA',
+          enabled: false,
+          disabledBadge: 'รอ Open Beta',
+        ),
+        BrandDef(
+          id: 'c5_rp_dis',
+          title: 'RP Steelglass',
+          subtitle: 'ชุดสเตนเลสและฉากกั้นอาบน้ำ RP Steelglass',
+          priceBrandKey: 'RP',
+          enabled: false,
+          disabledBadge: 'รอ Open Beta',
+        ),
+      ],
+    ),
+  ];
+}
