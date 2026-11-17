@@ -1227,7 +1227,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               setState(() => _rows.add(_MutableSizeRow()));
             },
             icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('+ เพิ่มขนาดอื่น'),
+            label: const Text('เพิ่มขนาดอื่น'),
           ),
         ],
       ),

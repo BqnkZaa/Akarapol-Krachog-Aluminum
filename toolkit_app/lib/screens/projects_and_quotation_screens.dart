@@ -754,7 +754,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           _reload();
                         },
                         icon: const Icon(Icons.add_rounded),
-                        label: const Text('+ เพิ่มงานคำนวณ'),
+                        label: const Text('เพิ่มงานคำนวณ'),
                       ),
                     ),
                   ],

@@ -107,6 +107,7 @@ class _ResultScreenState extends State<ResultScreen>
         title: Text('${out.brandTitle} | ${out.patternTitle}'),
         bottom: TabBar(
           controller: _tabController,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 6),
           labelColor: ToolkitColors.royalBlue,
           unselectedLabelColor: ToolkitColors.slateMuted,
           indicatorColor: ToolkitColors.royalBlue,
