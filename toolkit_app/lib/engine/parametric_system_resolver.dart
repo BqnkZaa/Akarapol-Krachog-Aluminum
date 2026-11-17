@@ -357,16 +357,7 @@ class ParametricSystemResolver {
         ..clear()
         ..addAll(const [
           CutPieceSpec(
-              section: 'เฟรม',
-              code: 'เฟรมข้างไม่ติดกล่อง',
-              name: 'เฟรมข้างไม่ติดกล่อง',
-              stockMm: 6400,
-              qty: 2,
-              qtyText: '2 ชิ้น',
-              angle: '90°',
-              formula: 'H'),
-          CutPieceSpec(
-              section: 'เฟรม',
+              section: 'เฟรมและวงกบ',
               code: 'เฟรมบนไม่ติดกล่อง',
               name: 'เฟรมบนไม่ติดกล่อง',
               stockMm: 6400,
@@ -375,7 +366,7 @@ class ParametricSystemResolver {
               angle: '90°',
               formula: 'W - 13'),
           CutPieceSpec(
-              section: 'เฟรม',
+              section: 'เฟรมและวงกบ',
               code: 'เฟรมล่างไม่ติดกล่อง',
               name: 'เฟรมล่างไม่ติดกล่อง',
               stockMm: 6400,
@@ -384,23 +375,32 @@ class ParametricSystemResolver {
               angle: '90°',
               formula: 'W - 13'),
           CutPieceSpec(
-              section: 'กรอบบาน',
+              section: 'เฟรมและวงกบ',
+              code: 'เฟรมข้างไม่ติดกล่อง',
+              name: 'เฟรมข้างไม่ติดกล่อง',
+              stockMm: 6400,
+              qty: 2,
+              qtyText: '2 ชิ้น',
+              angle: '90°',
+              formula: 'H'),
+          CutPieceSpec(
+              section: 'เฟรมและวงกบ',
               code: 'เสากุญแจ',
               name: 'เสากุญแจ',
               stockMm: 6400,
               qty: 2,
               qtyText: '2 ชิ้น',
               angle: '90°',
-              formula: 'H - 41'),
+              formula: 'H - 20'),
           CutPieceSpec(
-              section: 'กรอบบาน',
+              section: 'เฟรมและวงกบ',
               code: 'เสาเกี่ยว',
               name: 'เสาเกี่ยว',
               stockMm: 6400,
               qty: 2,
               qtyText: '2 ชิ้น',
               angle: '90°',
-              formula: 'H - 41'),
+              formula: 'H - 20'),
           CutPieceSpec(
               section: 'กรอบบาน',
               code: 'กรอบบานขวางบน',
@@ -420,6 +420,20 @@ class ParametricSystemResolver {
               angle: '90°',
               formula: '(W - 153) / 2'),
         ]);
+    } else if (patternId == 'c1_pat_s2_alt' &&
+        frameMode == 'box_frame' &&
+        usageType != 'window') {
+      // Doors / Exterior doors on box_frame use plain floor sill between box jambs (H - 50 instead of H - 90)
+      for (int i = 0; i < cuts.length; i++) {
+        if (cuts[i].code == 'เฟรมล่างติดกล่อง') {
+          cuts[i] = cuts[i].copyWith(
+            code: 'เฟรมล่างไม่ติดกล่อง',
+            name: 'เฟรมล่างไม่ติดกล่อง',
+          );
+        } else if (cuts[i].code == 'เสากุญแจ' || cuts[i].code == 'เสาเกี่ยว') {
+          cuts[i] = cuts[i].copyWith(formula: 'H - 50');
+        }
+      }
     } else if (patternId == 'c1_pat_s2_1s1f' || patternId == 'c1_pat_s4_ctr') {
       // Base tables c1_s2_1s1f and c1_s4_center are plain frame; adapt if smooth_box or box_frame
       if (frameMode == 'smooth_box') {
@@ -435,18 +449,27 @@ class ParametricSystemResolver {
               formula: 'H'),
           const CutPieceSpec(
               section: 'วงกบกล่องเรียบ',
-              code: 'กล่องเรียบแนวขวาง',
-              name: 'กล่องเรียบแนวขวางบน-ล่าง',
+              code: 'กล่องเรียบแนวขวางบน',
+              name: 'กล่องเรียบแนวขวางบน',
               stockMm: 6400,
-              qty: 2,
-              qtyText: '2 ชิ้น',
+              qty: 1,
+              qtyText: '1 ชิ้น',
+              angle: '90°',
+              formula: 'W - 90'),
+          const CutPieceSpec(
+              section: 'วงกบกล่องเรียบ',
+              code: 'กล่องเรียบแนวขวางล่าง',
+              name: 'กล่องเรียบแนวขวางล่าง',
+              stockMm: 6400,
+              qty: 1,
+              qtyText: '1 ชิ้น',
               angle: '90°',
               formula: 'W - 90'),
           const CutPieceSpec(
               section: 'อุปกรณ์เสริม',
               code: 'ฉากข้อต่อ',
               name: 'ฉากข้อต่อ',
-              stockMm: 6400,
+              stockMm: 0,
               qty: 4,
               qtyText: '4 ชิ้น',
               angle: '90°',
@@ -457,17 +480,12 @@ class ParametricSystemResolver {
           if (f == 'H') {
             f = 'H - 91';
           } else if (f.startsWith('H - ')) {
-            final d = double.parse(f.substring(4)) + 70;
+            final d = double.parse(f.substring(4)) + 91;
             f = 'H - ${FormulaEvaluator.formatMm(d)}';
           } else if (f.startsWith('W - ')) {
             final d = double.parse(f.substring(4)) + 90;
             f = 'W - ${FormulaEvaluator.formatMm(d)}';
-          } else if (f.contains('/ 2')) {
-            f = f.replaceFirstMapped(RegExp(r'W - ([0-9.]+)'), (m) {
-              final d = double.parse(m.group(1)!) + 90;
-              return 'W - ${FormulaEvaluator.formatMm(d)}';
-            });
-          } else if (f.contains('/ 4')) {
+          } else if (f.contains('/ 2') || f.contains('/ 4')) {
             f = f.replaceFirstMapped(RegExp(r'W - ([0-9.]+)'), (m) {
               final d = double.parse(m.group(1)!) + 90;
               return 'W - ${FormulaEvaluator.formatMm(d)}';
@@ -482,9 +500,17 @@ class ParametricSystemResolver {
         final updated = <CutPieceSpec>[];
         for (final c in cuts) {
           String f = c.formula;
-          String nm = c.name.replaceAll('ไม่ติดกล่อง', 'ติดกล่อง');
-          String cd = c.code.replaceAll('ไม่ติดกล่อง', 'ติดกล่อง');
-          if (f.startsWith('W - ')) {
+          final keepPlainSill =
+              usageType != 'window' && c.code == 'เฟรมล่างไม่ติดกล่อง';
+          String nm = keepPlainSill
+              ? c.name
+              : c.name.replaceAll('ไม่ติดกล่อง', 'ติดกล่อง');
+          String cd = keepPlainSill
+              ? c.code
+              : c.code.replaceAll('ไม่ติดกล่อง', 'ติดกล่อง');
+          if (f == 'H - 20') {
+            f = usageType == 'window' ? 'H - 90' : 'H - 50';
+          } else if (f.startsWith('W - ')) {
             final d = double.parse(f.substring(4)) + 64;
             f = 'W - ${FormulaEvaluator.formatMm(d)}';
           } else if (f.contains('/')) {
@@ -495,13 +521,24 @@ class ParametricSystemResolver {
           }
           updated.add(c.copyWith(code: cd, name: nm, formula: f));
         }
+        updated.add(
+          const CutPieceSpec(
+              section: 'อุปกรณ์เสริม',
+              code: 'ฉากข้อต่อ',
+              name: 'ฉากข้อต่อ',
+              stockMm: 0,
+              qty: 2,
+              qtyText: '2 ชิ้น',
+              angle: '90°',
+              formula: '95 (ค่าคงที่)'),
+        );
         cuts
           ..clear()
           ..addAll(updated);
       }
     }
 
-    // Exterior door swaps 1 regular lock handle for keyed lock handle
+    // Exterior door swaps 1 regular lock handle per set for keyed lock handle
     if (usageType == 'ext_door') {
       final idx = hardware.indexWhere((h) => h.name.contains('มือจับฝังล็อก'));
       if (idx >= 0) {
@@ -518,28 +555,33 @@ class ParametricSystemResolver {
             idx + 1,
             const HardwareItemSpec(
               code: '',
-              name: 'มือจับฝังล็อกมีกุญแจ',
+              name: 'มือจับฝังล็อก+กุญแจ',
               qtyText: '1 ชุด',
             ),
           );
         } else {
           hardware[idx] = const HardwareItemSpec(
             code: '',
-            name: 'มือจับฝังล็อกมีกุญแจ',
+            name: 'มือจับฝังล็อก+กุญแจ',
             qtyText: '1 ชุด',
           );
         }
       }
     }
 
-    // Bumper rubber type
+    // Bumper rubber type (round = 2 per 2-panel set; square = 4 per 2-panel set)
     if (bumper == 'square') {
       for (int i = 0; i < hardware.length; i++) {
         if (hardware[i].name.contains('ยางกันกระแทก')) {
+          final m = RegExp(r'^(\d+)\s*(.*)$').firstMatch(hardware[i].qtyText);
+          final baseN = m != null ? int.parse(m.group(1)!) : 2;
+          final unit = m != null && m.group(2)!.trim().isNotEmpty
+              ? m.group(2)!.trim()
+              : 'ตัว';
           hardware[i] = HardwareItemSpec(
             code: hardware[i].code,
             name: 'ยางกันกระแทกแบบสี่เหลี่ยม',
-            qtyText: hardware[i].qtyText,
+            qtyText: '${baseN * 2} $unit',
           );
         }
       }
@@ -554,18 +596,18 @@ class ParametricSystemResolver {
     final hingeSize = opts['hinge_size'] ?? '6 นิ้ว';
     final side = opts['handle_side'] ?? 'ซ้าย';
 
-    // Ensure Union glazing bead carries Toolkit's exact estimation formula 2*(W + H - 238)
-    final hasBead = cuts.any((c) => c.name.contains('คิ้วลูกฟัก'));
+    // Ensure Union glazing bead carries Toolkit's exact estimation formula 2*(W + H - 238) without stock bar packing
+    final hasBead = cuts.any((c) => c.name.contains('คิ้ว'));
     if (!hasBead) {
       cuts.add(
         const CutPieceSpec(
-          section: 'คิ้วกระจก',
-          code: 'คิ้วลูกฟัก',
-          name: 'คิ้วลูกฟัก',
-          stockMm: 6400,
+          section: 'อลูมิเนียมวัดตัดตามจริง',
+          code: 'คิ้วยูเนี่ยน',
+          name: 'วัดตามจริง · ความยาวรวมสำหรับสั่งซื้อ (ไม่คำนวณจำนวนเส้น stock)',
+          stockMm: 0,
           qty: 4,
           qtyText: '4 ชิ้น',
-          angle: '90° / 90°',
+          angle: 'วัดตามจริง',
           formula: 'วัดตามจริง (ประมาณการรวม 2*(W + H - 238))',
         ),
       );
@@ -602,45 +644,53 @@ class ParametricSystemResolver {
     final sill = opts['sill_type'] ?? 'low';
 
     final isBase75 = patternId == 'c2_orm_s2_card'; // baseFormulaKey == c2_orm_s2_win75 (30mm jamb, high sill, 75mm stile)
+    final baseStileDedPerPair = isBase75 ? 52 : 0; // 75mm vs 53mm per 2-panel pair
+    final targetStileDedPerPair =
+        stile == '75' ? 52 : (stile == '65' ? 22 : 0);
+    final baseJambDed = isBase75 ? 60 : 40;
+    final targetJambDed = jamb == '30' ? 60 : 40;
+    final is4Panel = patternId.contains('_s4');
+    final railDelta = (targetJambDed - baseJambDed) +
+        (is4Panel ? 2 : 1) * (targetStileDedPerPair - baseStileDedPerPair);
+
     for (int i = 0; i < cuts.length; i++) {
       var c = cuts[i];
       // Sill code
       if (c.code == '801-01' || c.code == '801-02') {
         c = c.copyWith(
           code: sill == 'high' ? '801-02' : '801-01',
-          name: sill == 'high' ? 'เฟรมล่างธรณีสูง' : 'เฟรมล่าง',
+          name: 'เฟรมล่าง',
         );
       }
       // Jamb code (20mm = 801-04, 30mm = 801-05)
       if (c.code == '801-04' || c.code == '801-05') {
         c = c.copyWith(code: jamb == '30' ? '801-05' : '801-04');
       }
-      // Adjust W deductions when jamb switches between 20mm (W-40) and 30mm (W-60)
-      if (isBase75 && jamb == '20') {
-        if (c.formula == 'W - 60') c = c.copyWith(formula: 'W - 40');
-        if (c.formula == '(W - 284) / 2') c = c.copyWith(formula: '(W - 264) / 2');
-      } else if (!isBase75 && jamb == '30') {
-        if (c.formula == 'W - 40') c = c.copyWith(formula: 'W - 60');
-        if (c.formula.contains('W - ')) {
-          c = c.copyWith(
-            formula: c.formula.replaceFirstMapped(RegExp(r'W - (\d+)'), (m) {
-              final v = int.parse(m.group(1)!) + 20;
-              return 'W - $v';
-            }),
-          );
-        }
+      // Frame horizontal W - 40 vs W - 60
+      if (c.formula == 'W - 40' || c.formula == 'W - 60') {
+        c = c.copyWith(formula: 'W - $targetJambDed');
+      } else if (c.code == '801-08' && railDelta != 0) {
+        c = c.copyWith(
+          formula: c.formula.replaceFirstMapped(RegExp(r'W - (\d+)'), (m) {
+            final v = int.parse(m.group(1)!) + railDelta;
+            return 'W - $v';
+          }),
+        );
       }
       // Stile profile code (53 -> 801-06/801-09, 65 -> 801-07/801-10, 75 -> 801-27/801-28)
       if (c.code == '801-06' || c.code == '801-07' || c.code == '801-27') {
         final newStile = stile == '75'
             ? '801-27'
             : (stile == '65' ? '801-07' : '801-06');
-        c = c.copyWith(code: newStile, name: 'เสากุญแจ/เกี่ยว $stile มม.');
+        c = c.copyWith(code: newStile, name: 'เสากุญแจ/เกี่ยว');
       } else if (c.code == '801-09' || c.code == '801-10' || c.code == '801-28') {
         final newCap = stile == '75'
             ? '801-28'
             : (stile == '65' ? '801-10' : '801-09');
-        c = c.copyWith(code: newCap, name: 'ตบเสาเกี่ยว $stile มม.');
+        c = c.copyWith(
+          code: newCap,
+          name: 'ตบเสาเกี่ยว · บากหลบเฟรมบน/ล่างหลังปรับล้อ',
+        );
       }
       cuts[i] = c;
     }
@@ -690,7 +740,7 @@ class ParametricSystemResolver {
         );
       } else if (openMode == 'casement' && h.code == 'HD-622') {
         hardware[i] = HardwareItemSpec(
-          code: 'HD-621',
+          code: 'HD-626',
           name: 'บานพับบานเปิด',
           qtyText: h.qtyText,
         );
@@ -838,8 +888,30 @@ class ParametricSystemResolver {
         if (c.code == 'SS-X111') c = c.copyWith(code: 'SS-X103');
       }
       if (angle == '45') {
-        if (c.code == 'SS-0138' || c.code == 'SS-X217') {
-          c = c.copyWith(code: 'SS-X219', angle: '45° / 45°');
+        if (c.code == 'SS-0138') {
+          c = c.copyWith(
+              section: 'กรอบบาน 45°', code: 'SS-X219', angle: '45° / 45°');
+        } else if (c.code == 'SS-0139') {
+          c = c.copyWith(code: 'SS-X216');
+        } else if (c.code == 'SS-X217') {
+          // 45° miter rail adds +131mm per sash width compared to 90° butt rail
+          String newF = c.formula;
+          if (newF == '(W - 246) / 2') {
+            newF = '(W + 16) / 2';
+          } else if (newF == '(W - 436) / 4') {
+            newF = '(W + 88) / 4';
+          } else if (newF.contains('/ 3')) {
+            newF = newF.replaceFirstMapped(RegExp(r'W - (\d+)'), (m) {
+              final next = 393 - int.parse(m.group(1)!);
+              return next >= 0 ? 'W + $next' : 'W - ${-next}';
+            });
+          }
+          c = c.copyWith(
+            section: 'กรอบบาน 45°',
+            code: 'SS-X219',
+            angle: '45° / 45°',
+            formula: newF,
+          );
         }
       }
       cuts[i] = c;
@@ -1032,7 +1104,8 @@ class ParametricSystemResolver {
       }
     }
 
-    if (mosq) {
+    if (mosq && trackMode == '2t') {
+      // Only 2-track adds auxiliary mosquito sash; 3-track c3_fuji_s2_mosq keeps standard 9 profiles
       cuts.addAll(const [
         CutPieceSpec(
           section: 'มุ้งลวด',
@@ -1226,11 +1299,10 @@ class ParametricSystemResolver {
     SeedRepository seed,
   ) {
     final is101 = fam == 'orm101';
-    final lowSill = opts['sill_mode'] == 'low';
     final headCode = is101 ? '805-12' : '805-01';
     final jambCode = is101 ? '805-13' : '805-02';
-    final sillCode = lowSill ? '805-04' : (is101 ? '805-14' : '805-03');
-    final sillName = lowSill ? 'รางธรณีต่ำ' : 'เฟรมล่าง';
+    final sillCode = is101 ? '805-14' : '805-03';
+    const sillName = 'เฟรมล่าง';
 
     final exactKey = 'c4_${fam}_$n$l$r';
     final fallback90Key = 'c4_orm90_$n$l$r';
@@ -1266,6 +1338,8 @@ class ParametricSystemResolver {
         (isEvenEven ? 80.0 : 52.0) + 168.0 * n);
     final glassDed = FormulaEvaluator.formatMm(
         (isEvenEven ? 80.0 : 52.0) + 138.0 * n);
+
+    final cGrooveQty = ((l ~/ 2) + (r ~/ 2)) > 0 ? ((l ~/ 2) + (r ~/ 2)) : 1;
 
     final cuts = <CutPieceSpec>[
       CutPieceSpec(
@@ -1345,8 +1419,8 @@ class ParametricSystemResolver {
           code: 'เส้น C-กรุ๊ฟ',
           name: 'เส้น C-กรุ๊ฟ · ชุดล็อกกลางบาน',
           stockMm: 6400,
-          qty: isEvenEven ? 2 : 1,
-          qtyText: isEvenEven ? '2 ชิ้น' : '1 ชิ้น',
+          qty: cGrooveQty,
+          qtyText: '$cGrooveQty ชิ้น',
           angle: '90° / 90°',
           formula: 'H - 85'),
     ];
@@ -1389,6 +1463,9 @@ class ParametricSystemResolver {
       final adaptedCuts = sweptStd.cuts.map((c) {
         if (c.code == 'F7969') {
           return c.copyWith(code: 'F7932', name: 'ราง U');
+        }
+        if (c.code == 'F7973' && c.name.contains('แนวนอน')) {
+          return c.copyWith(qty: 1, qtyText: '1 ชิ้น');
         }
         if (c.formula == 'H - 120') return c.copyWith(formula: 'H - 75');
         if (c.formula == 'H - 92') return c.copyWith(formula: 'H - 67');
@@ -1744,17 +1821,43 @@ class ParametricSystemResolver {
 
     final swept = seed.getFormulaTable(exactKey);
     if (swept != null) {
+      final isRecessedU = sillCode == 'SB-0115';
+      final baseWasRecessedU = exactKey == 'c4_alu_440_nothresh';
       final adaptedCuts = swept.cuts.map((c) {
+        var next = c.copyWith();
         if (c.code == 'SB-0116' || c.code == 'SB-0103' || c.code == 'SB-0115') {
-          return c.copyWith(code: sillCode, name: sillName);
+          next = next.copyWith(code: sillCode, name: sillName);
         }
-        return c.copyWith();
+        if (isRecessedU && !baseWasRecessedU) {
+          if (c.formula == 'H - 206') next = next.copyWith(formula: 'H - 191');
+          if (c.formula == 'H - 82') next = next.copyWith(formula: 'H - 67');
+        } else if (!isRecessedU && baseWasRecessedU) {
+          if (c.formula == 'H - 191') next = next.copyWith(formula: 'H - 206');
+          if (c.formula == 'H - 67') next = next.copyWith(formula: 'H - 82');
+        }
+        return next;
+      }).toList();
+      final adaptedGlasses = swept.glasses.map((g) {
+        var hF = g.hFormula;
+        if (isRecessedU && !baseWasRecessedU && hF == 'H - 216') {
+          hF = 'H - 201';
+        } else if (!isRecessedU && baseWasRecessedU && hF == 'H - 201') {
+          hF = 'H - 216';
+        }
+        return GlassPieceSpec(
+          name: g.name,
+          qty: g.qty,
+          qtyText: g.qtyText,
+          siteCut: g.siteCut,
+          wFormula: g.wFormula,
+          hFormula: hF,
+        );
       }).toList();
       return VerifiedFormulaTable(
         key: exactKey,
         header: 'ALUMET Smart X Folding | $n-$l-$r',
         cuts: adaptedCuts,
-        glasses: List<GlassPieceSpec>.from(swept.glasses),
+        glasses: adaptedGlasses,
         hardware: swept.hardware.isNotEmpty
             ? List<HardwareItemSpec>.from(swept.hardware)
             : _buildHydaFoldingHardware(n, l, r),

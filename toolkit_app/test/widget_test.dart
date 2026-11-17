@@ -110,7 +110,12 @@ void main() {
 
         expect(out.sets, hasLength(1));
         expect(out.sets.first.cuts, isNotEmpty, reason: 'Pattern ${p.id} produced 0 cuts');
-        expect(out.barGroups, isNotEmpty, reason: 'Pattern ${p.id} produced 0 barGroups');
+        if (p.id == 'c2_orm_fix1_card') {
+          // Toolkit v0.1.7 c2_orm_fix1 is 100% site-measured (0 stock bars in Tab 2/3)
+          expect(out.barGroups, isEmpty);
+        } else {
+          expect(out.barGroups, isNotEmpty, reason: 'Pattern ${p.id} produced 0 barGroups');
+        }
       }
     }
 

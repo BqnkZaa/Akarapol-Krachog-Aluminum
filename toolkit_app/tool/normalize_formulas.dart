@@ -5,389 +5,912 @@ void main() {
   final path = 'd:/Workshop/aluminum/toolkit_app/assets/data/formulas_168_verified.json';
   final list = jsonDecode(File(path).readAsStringSync()) as List<dynamic>;
 
-  const twoSetBomKeys = {
-    'c1_s2_1s1f',
-    'c1_s2_boxframe',
-    'c1_s4_center',
-    'c1_union_awn1_v2',
-    'c1_union_case1_v2',
-    'c2_alu_d1',
-    'c2_alu_s2',
-    'c2_orm_case1',
-    'c2_sch_200_s2',
-    'c2_uai_s4',
-    'c3_fuji_s2_final',
-    'c4_alu_321',
-    'c4_fuji_std_321',
-    'c4_fuji_std_431',
-    'c4_orm101_321',
-    'c4_orm90_321',
-    'c4_orm90_431',
-    'c4_sch',
-    'c4_sp_431',
-  };
-
   for (final rawTbl in list) {
     final tbl = rawTbl as Map<String, dynamic>;
     final key = tbl['key'] as String;
     final cuts = (tbl['cuts'] as List<dynamic>).cast<Map<String, dynamic>>();
     final glasses = (tbl['glasses'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final hardware = (tbl['hardware'] as List<dynamic>).cast<Map<String, dynamic>>();
 
-    // 1. Fix HOMELIFE 200 corner W2 formulas (011 outer & 012 inner)
-    if (key == 'c2_sch_200_011' || key == 'c2_sch_200_012') {
-      final isOuter = key == 'c2_sch_200_011';
-      final sashDed = isOuter ? '198' : '230';
-      final glassDed = isOuter ? '166' : '198';
-      // Deduplicate B20009 R scroll artifact & fix W2 formulas
-      cuts.removeWhere((c) =>
-          c['code'] == 'B20009' &&
-          (c['name'] as String).contains('001R') &&
-          c['qty'] == 1);
-      bool hasB20006W2 = false;
-      for (final c in cuts) {
-        final name = c['name'] as String;
-        if (name.contains('เฟรมบน W2') || name.contains('เฟรมล่าง W2')) {
-          c['formula'] = 'W2 - 22';
-        } else if (name == 'ขวางบน W2') {
-          c['formula'] = '(W2 - $sashDed) / 2';
-        } else if (name == 'ขวางล่าง W2') {
-          c['formula'] = '(W2 - $sashDed) / 2';
-          hasB20006W2 = true;
-        }
+    void ensureCut(Map<String, dynamic> spec) {
+      final exists = cuts.any((c) =>
+          c['code'] == spec['code'] &&
+          c['name'] == spec['name'] &&
+          c['formula'] == spec['formula']);
+      if (!exists) cuts.add(spec);
+    }
+
+    // -------------------------------------------------------------------------
+    // A. Remove sweep scroll-artifact & section-header rows
+    // -------------------------------------------------------------------------
+    cuts.removeWhere((c) =>
+        (c['code'] == 'SB-0108' && c['name'] == 'SB-0108') ||
+        (c['code'] == 'F7973' && c['name'] == 'F7973') ||
+        (c['code'] == 'ตัวหยุดบาน' && c['name'] == 'ตัวหยุดบาน') ||
+        (c['code'] == 'ตบกระจก' && c['name'] == 'ตบกระจก'));
+
+    // Non-stock-bar accessory brackets (appear in Tab 1 cut list, NOT in Tab 2/Tab 3 6400mm bars)
+    for (final c in cuts) {
+      if ((key == 'c1_s2_boxframe' || key == 'c1_s2_smoothbox') &&
+          c['code'] == 'ฉากข้อต่อ') {
+        c['stockMm'] = 0;
       }
-      if (!hasB20006W2) {
-        cuts.add({
-          'section': 'กรอบบาน',
-          'code': 'B20006',
-          'name': 'ขวางล่าง W2',
-          'stockMm': 6400,
-          'qty': 2,
-          'qtyText': '2 ชิ้น',
-          'angle': '90° / 90°',
-          'formula': '(W2 - $sashDed) / 2',
-        });
+      if ((c['code'] as String).contains('ฉากประกอบบานหลัก')) {
+        c['stockMm'] = 0;
       }
-      for (final g in glasses) {
-        if ((g['name'] as String).contains('W2')) {
-          g['wFormula'] = '(W2 - $glassDed) / 2';
-          g['hFormula'] = 'H - 118';
-        }
+      if ((c['code'] as String) == 'คิ้วยูเนี่ยน') {
+        c['stockMm'] = 0;
       }
     }
 
-    // 2. Fix HOMELIFE 240 2L (c4_sch) scroll artifact on DOOR STOP JAMB & add vertical bead
-    if (key == 'c4_sch') {
-      for (final c in cuts) {
-        if (c['code'] == 'B24006') {
-          c['formula'] = 'H - 96';
-        }
+    // Fix ALUMET Smart X corner duplicate SS-X216 scroll artifact
+    if (key == 'c2_alu_s4_corner' ||
+        key == 'c2_alu_s5_23' ||
+        key == 'c2_alu_s5_32' ||
+        key == 'c2_alu_s6_33') {
+      cuts.removeWhere(
+          (c) => c['code'] == 'SS-X216' && (c['qty'] as int) > 2);
+      // Deduplicate identical (code, name) on SS-X216
+      final seen = <String>{};
+      cuts.retainWhere((c) {
+        if (c['code'] != 'SS-X216') return true;
+        final sig = '${c['code']}|${c['name']}';
+        if (seen.contains(sig)) return false;
+        seen.add(sig);
+        return true;
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // B. Complete bottom rows truncated by Tab 1 scroll during initial sweep
+    // -------------------------------------------------------------------------
+    if (key == 'c1_s2_1s1f') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'เสากุญแจ',
+        'name': 'เสากุญแจ',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90°',
+        'formula': 'H - 20',
+      });
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'เสาเกี่ยว',
+        'name': 'เสาเกี่ยว',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90°',
+        'formula': 'H - 20',
+      });
+    }
+
+    if (key == 'c1_s2_boxframe') {
+      cuts.removeWhere((c) => c['code'] == 'เสากุญแจ' || c['code'] == 'เสาเกี่ยว');
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'เสากุญแจ',
+        'name': 'เสากุญแจ',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90°',
+        'formula': 'H - 90',
+      });
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'เสาเกี่ยว',
+        'name': 'เสาเกี่ยว',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90°',
+        'formula': 'H - 90',
+      });
+    }
+
+    if (key == 'c1_s2_smoothbox') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'กรอบบานขวางล่าง',
+        'name': 'กรอบบานขวางล่าง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90°',
+        'formula': '(W - 243) / 2',
+      });
+    }
+
+    if (key == 'c1_union_awn1_v2' || key == 'c1_union_case1_v2') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'กรอบในยูเนี่ยน',
+        'name': 'แนวตั้ง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'H - 119',
+      });
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'กรอบในยูเนี่ยน',
+        'name': 'แนวนอน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'W - 119',
+      });
+      if (glasses.isEmpty) {
+        glasses.add({
+          'name': 'กระจก Market Union',
+          'qty': 1,
+          'qtyText': '1 แผ่น',
+          'siteCut': true,
+          'wFormula': '',
+          'hFormula': '',
+        });
       }
-      if (!cuts.any((c) => c['code'] == 'B24008' && (c['name'] as String).contains('VERTICAL'))) {
-        cuts.add({
-          'section': 'คิ้วกระจก',
-          'code': 'B24008',
-          'name': 'VERTICAL GLAZING BEAD',
+    }
+
+    // Cat 2 ALUMET Smart X Sliding missing SS-X106 & transom bottom rows
+    if (key == 'c2_alu_s2' ||
+        key == 'c2_alu_s2_15mm_45_mkt' ||
+        key == 'c2_alu_s2_top' ||
+        key == 'c2_alu_s4' ||
+        key == 'c2_alu_s4_top') {
+      ensureCut({
+        'section': 'เฟรม 90°',
+        'code': 'SS-X106',
+        'name': 'ตบธรณีแบบมีรางมุ้ง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 50',
+      });
+    }
+    if (key == 'c2_alu_s2_top') {
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-X217',
+        'name': 'กรอบบานแนวขวางล่าง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W - 246) / 2',
+      });
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-X216',
+        'name': 'ตบเกี่ยว',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H1 - 70',
+      });
+    }
+    if (key == 'c2_alu_s4_top') {
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-X217',
+        'name': 'กรอบบานแนวขวางล่าง',
+        'stockMm': 6400,
+        'qty': 4,
+        'qtyText': '4 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W - 436) / 4',
+      });
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-X216',
+        'name': 'ตบเกี่ยว',
+        'stockMm': 6400,
+        'qty': 4,
+        'qtyText': '4 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H1 - 70',
+      });
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-0141',
+        'name': 'เสาชนกลาง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H1 - 70',
+      });
+      ensureCut({
+        'section': 'กรอบบาน 90° ช่องแสงบน',
+        'code': 'SS-0117',
+        'name': 'ฝาปิดชนกลาง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H1 - 70',
+      });
+    }
+
+    // Cat 2 ORM Asian Trop Casement + Top Transom
+    if (key == 'c2_orm_case1_top') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '803-09',
+        'name': 'กรอบบานกระทุ้ง · กรอบบานแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'H1 - 33',
+      });
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '803-09',
+        'name': 'กรอบบานกระทุ้ง · กรอบบานแนวนอน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'W - 33',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': '803-04',
+        'name': 'คิ้วกระจก 12.6 mm · แนวตั้ง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H1 - 136',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': '803-04',
+        'name': 'คิ้วกระจก 12.6 mm · แนวนอน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 136',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': '803-04',
+        'name': 'คิ้วกระจก 12.6 mm · ช่องแสงแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(H - H1) - 25',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': '803-04',
+        'name': 'คิ้วกระจก 12.6 mm · ช่องแสงแนวนอน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 94',
+      });
+      ensureCut({
+        'section': 'ระบบมัลติพอยท์ล็อค',
+        'code': 'เส้น C-กรุ๊ฟ',
+        'name': 'เส้น C-กรุ๊ฟ',
+        'stockMm': 6000,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 233',
+      });
+    }
+
+    if (key == 'c2_orm_case1') {
+      glasses
+        ..clear()
+        ..add({
+          'name': 'กระจกบานกระทุ้ง',
+          'qty': 1,
+          'qtyText': '1 แผ่น',
+          'siteCut': false,
+          'wFormula': 'W - 116',
+          'hFormula': 'H - 146',
+        });
+    }
+
+    // ORM Wood Frame Door glazing bead 807-02 stock estimate (2 bars)
+    if (key == 'c2_orm_wood_active') {
+      cuts.removeWhere((c) => c['code'] == '807-02');
+      cuts.addAll([
+        {
+          'section': 'อลูมิเนียมวัดตัดตามจริง',
+          'code': '807-02',
+          'name': 'คิ้วกรอบบานแนวตั้ง · วัดตัดตามจริง · ใส่แนวตั้งก่อน',
           'stockMm': 6400,
           'qty': 4,
           'qtyText': '4 ชิ้น',
           'angle': '90° / 90°',
-          'formula': 'H - 242',
-        });
+          'formula': 'วัดตามจริง (ประมาณการรวม 4*(H - 234))',
+        },
+        {
+          'section': 'อลูมิเนียมวัดตัดตามจริง',
+          'code': '807-02',
+          'name': 'คิ้วกรอบบานแนวนอน · วัดตัดตามจริง · ใส่หลังแนวตั้ง',
+          'stockMm': 6400,
+          'qty': 4,
+          'qtyText': '4 ชิ้น',
+          'angle': '90° / 90°',
+          'formula': 'วัดตามจริง (ประมาณการรวม 4*(W - 234))',
+        },
+      ]);
+    }
+
+    // Schimmer HOMELIFE 200 6-panel & corner mosquito
+    if (key == 'c2_sch_200_010') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'B20009',
+        'name': 'เสาเกี่ยวฟิกซ์ · B20009-003',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 79',
+      });
+    }
+    if (key == 'c2_sch_200_011' || key == 'c2_sch_200_012') {
+      ensureCut({
+        'section': 'มุ้งลวด',
+        'code': 'B30006',
+        'name': 'กรอบมุ้งลวดแนวตั้ง · B30006-002',
+        'stockMm': 6400,
+        'qty': 4,
+        'qtyText': '4 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 69',
+      });
+      ensureCut({
+        'section': 'มุ้งลวด',
+        'code': 'B30006',
+        'name': 'กรอบมุ้งลวดแนวนอน W1 · B30006-001',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W1 - 6) / 2',
+      });
+      ensureCut({
+        'section': 'มุ้งลวด',
+        'code': 'B30006',
+        'name': 'กรอบมุ้งลวดแนวนอน W2 · B30006-001',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W2 - 6) / 2',
+      });
+    }
+
+    // Schimmer HOMELIFE 260 Couple Mullion B26007 beads
+    if (key == 'c2_sch_260_cm') {
+      ensureCut({
+        'section': 'คิ้วกระจก W2',
+        'code': 'B26007',
+        'name': 'คิ้วตบแนวนอน W2',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W2 - 128',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B26007',
+        'name': 'คิ้วตบแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 4,
+        'qtyText': '4 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 128',
+      });
+    }
+
+    // SMART PLUS Cat 2 15107 stock estimate
+    if (key == 'c2_sp_s4_2t') {
+      for (final c in cuts) {
+        if (c['code'] == '15107') {
+          c['formula'] = 'วัดตามจริง (ประมาณการรวม W - 50)';
+        }
       }
     }
 
-    // 3. Ensure horizontal inner bead 15174 is present on c4_sp_321 & c4_sp_431
-    if (key == 'c4_sp_321' &&
-        !cuts.any((c) => c['code'] == '15174' && (c['name'] as String).contains('แนวนอน'))) {
-      cuts.add({
-        'section': 'คิ้วกระจกใน',
-        'code': '15174',
-        'name': 'คิ้วในบานเฟี้ยมร่องกระจก 12.7 มิล แนวนอน · อ้างอิงกรอบบานสุดท้าย',
+    // ALUFRAME Cat 3 A1-028-15 & A1-026-15 stock estimates
+    if (key == 'c3_af_s2') {
+      for (final c in cuts) {
+        if (c['code'] == 'A1-028-15') {
+          c['formula'] = 'วัดตามจริง (ประมาณการรวม 2*(H - 78))';
+        }
+      }
+      ensureCut({
+        'section': 'อลูมิเนียมวัดตัดตามจริง',
+        'code': 'A1-026-15',
+        'name': 'วัสดุโปรไฟล์ A1-026-15 · วัดตามจริง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'วัดตามจริง (ประมาณการรวม W - 46)',
+      });
+    }
+
+    // ALUMET Iconiq Sliding vertical glazing beads iS-0202 & top transom profiles
+    if (key.startsWith('c3_alu_s')) {
+      final isTop = key.endsWith('_top');
+      final panels = key.contains('s4') ? 4 : (key.contains('s3') ? 3 : 2);
+      final vertExpr = isTop ? 'H1 - 211' : 'H - 211';
+      final vertName = isTop
+          ? 'ส่วนบานเลื่อน · ตามระยะตัดกรอบบานสุดท้าย'
+          : 'ตามระยะตัดกรอบบานสุดท้าย';
+      ensureCut({
+        'section': isTop ? 'ส่วนบานเลื่อน · คิ้วกระจก' : 'คิ้วกระจก',
+        'code': 'iS-0202',
+        'name': vertName,
+        'stockMm': 6400,
+        'qty': 2 * panels,
+        'qtyText': '${2 * panels} ชิ้น',
+        'angle': '90° / 90°',
+        'formula': vertExpr,
+      });
+    }
+    if (key == 'c3_alu_s2' || key == 'c3_alu_s4_ctr' || key == 'c3_alu_s4_ctr_top') {
+      ensureCut({
+        'section': 'อลูมิเนียมวัดตัดตามจริง',
+        'code': 'iS-0114',
+        'name': 'ตบธรณี · วัดตามจริง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'วัดตามจริง (ประมาณการรวม W - 50)',
+      });
+    }
+    if (key == 'c3_alu_s2_door_in_mosq') {
+      ensureCut({
+        'section': 'อลูมิเนียมวัดตัดตามจริง',
+        'code': 'iS-0114',
+        'name': 'ตบธรณี · วัดตามจริง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'วัดตามจริง (ประมาณการรวม W - 50)',
+      });
+      ensureCut({
+        'section': 'อลูมิเนียมวัดตัดตามจริง',
+        'code': 'iS-0205',
+        'name': 'วัสดุโปรไฟล์ iS-0205 · วัดตามจริง',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'วัดตามจริง (ประมาณการรวม H - 81)',
+      });
+      ensureCut({
+        'section': 'อลูมิเนียม',
+        'code': 'เส้นซีกรุฟ (C-Groove)',
+        'name': 'เส้นซีกรุฟ (C-Groove) · เสากุญแจ',
+        'stockMm': 6000,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 481',
+      });
+    }
+    if (key == 'c3_alu_s2_top' || key == 'c3_alu_s4_1w_top' || key == 'c3_alu_s4_ctr_top') {
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iS-0113',
+        'name': 'ช่องแสงบน · วงกบบน',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 50',
+      });
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iF-0102',
+        'name': 'ช่องแสงบน · วงกบล่างช่องแสงบน',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 50',
+      });
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iF-0101',
+        'name': 'ช่องแสงบน · วงกบบนช่องแสงบน',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 50',
+      });
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iS-0116',
+        'name': 'ช่องแสงบน · เสริมเฟรมข้าง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - H1',
+      });
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iO-0203',
+        'name': 'ช่องแสงบน · คิ้วกระจกแนวนอน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 90',
+      });
+      ensureCut({
+        'section': 'ส่วนช่องแสงบน',
+        'code': 'iO-0203',
+        'name': 'ช่องแสงบน · คิ้วกระจกแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(H - H1) - 43',
+      });
+    }
+
+    // ORM Euro Casement / Awning glazing bead stock estimate
+    if (key == 'c3_orm_awn1_chk' || key == 'c3_orm_case1_chk') {
+      for (final c in cuts) {
+        if ((c['code'] as String).contains('812-10')) {
+          if ((c['name'] as String).contains('แนวนอน')) {
+            c['formula'] = 'วัดตามจริง (ประมาณการรวม 2*(W - 150))';
+          } else {
+            c['formula'] = 'วัดตามจริง (ประมาณการรวม 2*(H - 150))';
+          }
+        }
+      }
+    }
+
+    // SMART PLUS Euro 90° Top Transom horizontal sash 15146
+    if (key == 'c3_sp_90_s2_top') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '15146',
+        'name': 'กรอบบาน แนวนอน',
+        'stockMm': 6400,
+        'qty': 4,
+        'qtyText': '4 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': '(W + 26) / 2',
+      });
+    }
+    if (key == 'c3_sp_90_s3_top') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '15146',
+        'name': 'กรอบบาน แนวนอน',
+        'stockMm': 6400,
+        'qty': 6,
+        'qtyText': '6 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': '(W + 99) / 3',
+      });
+    }
+    if (key == 'c3_sp_90_s4_top') {
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '15146',
+        'name': 'กรอบบาน แนวตั้ง',
+        'stockMm': 6400,
+        'qty': 8,
+        'qtyText': '8 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'H1 - 68',
+      });
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': '15146',
+        'name': 'กรอบบาน แนวนอน',
+        'stockMm': 6400,
+        'qty': 8,
+        'qtyText': '8 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': '(W + 100) / 4',
+      });
+    }
+
+    // SMART PLUS Euro 45° Sliding 15157, 15158, 15163, 15151, 15179, 15212
+    if (key == 'c3_sp_s2') {
+      for (final c in cuts) {
+        if (c['code'] == '15158') c['formula'] = 'H - 68';
+        if (c['code'] == '15157') {
+          c['formula'] = 'วัดตามจริง (ประมาณการรวม 2*(H - 68))';
+        }
+      }
+    }
+    if (key == 'c3_sp_s2_3t_sec') {
+      ensureCut({
+        'section': 'อลูมิเนียมวัดตัดตามจริง',
+        'code': '15157',
+        'name': 'Transmission Rod · วัดตัดตามจริง · อ้างอิงกรอบบานสำหรับถอดของ ไม่ใช่ระยะตัดจริง',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'วัดตามจริง (ประมาณการรวม 2*(H - 68))',
+      });
+    }
+    if (key == 'c3_sp_s3_3t_euro' || key == 'c3_sp_s4_2t' || key == 'c3_sp_s4_4t') {
+      for (final c in cuts) {
+        if (c['code'] == '15157') {
+          c['formula'] = 'วัดตามจริง (ประมาณการรวม 2*(H - 68))';
+        }
+        if (c['code'] == '15163' && (c['formula'] as String).contains('วัดตามจริง')) {
+          c['formula'] = 'วัดตามจริง (ประมาณการรวม H - 68)';
+        }
+      }
+    }
+    if (key == 'c3_sp_s4_3t_sec') {
+      ensureCut({
+        'section': 'ตบ/ฝาปิด/เสริม',
+        'code': '15151',
+        'name': 'ใบบังฝนบานเลื่อน',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 88',
+      });
+      ensureCut({
+        'section': 'ตบ/ฝาปิด/เสริม',
+        'code': '15179',
+        'name': 'เส้นเสริม C groove',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 70',
+      });
+    }
+    if (key == 'c3_sp_win1_top' || key == 'c3_sp_win2_top') {
+      ensureCut({
+        'section': 'ช่องแสงบน',
+        'code': '15212',
+        'name': 'ฐานช่องแสงบน',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'W - 50',
+      });
+    }
+
+    // Category 4 ALUMET / Fuji / Schimmer Folding completions
+    if (key == 'c4_alu_440_nothresh' && glasses.isEmpty) {
+      glasses.add({
+        'name': 'กระจกบานเฟี้ยม',
+        'qty': 4,
+        'qtyText': '4 แผ่น',
+        'siteCut': false,
+        'wFormula': '(W - 662) / 4',
+        'hFormula': 'H - 201',
+      });
+    }
+    if (key == 'c4_alu_633_nogroove') {
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'SB-0108',
+        'name': 'คิ้วภายนอกแนวนอน',
+        'stockMm': 6400,
+        'qty': 12,
+        'qtyText': '12 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W - 1099.8) / 6',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'SB-0109',
+        'name': 'คิ้วภายในแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 12,
+        'qtyText': '12 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 206',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'SB-0109',
+        'name': 'คิ้วภายในแนวนอน',
+        'stockMm': 6400,
+        'qty': 12,
+        'qtyText': '12 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W - 1099.8) / 6',
+      });
+      ensureCut({
+        'section': 'เส้นเฉพาะ Layout',
+        'code': 'SB-0117',
+        'name': 'บังใบบานคี่',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 82',
+      });
+      ensureCut({
+        'section': 'เส้น C-กรุ๊ฟ',
+        'code': 'เส้น C-กรุ๊ฟ',
+        'name': 'เส้น C-กรุ๊ฟ · ชุดล็อกกลางบาน',
+        'stockMm': 6400,
+        'qty': 2,
+        'qtyText': '2 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 85',
+      });
+      ensureCut({
+        'section': 'กรอบบานเฟี้ยม',
+        'code': 'SB-0114',
+        'name': 'กรอบบานแนวตั้ง',
+        'stockMm': 6400,
+        'qty': 12,
+        'qtyText': '12 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': 'H - 82',
+      });
+      ensureCut({
+        'section': 'กรอบบานเฟี้ยม',
+        'code': 'SB-0114',
+        'name': 'กรอบบานแนวนอน',
+        'stockMm': 6400,
+        'qty': 12,
+        'qtyText': '12 ชิ้น',
+        'angle': '45° / 45°',
+        'formula': '(W - 115.8) / 6',
+      });
+    }
+    if (key == 'c4_alu_871' && glasses.isEmpty) {
+      glasses.add({
+        'name': 'กระจกบานเฟี้ยม',
+        'qty': 8,
+        'qtyText': '8 แผ่น',
+        'siteCut': false,
+        'wFormula': '(W - 1203.2) / 8',
+        'hFormula': 'H - 216',
+      });
+    }
+    if (key == 'c4_fuji_std_642') {
+      for (final c in cuts) {
+        c['formula'] = (c['formula'] as String)
+            .replaceAll('157.8', '158')
+            .replaceAll('877.8', '878');
+      }
+      for (final g in glasses) {
+        g['wFormula'] = (g['wFormula'] as String).replaceAll('937.8', '938');
+      }
+    }
+    if (key == 'c4_fuji_std_981' && glasses.isEmpty) {
+      glasses.add({
+        'name': 'กระจกบานเฟี้ยม',
+        'qty': 9,
+        'qtyText': '9 แผ่น',
+        'siteCut': false,
+        'wFormula': '(W - 1338.9) / 9',
+        'hFormula': 'H - 222',
+      });
+    }
+
+    // Schimmer HOMELIFE 240 3-panel & 4-panel glazing beads B24008 & lock stile
+    if (key == 'c4_sch_3_1l2r') {
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'HORIZONTAL GLAZING BEAD',
         'stockMm': 6400,
         'qty': 6,
         'qtyText': '6 ชิ้น',
         'angle': '90° / 90°',
-        'formula': '(W - 617.1) / 3',
+        'formula': '(W - 413.1) / 3',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'VERTICAL GLAZING BEAD',
+        'stockMm': 6400,
+        'qty': 6,
+        'qtyText': '6 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 242',
       });
     }
-    if (key == 'c4_sp_431' &&
-        !cuts.any((c) => c['code'] == '15174' && (c['name'] as String).contains('แนวนอน'))) {
-      cuts.add({
-        'section': 'คิ้วกระจกใน',
-        'code': '15174',
-        'name': 'คิ้วในบานเฟี้ยมร่องกระจก 12.7 มิล แนวนอน · อ้างอิงกรอบบานสุดท้าย',
+    if (key == 'c4_sch_3_3l') {
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'HORIZONTAL GLAZING BEAD · B24008-001',
+        'stockMm': 6400,
+        'qty': 6,
+        'qtyText': '6 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': '(W - 408) / 3',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'VERTICAL GLAZING BEAD · B24008-002',
+        'stockMm': 6400,
+        'qty': 6,
+        'qtyText': '6 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 242',
+      });
+    }
+    if (key == 'c4_sch_4_1l3r') {
+      cuts.removeWhere((c) =>
+          c['code'] == 'B24007' && (c['name'] as String).contains('003L'));
+      ensureCut({
+        'section': 'กรอบบาน',
+        'code': 'B24007',
+        'name': 'กรอบบานแนวตั้งมือจับล็อก · B24007-003L',
+        'stockMm': 6400,
+        'qty': 1,
+        'qtyText': '1 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 92',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'คิ้วกระจกแนวนอน · B24008-001',
         'stockMm': 6400,
         'qty': 8,
         'qtyText': '8 ชิ้น',
         'angle': '90° / 90°',
-        'formula': '(W - 758) / 4',
+        'formula': '(W - 526.8) / 4',
+      });
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'คิ้วกระจกแนวตั้ง · B24008-002',
+        'stockMm': 6400,
+        'qty': 8,
+        'qtyText': '8 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 242',
       });
     }
-
-    // 4. Normalize exact closed-form glass formulas where single-pass or 2-set sweep left numeric literals
-    switch (key) {
-      case 'c2_orm_case1':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานกระทุ้ง',
-            'qty': 1,
-            'qtyText': '1 แผ่น',
-            'siteCut': false,
-            'wFormula': 'W - 216',
-            'hFormula': 'H - 246',
-          });
-        break;
-      case 'c2_sch_200_s2':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจก 5-6 มม.',
-            'qty': 2,
-            'qtyText': '2 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 156) / 2',
-            'hFormula': 'H - 118',
-          });
-        break;
-      case 'c3_alu_s3':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเลื่อน',
-            'qty': 3,
-            'qtyText': '3 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 315) / 3',
-            'hFormula': 'H - 220',
-          });
-        break;
-      case 'c3_alu_s4_1w':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเลื่อน',
-            'qty': 4,
-            'qtyText': '4 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 372) / 4',
-            'hFormula': 'H - 220',
-          });
-        break;
-      case 'c3_alu_s4_1w_top':
-        glasses
-          ..clear()
-          ..addAll([
-            {
-              'name': 'กระจกบานเลื่อน',
-              'qty': 4,
-              'qtyText': '4 แผ่น',
-              'siteCut': false,
-              'wFormula': '(W - 372) / 4',
-              'hFormula': 'H1 - 220',
-            },
-            {
-              'name': 'กระจกช่องแสงบน',
-              'qty': 1,
-              'qtyText': '1 แผ่น',
-              'siteCut': false,
-              'wFormula': 'W - 80',
-              'hFormula': '(H - H1) - 33',
-            },
-          ]);
-        break;
-      case 'c3_alu_s4_ctr':
-        if (glasses.isEmpty) {
-          glasses.add({
-            'name': 'กระจกบานเลื่อน',
-            'qty': 4,
-            'qtyText': '4 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 456) / 4',
-            'hFormula': 'H - 220',
-          });
-        }
-        break;
-      case 'c3_alu_s4_ctr_top':
-        glasses
-          ..clear()
-          ..addAll([
-            {
-              'name': 'กระจกบานเลื่อน',
-              'qty': 4,
-              'qtyText': '4 แผ่น',
-              'siteCut': false,
-              'wFormula': '(W - 456) / 4',
-              'hFormula': 'H1 - 220',
-            },
-            {
-              'name': 'กระจกช่องแสงบน',
-              'qty': 1,
-              'qtyText': '1 แผ่น',
-              'siteCut': false,
-              'wFormula': 'W - 80',
-              'hFormula': '(H - H1) - 33',
-            },
-          ]);
-        break;
-      case 'c3_fuji_s2_final':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจก',
-            'qty': 2,
-            'qtyText': '2 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 244) / 2',
-            'hFormula': 'H - 210',
-          });
-        break;
-      case 'c3_fuji_w1':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกกรอบบาน',
-            'qty': 1,
-            'qtyText': '1 แผ่น',
-            'siteCut': false,
-            'wFormula': 'W - 271',
-            'hFormula': 'H - 271',
-          });
-        break;
-      case 'c4_alu_321':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม',
-            'qty': 3,
-            'qtyText': '3 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 525.6) / 3',
-            'hFormula': 'H - 216',
-          });
-        break;
-      case 'c4_fuji_std_321':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม',
-            'qty': 3,
-            'qtyText': '3 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 510.9) / 3',
-            'hFormula': 'H - 222',
-          });
-        break;
-      case 'c4_fuji_std_431':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม',
-            'qty': 4,
-            'qtyText': '4 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 614) / 4',
-            'hFormula': 'H - 222',
-          });
-        break;
-      case 'c4_orm101_321':
-      case 'c4_orm90_321':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม 3-2-1',
-            'qty': 3,
-            'qtyText': '3 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 465.9) / 3',
-            'hFormula': 'H - 215',
-          });
-        break;
-      case 'c4_orm90_431':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม 4-3-1',
-            'qty': 4,
-            'qtyText': '4 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 604) / 4',
-            'hFormula': 'H - 215',
-          });
-        break;
-      case 'c4_sch':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจก 6 มม.',
-            'qty': 2,
-            'qtyText': '2 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 321) / 2',
-            'hFormula': 'H - 215',
-          });
-        break;
-      case 'c4_sp_321':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม 3-2-1',
-            'qty': 3,
-            'qtyText': '3 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 557.1) / 3',
-            'hFormula': 'H - 224',
-          });
-        break;
-      case 'c4_sp_431':
-        glasses
-          ..clear()
-          ..add({
-            'name': 'กระจกบานเฟี้ยม 4-3-1',
-            'qty': 4,
-            'qtyText': '4 แผ่น',
-            'siteCut': false,
-            'wFormula': '(W - 678) / 4',
-            'hFormula': 'H - 224',
-          });
-        break;
-    }
-
-    // 5. Normalize per-set BOM quantities for the 19 tables captured with 2 sets
-    if (twoSetBomKeys.contains(key)) {
-      if (key == 'c2_uai_s4') {
-        hardware
-          ..clear()
-          ..addAll([
-            {'code': '', 'name': 'มือจับฝัง / มือจับเมโทร', 'qtyText': '1 ชุดรวม'},
-            {'code': '', 'name': 'แกนเกียร์ตัวที', 'qtyText': '1 ตัว'},
-            {'code': '', 'name': 'ปุ่มล็อคบานเลื่อน', 'qtyText': '2 ตัว'},
-            {'code': '', 'name': 'แป้นรับล็อค', 'qtyText': '2 ตัว'},
-            {'code': '', 'name': 'ฝาปิดตบเกี่ยว', 'qtyText': '8 ตัว'},
-            {'code': '', 'name': 'ล้อตลับ 15×20', 'qtyText': '8 ตัว'},
-            {'code': 'HD-1025A', 'name': 'ตะแกรงน้ำไหลเล็ก', 'qtyText': 'ผู้ใช้กำหนด'},
-            {'code': 'HD-1021', 'name': 'ตะแกรงระบายน้ำ', 'qtyText': 'ผู้ใช้กำหนด'},
-            {'code': '', 'name': 'ยางกันชนบานเลื่อน', 'qtyText': 'ผู้ใช้กำหนด'},
-            {'code': '', 'name': 'สักหลาด 5×4', 'qtyText': 'รอยืนยัน'},
-          ]);
-      } else {
-        for (final hw in hardware) {
-          final qt = hw['qtyText'] as String;
-          final m = RegExp(r'^(\d+)\s+(.+)$').firstMatch(qt);
-          if (m != null) {
-            final n = int.parse(m.group(1)!);
-            final unit = m.group(2)!;
-            final perSet = (n == 21 && (hw['code'] == 'HD-641')) ? 9 : (n ~/ 2);
-            hw['qtyText'] = '$perSet $unit';
-          }
-        }
-        // Note: on c1_union_awn1_v2 / case1_v2 default hinge is 6 นิ้ว (or swapped dynamically)
-      }
+    if (key == 'c4_sch_4_2l2r') {
+      ensureCut({
+        'section': 'คิ้วกระจก',
+        'code': 'B24008',
+        'name': 'คิ้วกระจกแนวตั้ง · B24008-002',
+        'stockMm': 6400,
+        'qty': 8,
+        'qtyText': '8 ชิ้น',
+        'angle': '90° / 90°',
+        'formula': 'H - 242',
+      });
     }
   }
 
   final encoder = const JsonEncoder.withIndent('  ');
   File(path).writeAsStringSync(encoder.convert(list));
-  stdout.writeln('Normalized formulas_168_verified.json (${list.length} tables) successfully!');
+  stdout.writeln('Updated formulas_168_verified.json (${list.length} tables) successfully!');
 }

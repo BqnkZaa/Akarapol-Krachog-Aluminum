@@ -36,29 +36,32 @@ class BinPacker {
 
     for (final setRes in sets) {
       for (final cut in setRes.cuts) {
-        // Hardware bracket constants (e.g. 95 mm / 23 mm / 36 mm ฉากข้อต่อ) stay in cut list
-        // only when cut from stock bars; in Toolkit v0.1.7 all aluminum rows in Tab 1 with stockMm
-        // are grouped by code except pure hardware brackets without profile bars if code == 'ฉากข้อต่อ'
-        // Wait: in Toolkit Tab 3, every non-site-measured profile row in Tab 1 is packed by code!
-        final key = '$brandKey|${cut.code}|${cut.stockMm}';
-        final bucket = buckets.putIfAbsent(
-          key,
-          () => _GroupBucket(
-            brand: brandKey,
-            code: cut.code,
-            stockMm: cut.stockMm,
-          ),
-        );
-        bucket.addPartName(cut.name);
-
+        if (cut.stockMm <= 0) continue;
         if (cut.isSiteMeasured) {
           if (cut.estimatedTotalMm != null && cut.estimatedTotalMm! > 0) {
+            final key = '$brandKey|${cut.code}|${cut.stockMm}';
+            final bucket = buckets.putIfAbsent(
+              key,
+              () => _GroupBucket(
+                brand: brandKey,
+                code: cut.code,
+                stockMm: cut.stockMm,
+              ),
+            );
+            bucket.addPartName(cut.name);
             bucket.estimatedTotalMm += cut.estimatedTotalMm!;
-          } else {
-            // When site-measured without formula, Toolkit counts at least 1 estimated bar if no confirmed cuts
-            bucket.estimatedTotalMm += 1.0;
           }
         } else if (cut.lengthMm != null && cut.lengthMm! > 0) {
+          final key = '$brandKey|${cut.code}|${cut.stockMm}';
+          final bucket = buckets.putIfAbsent(
+            key,
+            () => _GroupBucket(
+              brand: brandKey,
+              code: cut.code,
+              stockMm: cut.stockMm,
+            ),
+          );
+          bucket.addPartName(cut.name);
           for (int i = 0; i < cut.totalQty; i++) {
             bucket.cuts.add(
               PlacedCut(
@@ -84,24 +87,32 @@ class BinPacker {
       final tag = '[${item.displayOrderTag(idx + 1)}]';
       for (final setRes in item.evaluatedSets) {
         for (final cut in setRes.cuts) {
-          final key = '${item.priceBrandKey}|${cut.code}|${cut.stockMm}';
-          final bucket = buckets.putIfAbsent(
-            key,
-            () => _GroupBucket(
-              brand: item.priceBrandKey,
-              code: cut.code,
-              stockMm: cut.stockMm,
-            ),
-          );
-          bucket.addPartName(cut.name);
-
+          if (cut.stockMm <= 0) continue;
           if (cut.isSiteMeasured) {
             if (cut.estimatedTotalMm != null && cut.estimatedTotalMm! > 0) {
+              final key = '${item.priceBrandKey}|${cut.code}|${cut.stockMm}';
+              final bucket = buckets.putIfAbsent(
+                key,
+                () => _GroupBucket(
+                  brand: item.priceBrandKey,
+                  code: cut.code,
+                  stockMm: cut.stockMm,
+                ),
+              );
+              bucket.addPartName(cut.name);
               bucket.estimatedTotalMm += cut.estimatedTotalMm!;
-            } else {
-              bucket.estimatedTotalMm += 1.0;
             }
           } else if (cut.lengthMm != null && cut.lengthMm! > 0) {
+            final key = '${item.priceBrandKey}|${cut.code}|${cut.stockMm}';
+            final bucket = buckets.putIfAbsent(
+              key,
+              () => _GroupBucket(
+                brand: item.priceBrandKey,
+                code: cut.code,
+                stockMm: cut.stockMm,
+              ),
+            );
+            bucket.addPartName(cut.name);
             for (int i = 0; i < cut.totalQty; i++) {
               bucket.cuts.add(
                 PlacedCut(

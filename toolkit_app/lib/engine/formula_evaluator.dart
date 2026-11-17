@@ -29,7 +29,7 @@ class FormulaEvaluator {
     final trimmed = rawFormula.trim();
     if (trimmed.isEmpty || trimmed.contains('วัดตามจริง')) {
       double? est;
-      final estMatch = RegExp(r'ประมาณการรวม\s*([^)]+)\)').firstMatch(trimmed);
+      final estMatch = RegExp(r'ประมาณการรวม\s*(.+)\)\s*$').firstMatch(trimmed);
       if (estMatch != null) {
         est = _tryEvalNumeric(estMatch.group(1)!, vars);
       }
@@ -43,9 +43,7 @@ class FormulaEvaluator {
       return const FormulaEvaluationResult(isSiteMeasured: true);
     }
 
-    final finalVal = floorDivision
-        ? rawVal.floorToDouble()
-        : ((rawVal * 10.0).round() / 10.0);
+    final finalVal = floorDivision ? rawVal.floorToDouble() : rawVal;
 
     return FormulaEvaluationResult(
       isSiteMeasured: false,
