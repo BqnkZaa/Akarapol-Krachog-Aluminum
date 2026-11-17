@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:toolkit_app/data/alupro_image_registry.dart';
 import 'package:toolkit_app/data/app_database.dart';
 import 'package:toolkit_app/data/catalog_definitions.dart';
 import 'package:toolkit_app/data/seed_repository.dart';
@@ -15,6 +17,7 @@ import 'package:toolkit_app/models/app_models.dart';
 import 'package:toolkit_app/pdf/project_pdf.dart';
 import 'package:toolkit_app/pdf/quotation_pdf.dart';
 import 'package:toolkit_app/pdf/single_cut_pdf.dart';
+import 'package:toolkit_app/screens/alupro_thumbnail_widgets.dart';
 
 void main() {
   setUpAll(() async {
@@ -384,5 +387,97 @@ void main() {
     expect(find.text('ความรู้ ทริค & ฮาร์ดแวร์'), findsOneWidget);
     expect(find.text('ติดต่อเรา'), findsOneWidget);
     expect(find.text('บัญชีของฉัน'), findsOneWidget);
+  });
+
+  test('AluproImageRegistry resolves 100% of offline catalog, profile, glass & hardware assets', () {
+    final reg = AluproImageRegistry.instance;
+    expect(reg.isLoaded, isTrue);
+
+    void assertAssetExists(String? path, String ctx) {
+      expect(path, isNotNull, reason: 'Missing image mapping for $ctx');
+      expect(File(path!).existsSync(), isTrue, reason: 'Asset file missing on disk: $path ($ctx)');
+    }
+
+    assertAssetExists(reg.glassAsset, 'glass');
+
+    void checkSys(SubSystemDef sys) {
+      assertAssetExists(reg.resolveSystemAsset(sys.id), 'sys:${sys.id}');
+      for (final p in sys.patterns) {
+        assertAssetExists(reg.resolvePatternAsset(p.id), 'pat:${p.id}');
+      }
+      for (final tab in sys.subTabs) {
+        checkSys(tab);
+      }
+    }
+
+    for (final cat in CatalogDefinitions.categories) {
+      assertAssetExists(reg.resolveCategoryAsset(cat.id), 'cat:${cat.id}');
+      for (final sys in cat.directSystems) {
+        checkSys(sys);
+      }
+      for (final brand in cat.brands) {
+        assertAssetExists(reg.resolveBrandAsset(brand.id), 'brand:${brand.id}');
+        for (final p in brand.directPatterns) {
+          assertAssetExists(reg.resolvePatternAsset(p.id), 'pat:${p.id}');
+        }
+        for (final sys in brand.systems) {
+          checkSys(sys);
+        }
+      }
+    }
+
+    for (final tbl in SeedRepository.instance.formulaTables.values) {
+      for (final c in tbl.cuts) {
+        assertAssetExists(
+          reg.resolveProfileAsset(code: c.code, name: c.name),
+          'cut:${tbl.key}:${c.code}',
+        );
+      }
+      for (final h in tbl.hardware) {
+        assertAssetExists(
+          reg.resolveHardwareAsset(code: h.code, name: h.name),
+          'hw:${tbl.key}:${h.code}|${h.name}',
+        );
+      }
+    }
+  });
+
+  testWidgets('Catalog -> Input -> Result renders offline AluproThumbnails cleanly', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    await tester.pumpWidget(const AkkaraphonToolkitApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('ระบบคำนวณ'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AluproThumbnail), findsWidgets);
+
+    await tester.tap(find.text('2. ชุดพัฒนา'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AluproThumbnail), findsWidgets);
+
+    await tester.tap(find.text('ORM (Asian Trop)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('บานเลื่อน'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('บานเลื่อนสลับ 2 บาน'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ถัดไป (กรอกขนาดงาน)'));
+    await tester.pumpAndSettle();
+    expect(find.text('แตะรูปเพื่อขยายดูผังบาน'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '2000');
+    await tester.enterText(find.byType(TextField).at(1), '2050');
+    await tester.tap(find.text('คำนวณระยะตัดและถอดของ'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AluproThumbnail), findsWidgets);
+    await tester.tap(find.text('ถอดรายการ'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AluproThumbnail), findsWidgets);
+
+    await tester.tap(find.text('จัดเส้น'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AluproThumbnail), findsWidgets);
   });
 }

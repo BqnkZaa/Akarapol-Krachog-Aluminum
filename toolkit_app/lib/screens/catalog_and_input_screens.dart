@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../data/alupro_image_registry.dart';
 import '../data/catalog_definitions.dart';
 import '../engine/parametric_system_resolver.dart';
 import '../models/app_models.dart';
+import 'alupro_thumbnail_widgets.dart';
 import 'result_and_pricing_screens.dart';
 import 'theme_tokens.dart';
 
@@ -24,6 +26,7 @@ class CategorySelectScreen extends StatelessWidget {
           return _NavCard(
             title: '${i + 1}. ${cat.title}',
             subtitle: cat.subtitle,
+            imageAsset: AluproImageRegistry.instance.resolveCategoryAsset(cat.id),
             enabled: cat.enabled,
             disabledBadge: cat.disabledBadge,
             onTap: () {
@@ -81,6 +84,7 @@ class BrandSelectScreen extends StatelessWidget {
           return _NavCard(
             title: brand.title,
             subtitle: brand.subtitle,
+            imageAsset: AluproImageRegistry.instance.resolveBrandAsset(brand.id),
             enabled: brand.enabled,
             disabledBadge: brand.disabledBadge,
             onTap: () {
@@ -145,6 +149,7 @@ class SubSystemSelectScreen extends StatelessWidget {
           return _NavCard(
             title: sys.title,
             subtitle: sys.subtitle,
+            imageAsset: AluproImageRegistry.instance.resolveSystemAsset(sys.id),
             enabled: sys.enabled,
             disabledBadge: sys.disabledBadge,
             onTap: () {
@@ -403,6 +408,7 @@ class _PatternListBody extends StatelessWidget {
       itemBuilder: (ctx, i) {
         final p = patterns[i];
         final isSel = p.id == selectedId;
+        final imgAsset = AluproImageRegistry.instance.resolvePatternAsset(p.id);
         return InkWell(
           borderRadius: BorderRadius.circular(14),
           onTap: p.enabled ? () => onSelect(p) : null,
@@ -435,7 +441,17 @@ class _PatternListBody extends StatelessWidget {
                       : ToolkitColors.slateMuted,
                   size: 21,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+                if (imgAsset != null) ...[
+                  AluproThumbnail(
+                    assetPath: imgAsset,
+                    width: 68,
+                    height: 48,
+                    enableTapToZoom: false,
+                    opacity: p.enabled ? 1.0 : 0.55,
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,6 +486,22 @@ class _PatternListBody extends StatelessWidget {
                 if (!p.enabled && p.disabledBadge != null) ...[
                   const SizedBox(width: 8),
                   buildStatusBadge(p.disabledBadge!),
+                ] else if (imgAsset != null) ...[
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'ซูมดูผังบาน',
+                    onPressed: () => showAluproImageZoomDialog(
+                      ctx,
+                      assetPath: imgAsset,
+                      title: p.title,
+                      subtitle: p.subtitle,
+                    ),
+                    icon: const Icon(
+                      Icons.zoom_in_rounded,
+                      size: 20,
+                      color: ToolkitColors.slateMuted,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -522,6 +554,7 @@ class _NextStickyBar extends StatelessWidget {
 class _NavCard extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final String? imageAsset;
   final bool enabled;
   final String? disabledBadge;
   final VoidCallback onTap;
@@ -529,6 +562,7 @@ class _NavCard extends StatelessWidget {
   const _NavCard({
     required this.title,
     this.subtitle,
+    this.imageAsset,
     this.enabled = true,
     this.disabledBadge,
     required this.onTap,
@@ -540,7 +574,7 @@ class _NavCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       onTap: enabled ? onTap : null,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: enabled ? Colors.white : ToolkitColors.disabledBg,
           borderRadius: BorderRadius.circular(15),
@@ -548,6 +582,16 @@ class _NavCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (imageAsset != null) ...[
+              AluproThumbnail(
+                assetPath: imageAsset,
+                width: 64,
+                height: 46,
+                enableTapToZoom: false,
+                opacity: enabled ? 1.0 : 0.55,
+              ),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,35 +823,72 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Header Summary Banner
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ToolkitColors.cardBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pat.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: ToolkitColors.slateDark,
-                        ),
+                // Header Summary Banner with Pattern Diagram Preview
+                Builder(
+                  builder: (ctx) {
+                    final patAsset = AluproImageRegistry.instance
+                        .resolvePatternAsset(pat.id);
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: ToolkitColors.cardBorder),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${widget.brandTitle} · ${widget.systemTitle} · หน่วยมิลลิเมตร (มม.)',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: ToolkitColors.slateMuted,
-                        ),
+                      child: Row(
+                        children: [
+                          if (patAsset != null) ...[
+                            AluproThumbnail(
+                              assetPath: patAsset,
+                              width: 108,
+                              height: 76,
+                              borderRadius: 10,
+                              padding: const EdgeInsets.all(4),
+                              showZoomBadge: true,
+                              zoomTitle: pat.title,
+                              zoomSubtitle:
+                                  '${widget.brandTitle} · ${widget.systemTitle}',
+                            ),
+                            const SizedBox(width: 14),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pat.title,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: ToolkitColors.slateDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '${widget.brandTitle} · ${widget.systemTitle} · หน่วยมิลลิเมตร (มม.)',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    color: ToolkitColors.slateMuted,
+                                  ),
+                                ),
+                                if (patAsset != null) ...[
+                                  const SizedBox(height: 5),
+                                  const Text(
+                                    'แตะรูปเพื่อขยายดูผังบาน',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 14),
 

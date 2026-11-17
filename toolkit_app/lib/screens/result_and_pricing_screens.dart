@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
+import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
 import '../data/seed_repository.dart';
 import '../engine/clipboard_formatter.dart';
@@ -13,6 +14,7 @@ import '../engine/formula_evaluator.dart';
 import '../engine/pricing_engine.dart';
 import '../models/app_models.dart';
 import '../pdf/single_cut_pdf.dart';
+import 'alupro_thumbnail_widgets.dart';
 import 'projects_and_quotation_screens.dart';
 import 'theme_tokens.dart';
 
@@ -277,11 +279,25 @@ class _ResultScreenState extends State<ResultScreen>
                         final cutVal = c.isSiteMeasured
                             ? 'วัดตามจริง'
                             : 'ตัด ${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม.';
+                        final profImg = AluproImageRegistry.instance
+                            .resolveProfileAsset(code: c.code, name: c.name);
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 5),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              if (profImg != null) ...[
+                                AluproThumbnail(
+                                  assetPath: profImg,
+                                  width: 50,
+                                  height: 38,
+                                  showZoomBadge: true,
+                                  zoomTitle: '${c.code} · ${c.name}',
+                                  zoomSubtitle:
+                                      '${out.brandTitle} · $cutVal (${c.totalQty} ชิ้น)',
+                                ),
+                                const SizedBox(width: 10),
+                              ],
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,11 +385,22 @@ class _ResultScreenState extends State<ResultScreen>
                           final dimTxt = g.siteCut
                               ? 'วัดตัดหน้างาน · ${g.totalPanels} แผ่น'
                               : 'ขนาดสั่งตัดกระจก: ${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม. · ${g.totalPanels} แผ่น';
+                          final glassImg =
+                              AluproImageRegistry.instance.glassAsset;
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 5),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                if (glassImg != null) ...[
+                                  AluproThumbnail(
+                                    assetPath: glassImg,
+                                    width: 46,
+                                    height: 34,
+                                    zoomTitle: g.name,
+                                    zoomSubtitle: dimTxt,
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
                                 Expanded(
                                   child: Text(
                                     g.name,
@@ -383,12 +410,16 @@ class _ResultScreenState extends State<ResultScreen>
                                     ),
                                   ),
                                 ),
-                                Text(
-                                  dimTxt,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: ToolkitColors.royalBlue,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    dimTxt,
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -406,28 +437,56 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _buildTab2BomSummary(CalculationOutput out) {
     final allGlasses = out.sets.expand((s) => s.glasses).toList();
+    final glassImg = AluproImageRegistry.instance.glassAsset;
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
         _summarySectionCard(
           title: 'อลูมิเนียมที่ต้องสั่งซื้อ',
-          children: out.barGroups
-              .map(
-                (g) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    '${g.code} · ${g.combinedNames}',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
+          children: out.barGroups.map((g) {
+            final profImg = AluproImageRegistry.instance.resolveProfileAsset(
+              code: g.code,
+              name: g.combinedNames,
+            );
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  if (profImg != null) ...[
+                    AluproThumbnail(
+                      assetPath: profImg,
+                      width: 50,
+                      height: 38,
+                      showZoomBadge: true,
+                      zoomTitle: '${g.code} · ${g.combinedNames}',
+                      zoomSubtitle:
+                          'เส้นโรงงาน ${g.stockLengthMm} มม. · ${g.totalBars} เส้น',
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${g.code} · ${g.combinedNames}',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          'เส้นโรงงาน ${g.stockLengthMm} มม.',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  subtitle: Text(
-                    'เส้นโรงงาน ${g.stockLengthMm} มม.',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: Text(
+                  const SizedBox(width: 8),
+                  Text(
                     '${g.totalBars} เส้น',
                     style: const TextStyle(
                       fontSize: 14,
@@ -435,62 +494,118 @@ class _ResultScreenState extends State<ResultScreen>
                       color: ToolkitColors.royalBlue,
                     ),
                   ),
-                ),
-              )
-              .toList(),
+                ],
+              ),
+            );
+          }).toList(),
         ),
         const SizedBox(height: 12),
         _summarySectionCard(
           title: 'กระจกที่ต้องสั่ง',
           children: allGlasses.isEmpty
               ? [const Text('ไม่มีรายการกระจก')]
-              : allGlasses
-                  .map(
-                    (g) => ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        g.name,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        g.siteCut
-                            ? 'วัดตัดหน้างาน'
-                            : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม.',
-                      ),
-                      trailing: Text(
-                        '${g.totalPanels} แผ่น',
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w700),
-                      ),
+              : allGlasses.map((g) {
+                  final subTxt = g.siteCut
+                      ? 'วัดตัดหน้างาน'
+                      : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม.';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        if (glassImg != null) ...[
+                          AluproThumbnail(
+                            assetPath: glassImg,
+                            width: 48,
+                            height: 36,
+                            zoomTitle: g.name,
+                            zoomSubtitle: '$subTxt · ${g.totalPanels} แผ่น',
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                g.name,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                subTxt,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: ToolkitColors.slateMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${g.totalPanels} แผ่น',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                  .toList(),
+                  );
+                }).toList(),
         ),
         const SizedBox(height: 12),
         _summarySectionCard(
           title: 'อุปกรณ์ประกอบ',
           children: out.hardware.isEmpty
               ? [const Text('ไม่มีรายการอุปกรณ์ประกอบ')]
-              : out.hardware
-                  .map(
-                    (h) => ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w600),
-                      ),
-                      trailing: Text(
-                        h.displayQty,
-                        style: const TextStyle(
-                            fontSize: 13.5, fontWeight: FontWeight.w700),
-                      ),
+              : out.hardware.map((h) {
+                  final hwImg = AluproImageRegistry.instance
+                      .resolveHardwareAsset(code: h.code, name: h.name);
+                  final hwLabel =
+                      h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        if (hwImg != null) ...[
+                          AluproThumbnail(
+                            assetPath: hwImg,
+                            width: 48,
+                            height: 36,
+                            showZoomBadge: true,
+                            zoomTitle: hwLabel,
+                            zoomSubtitle: h.displayQty,
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: Text(
+                            hwLabel,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 118),
+                          child: Text(
+                            h.displayQty,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                  .toList(),
+                  );
+                }).toList(),
         ),
       ],
     );
@@ -510,16 +625,18 @@ class _ResultScreenState extends State<ResultScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'สรุปการจัดเส้นสั่งซื้อ',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                  const Expanded(
+                    child: Text(
+                      'สรุปการจัดเส้นสั่งซื้อ',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     'รวม ${out.totalStockBars} เส้น',
                     style: const TextStyle(
@@ -584,6 +701,10 @@ class ProfileBarGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profImg = AluproImageRegistry.instance.resolveProfileAsset(
+      code: group.code,
+      name: group.combinedNames,
+    );
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -596,8 +717,19 @@ class ProfileBarGroupCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              if (profImg != null) ...[
+                AluproThumbnail(
+                  assetPath: profImg,
+                  width: 50,
+                  height: 38,
+                  showZoomBadge: true,
+                  zoomTitle: '${group.code} — ${group.combinedNames}',
+                  zoomSubtitle:
+                      '${group.totalBars} เส้น (${group.stockLengthMm} mm)',
+                ),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Text(
                   '${group.code} — ${group.combinedNames}',
@@ -608,6 +740,7 @@ class ProfileBarGroupCard extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -1113,11 +1246,28 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
               ...summary.lines.map((ln) {
                 final g = ln.group;
                 final usedM = (g.exactCutSumMm / 1000.0).toStringAsFixed(2);
+                final profImg =
+                    AluproImageRegistry.instance.resolveProfileAsset(
+                  code: g.code,
+                  name: g.combinedNames,
+                );
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      if (profImg != null) ...[
+                        AluproThumbnail(
+                          assetPath: profImg,
+                          width: 48,
+                          height: 36,
+                          showZoomBadge: true,
+                          zoomTitle: '${g.code} · ${g.combinedNames}',
+                          zoomSubtitle:
+                              '${ln.matchNote} · ใช้รวม $usedM ม. (${g.totalBars} เส้น)',
+                        ),
+                        const SizedBox(width: 10),
+                      ],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1619,6 +1769,11 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) {
                       final s = items[i];
+                      final skuImg =
+                          AluproImageRegistry.instance.resolveProfileAsset(
+                        code: s.code,
+                        name: s.name,
+                      );
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: () => _editSkuDialog(s),
@@ -1631,6 +1786,18 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                           ),
                           child: Row(
                             children: [
+                              if (skuImg != null) ...[
+                                AluproThumbnail(
+                                  assetPath: skuImg,
+                                  width: 48,
+                                  height: 36,
+                                  showZoomBadge: true,
+                                  zoomTitle: '${s.brand} · ${s.code}',
+                                  zoomSubtitle:
+                                      '${s.name} (${s.thickness} · ${s.color})',
+                                ),
+                                const SizedBox(width: 10),
+                              ],
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,

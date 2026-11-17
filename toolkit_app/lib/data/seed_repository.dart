@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/app_models.dart';
+import 'alupro_image_registry.dart';
 
 class SeedRepository {
   SeedRepository._();
@@ -40,6 +41,24 @@ class SeedRepository {
       ..addAll(pList.map((e) => OrmPriceSku.fromJson(e as Map<String, dynamic>)));
 
     _staticContent = jsonDecode(staticRaw) as Map<String, dynamic>;
+
+    try {
+      final String imgMapRaw = await _readJsonString(
+        'assets/data/alupro_image_map.json',
+        testAssetsDir,
+      );
+      AluproImageRegistry.instance.loadFromJson(
+        jsonDecode(imgMapRaw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      final fallbackFile = File('assets/data/alupro_image_map.json');
+      if (fallbackFile.existsSync()) {
+        AluproImageRegistry.instance.loadFromJson(
+          jsonDecode(await fallbackFile.readAsString()) as Map<String, dynamic>,
+        );
+      }
+    }
+
     _initialized = true;
   }
 

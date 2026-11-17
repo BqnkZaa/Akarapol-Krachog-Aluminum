@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
+import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
@@ -11,6 +12,7 @@ import '../engine/thai_baht_text.dart';
 import '../models/app_models.dart';
 import '../pdf/project_pdf.dart';
 import '../pdf/quotation_pdf.dart';
+import 'alupro_thumbnail_widgets.dart';
 import 'catalog_and_input_screens.dart';
 import 'result_and_pricing_screens.dart';
 import 'theme_tokens.dart';
@@ -657,6 +659,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     ...List.generate(proj.items.length, (idx) {
                       final it = proj.items[idx];
                       final tag = it.displayOrderTag(idx + 1);
+                      final patImg = AluproImageRegistry.instance
+                          .resolvePatternAsset(it.patternId);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -668,21 +672,38 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: ToolkitColors.royalBlue,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '[$tag]',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                            Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: ToolkitColors.royalBlue,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '[$tag]',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (patImg != null) ...[
+                                  const SizedBox(height: 6),
+                                  AluproThumbnail(
+                                    assetPath: patImg,
+                                    width: 58,
+                                    height: 42,
+                                    showZoomBadge: true,
+                                    zoomTitle:
+                                        '[$tag] ${it.brandTitle} · ${it.patternTitle}',
+                                    zoomSubtitle:
+                                        'ขนาด: ${it.sizeSummaryText} · รวม ${it.totalUnits} ชุด',
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(width: 10),
                             Expanded(
