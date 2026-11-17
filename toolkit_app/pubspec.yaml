@@ -33,6 +33,7 @@ flutter:
 
   assets:
     - assets/alupro/
+    - assets/brands/
     - assets/data/
     - assets/fonts/
     - assets/images/

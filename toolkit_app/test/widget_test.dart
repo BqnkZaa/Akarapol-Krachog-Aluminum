@@ -416,7 +416,13 @@ void main() {
         checkSys(sys);
       }
       for (final brand in cat.brands) {
-        assertAssetExists(reg.resolveBrandAsset(brand.id), 'brand:${brand.id}');
+        final brandAsset = reg.resolveBrandAsset(brand.id);
+        assertAssetExists(brandAsset, 'brand:${brand.id}');
+        expect(
+          brandAsset!.startsWith('assets/brands/brand_'),
+          isTrue,
+          reason: 'Brand ${brand.id} must use manufacturer brand logo asset',
+        );
         for (final p in brand.directPatterns) {
           assertAssetExists(reg.resolvePatternAsset(p.id), 'pat:${p.id}');
         }
@@ -442,21 +448,30 @@ void main() {
     }
   });
 
-  testWidgets('Catalog -> Input -> Result renders offline AluproThumbnails cleanly', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(430, 932));
+  testWidgets('Catalog -> Brand Logos -> Input -> Result renders cleanly on phone & tablet', (tester) async {
+    // 1. Verify tablet landscape layout (matching customer's tablet screenshot)
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
     await tester.pumpWidget(const AkkaraphonToolkitApp());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('ระบบคำนวณ'));
     await tester.pumpAndSettle();
-    expect(find.byType(AluproThumbnail), findsWidgets);
+    expect(find.text('เลือกชุดระบบหลัก'), findsOneWidget);
 
     await tester.tap(find.text('2. ชุดพัฒนา'));
     await tester.pumpAndSettle();
-    expect(find.byType(AluproThumbnail), findsWidgets);
+    expect(find.text('เลือกแบรนด์และระบบงาน'), findsOneWidget);
+    expect(find.byType(BrandLogoPlate), findsNWidgets(6));
+
+    // 2. Verify phone portrait flow through Input -> Result Tabs 1–3
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    await tester.pumpAndSettle();
+    expect(find.byType(BrandLogoPlate), findsWidgets);
 
     await tester.tap(find.text('ORM (Asian Trop)'));
     await tester.pumpAndSettle();
+    expect(find.byType(AluproThumbnail), findsWidgets);
+
     await tester.tap(find.text('บานเลื่อน'));
     await tester.pumpAndSettle();
 

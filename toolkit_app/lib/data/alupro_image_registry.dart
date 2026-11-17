@@ -99,15 +99,43 @@ class AluproImageRegistry {
     }
   }
 
-  String? _toAsset(String? file) =>
-      (file == null || file.isEmpty) ? null : '$_assetPrefix$file';
+  static const Map<String, String> _defaultBrandLogos = {
+    'c2_orm': 'assets/brands/brand_orm.png',
+    'c2_schimmer': 'assets/brands/brand_schimmer.png',
+    'c2_alumet': 'assets/brands/brand_alumet.png',
+    'c2_smartplus': 'assets/brands/brand_smartplus.png',
+    'c2_uai': 'assets/brands/brand_uai.png',
+    'c2_aluframe_dis': 'assets/brands/brand_aluframe.png',
+    'c3_orm_pano': 'assets/brands/brand_orm.png',
+    'c3_fuji': 'assets/brands/brand_fuji.png',
+    'c3_alumet_iconiq': 'assets/brands/brand_alumet.png',
+    'c3_smartplus_euro': 'assets/brands/brand_smartplus.png',
+    'c3_uai_euro_dis': 'assets/brands/brand_uai.png',
+    'c3_aluframe_euro': 'assets/brands/brand_aluframe.png',
+    'c4_orm_fold': 'assets/brands/brand_orm.png',
+    'c4_fuji_fold': 'assets/brands/brand_fuji.png',
+    'c4_schimmer_fold': 'assets/brands/brand_schimmer.png',
+    'c4_smartplus_fold': 'assets/brands/brand_smartplus.png',
+    'c4_alumet_fold': 'assets/brands/brand_alumet.png',
+    'c4_uai_fold_dis': 'assets/brands/brand_uai.png',
+    'c5_pbm_dis': 'assets/brands/brand_pbm.png',
+    'c5_hyda_dis': 'assets/brands/brand_hyda.png',
+    'c5_rp_dis': 'assets/brands/brand_rp.png',
+  };
+
+  String? _toAsset(String? file) {
+    if (file == null || file.isEmpty) return null;
+    if (file.startsWith('assets/')) return file;
+    return '$_assetPrefix$file';
+  }
 
   String? get glassAsset => _toAsset(_glassFile);
 
   String? resolveCategoryAsset(String categoryId) =>
       _toAsset(_categories[categoryId]);
 
-  String? resolveBrandAsset(String brandId) => _toAsset(_brands[brandId]);
+  String? resolveBrandAsset(String brandId) =>
+      _toAsset(_brands[brandId] ?? _defaultBrandLogos[brandId]);
 
   String? resolveSystemAsset(String systemId) => _toAsset(_systems[systemId]);
 

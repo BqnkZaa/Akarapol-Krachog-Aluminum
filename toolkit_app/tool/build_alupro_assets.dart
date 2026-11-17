@@ -238,28 +238,28 @@ void main() async {
     'cat5_shower': jidHash('g01g0201'),
   };
 
-  final brandHashes = <String, String>{
-    'c2_orm': jidHash('g08s0201'),
-    'c2_schimmer': jidHash('g04s0201'),
-    'c2_alumet': jidHash('g02s0104'),
-    'c2_smartplus': jidHash('u04s0103'),
-    'c2_uai': jidHash('u06s0101'),
-    'c2_aluframe_dis': jidHash('u08s0101'),
-    'c3_orm_pano': jidHash('g08s0105'),
-    'c3_fuji': jidHash('u09s0101'),
-    'c3_alumet_iconiq': jidHash('g02s0301'),
-    'c3_smartplus_euro': jidHash('u04s0201'),
-    'c3_uai_euro_dis': jidHash('u06s0101'),
-    'c3_aluframe_euro': jidHash('u08s0301'),
-    'c4_orm_fold': jidHash('g08b0104'),
-    'c4_fuji_fold': jidHash('u09b0111'),
-    'c4_schimmer_fold': jidHash('g04b0111'),
-    'c4_smartplus_fold': jidHash('u04b0102'),
-    'c4_alumet_fold': jidHash('g02b0105'),
-    'c4_uai_fold_dis': jidHash('u06b0106'),
-    'c5_pbm_dis': jidHash('g01g0201'),
-    'c5_hyda_dis': jidHash('g01g0202'),
-    'c5_rp_dis': jidHash('g01g0204'),
+  final brandAssets = <String, String>{
+    'c2_orm': 'assets/brands/brand_orm.png',
+    'c2_schimmer': 'assets/brands/brand_schimmer.png',
+    'c2_alumet': 'assets/brands/brand_alumet.png',
+    'c2_smartplus': 'assets/brands/brand_smartplus.png',
+    'c2_uai': 'assets/brands/brand_uai.png',
+    'c2_aluframe_dis': 'assets/brands/brand_aluframe.png',
+    'c3_orm_pano': 'assets/brands/brand_orm.png',
+    'c3_fuji': 'assets/brands/brand_fuji.png',
+    'c3_alumet_iconiq': 'assets/brands/brand_alumet.png',
+    'c3_smartplus_euro': 'assets/brands/brand_smartplus.png',
+    'c3_uai_euro_dis': 'assets/brands/brand_uai.png',
+    'c3_aluframe_euro': 'assets/brands/brand_aluframe.png',
+    'c4_orm_fold': 'assets/brands/brand_orm.png',
+    'c4_fuji_fold': 'assets/brands/brand_fuji.png',
+    'c4_schimmer_fold': 'assets/brands/brand_schimmer.png',
+    'c4_smartplus_fold': 'assets/brands/brand_smartplus.png',
+    'c4_alumet_fold': 'assets/brands/brand_alumet.png',
+    'c4_uai_fold_dis': 'assets/brands/brand_uai.png',
+    'c5_pbm_dis': 'assets/brands/brand_pbm.png',
+    'c5_hyda_dis': 'assets/brands/brand_hyda.png',
+    'c5_rp_dis': 'assets/brands/brand_rp.png',
   };
 
   final explicitPatternJids = <String, String>{
@@ -537,7 +537,7 @@ void main() async {
       registerSystem(sys);
     }
     for (final brand in cat.brands) {
-      if (!brandHashes.containsKey(brand.id)) {
+      if (!brandAssets.containsKey(brand.id)) {
         throw StateError('Unmapped BrandDef: ${brand.id}');
       }
       for (final p in brand.directPatterns) {
@@ -1050,7 +1050,6 @@ void main() async {
   // Collect EVERY referenced hash across all maps so we ONLY bundle needed assets!
   final referencedHashes = <String>{
     ...categoryHashes.values,
-    ...brandHashes.values,
     ...systemHashes.values,
     ...patternHashes.values,
     ...profileCodeHashes.values,
@@ -1110,7 +1109,7 @@ void main() async {
   final jsonPayload = <String, dynamic>{
     'glass': 'glass.jpg',
     'categories': withExt(categoryHashes),
-    'brands': withExt(brandHashes),
+    'brands': brandAssets,
     'systems': withExt(systemHashes),
     'patterns': withExt(patternHashes),
     'profiles': withExt(profileCodeHashes),
@@ -1198,7 +1197,7 @@ void main() async {
   print('Generated ${referencedHashes.length + 1} offline images in assets/alupro/');
   print('Total bundled image size: ${(totalBytesWritten / (1024 * 1024)).toStringAsFixed(2)} MB');
   print('Categories mapped : ${categoryHashes.length}/${CatalogDefinitions.categories.length}');
-  print('Brands mapped     : ${brandHashes.length}');
+  print('Brands mapped     : ${brandAssets.length}');
   print('SubSystems mapped : ${systemHashes.length}');
   print('Patterns mapped   : ${patternHashes.length}');
   print('Formula Cuts      : $matchedCuts/$totalCuts (unmatched: ${unmatchedCuts.length})');

@@ -12,50 +12,116 @@ class CategorySelectScreen extends StatelessWidget {
 
   const CategorySelectScreen({super.key, this.targetProjectId});
 
+  ({IconData icon, Color fg, Color bg}) _categoryBadgeStyle(String categoryId) {
+    switch (categoryId) {
+      case 'cat1_market':
+        return (
+          icon: Icons.grid_view_rounded,
+          fg: const Color(0xFF1E56C5),
+          bg: const Color(0xFFEAF1FE),
+        );
+      case 'cat2_pattana':
+        return (
+          icon: Icons.dashboard_customize_rounded,
+          fg: const Color(0xFFD99014),
+          bg: const Color(0xFFFDF3DF),
+        );
+      case 'cat3_euro':
+        return (
+          icon: Icons.widgets_rounded,
+          fg: const Color(0xFF1F7A5A),
+          bg: const Color(0xFFE7F5EE),
+        );
+      case 'cat4_folding':
+        return (
+          icon: Icons.sensor_door_outlined,
+          fg: const Color(0xFFC0425A),
+          bg: const Color(0xFFFAEDEF),
+        );
+      default:
+        return (
+          icon: Icons.shower_outlined,
+          fg: const Color(0xFF4F46E5),
+          bg: const Color(0xFFEEF2FF),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cats = CatalogDefinitions.categories;
     return Scaffold(
       appBar: AppBar(title: const Text('เลือกหมวดระบบอลูมิเนียม')),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: cats.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          final cat = cats[i];
-          return _NavCard(
-            title: '${i + 1}. ${cat.title}',
-            subtitle: cat.subtitle,
-            imageAsset: AluproImageRegistry.instance.resolveCategoryAsset(cat.id),
-            enabled: cat.enabled,
-            disabledBadge: cat.disabledBadge,
-            onTap: () {
-              if (cat.directSystems.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SubSystemSelectScreen(
-                      brandTitle: cat.title,
-                      priceBrandKey: 'MARKET',
-                      systems: cat.directSystems,
-                      targetProjectId: targetProjectId,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          const Text(
+            'เลือกชุดระบบหลัก',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+              color: ToolkitColors.slateDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'เลือกประเภทชุดที่ตรงกับงานที่กำลังทำ',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: ToolkitColors.slateMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (int i = 0; i < cats.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            Builder(
+              builder: (_) {
+                final cat = cats[i];
+                final badge = _categoryBadgeStyle(cat.id);
+                return _NavCard(
+                  title: '${i + 1}. ${cat.title}',
+                  subtitle: cat.subtitle,
+                  leadingWidget: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: badge.bg,
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    child: Icon(badge.icon, color: badge.fg, size: 25),
                   ),
+                  enabled: cat.enabled,
+                  disabledBadge: cat.disabledBadge,
+                  onTap: () {
+                    if (cat.directSystems.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SubSystemSelectScreen(
+                            brandTitle: cat.title,
+                            priceBrandKey: 'MARKET',
+                            systems: cat.directSystems,
+                            targetProjectId: targetProjectId,
+                          ),
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BrandSelectScreen(
+                            category: cat,
+                            targetProjectId: targetProjectId,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 );
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BrandSelectScreen(
-                      category: cat,
-                      targetProjectId: targetProjectId,
-                    ),
-                  ),
-                );
-              }
-            },
-          );
-        },
+              },
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -75,48 +141,139 @@ class BrandSelectScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(category.title)),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: category.brands.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          final brand = category.brands[i];
-          return _NavCard(
-            title: brand.title,
-            subtitle: brand.subtitle,
-            imageAsset: AluproImageRegistry.instance.resolveBrandAsset(brand.id),
-            enabled: brand.enabled,
-            disabledBadge: brand.disabledBadge,
-            onTap: () {
-              if (brand.directPatterns.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PatternSelectScreen(
-                      brandTitle: brand.title,
-                      priceBrandKey: brand.priceBrandKey,
-                      systemTitle: brand.subtitle,
-                      patterns: brand.directPatterns,
-                      targetProjectId: targetProjectId,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          const Text(
+            'เลือกแบรนด์และระบบงาน',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+              color: ToolkitColors.slateDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'เลือกแบรนด์หรือตระกูลผลิตภัณฑ์ที่ต้องการใช้งาน',
+            style: TextStyle(
+              fontSize: 13.5,
+              color: ToolkitColors.slateMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (int i = 0; i < category.brands.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _BrandCard(
+              brand: category.brands[i],
+              logoAsset: AluproImageRegistry.instance
+                  .resolveBrandAsset(category.brands[i].id),
+              onTap: () {
+                final brand = category.brands[i];
+                if (brand.directPatterns.isNotEmpty) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PatternSelectScreen(
+                        brandTitle: brand.title,
+                        priceBrandKey: brand.priceBrandKey,
+                        systemTitle: brand.subtitle,
+                        patterns: brand.directPatterns,
+                        targetProjectId: targetProjectId,
+                      ),
+                    ),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SubSystemSelectScreen(
+                        brandTitle: brand.title,
+                        priceBrandKey: brand.priceBrandKey,
+                        systems: brand.systems,
+                        targetProjectId: targetProjectId,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandCard extends StatelessWidget {
+  final BrandDef brand;
+  final String? logoAsset;
+  final VoidCallback onTap;
+
+  const _BrandCard({
+    required this.brand,
+    required this.logoAsset,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: brand.enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: brand.enabled ? Colors.white : ToolkitColors.disabledBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: ToolkitColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            BrandLogoPlate(
+              assetPath: logoAsset,
+              width: 104,
+              height: 54,
+              enabled: brand.enabled,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    brand.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: brand.enabled
+                          ? ToolkitColors.slateDark
+                          : ToolkitColors.slateMuted,
                     ),
                   ),
-                );
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SubSystemSelectScreen(
-                      brandTitle: brand.title,
-                      priceBrandKey: brand.priceBrandKey,
-                      systems: brand.systems,
-                      targetProjectId: targetProjectId,
+                  if (brand.subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      brand.subtitle,
+                      style: const TextStyle(
+                        fontSize: 13.2,
+                        color: ToolkitColors.slateMuted,
+                      ),
                     ),
-                  ),
-                );
-              }
-            },
-          );
-        },
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (!brand.enabled && brand.disabledBadge != null)
+              buildStatusBadge(brand.disabledBadge!)
+            else
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: ToolkitColors.slateMuted,
+                size: 24,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -555,6 +712,7 @@ class _NavCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? imageAsset;
+  final Widget? leadingWidget;
   final bool enabled;
   final String? disabledBadge;
   final VoidCallback onTap;
@@ -563,6 +721,7 @@ class _NavCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.imageAsset,
+    this.leadingWidget,
     this.enabled = true,
     this.disabledBadge,
     required this.onTap,
@@ -582,7 +741,10 @@ class _NavCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (imageAsset != null) ...[
+            if (leadingWidget != null) ...[
+              leadingWidget!,
+              const SizedBox(width: 14),
+            ] else if (imageAsset != null) ...[
               AluproThumbnail(
                 assetPath: imageAsset,
                 width: 64,

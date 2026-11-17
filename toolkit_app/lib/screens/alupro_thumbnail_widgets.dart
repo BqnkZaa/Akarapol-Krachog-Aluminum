@@ -210,3 +210,44 @@ class AluproThumbnail extends StatelessWidget {
     );
   }
 }
+
+class BrandLogoPlate extends StatelessWidget {
+  final String? assetPath;
+  final double width;
+  final double height;
+  final bool enabled;
+
+  const BrandLogoPlate({
+    super.key,
+    required this.assetPath,
+    this.width = 104,
+    this.height = 54,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final path = assetPath;
+    if (path == null || path.isEmpty) {
+      return SizedBox(width: width, height: height);
+    }
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.48,
+        child: Image.asset(
+          path,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) => const Icon(
+            Icons.business_rounded,
+            size: 26,
+            color: ToolkitColors.slateMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
