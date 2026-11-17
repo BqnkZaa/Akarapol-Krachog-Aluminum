@@ -31,11 +31,9 @@ class ParametricSystemResolver {
         pattern.baseFormulaKey == 'c2_alu_s6_33';
 
     final evaluatedSets = <EvaluatedSetResult>[];
-    int totalUnitsAcrossRows = 0;
 
     for (int i = 0; i < sizeRows.length; i++) {
       final row = sizeRows[i];
-      totalUnitsAcrossRows += row.qty;
       final vars = _buildVariables(pattern, row, dripTrayLengthMm);
 
       final evaluatedCuts = <EvaluatedCutItem>[];
@@ -101,8 +99,12 @@ class ParametricSystemResolver {
       );
     }
 
-    // Aggregate hardware across totalUnitsAcrossRows
-    final aggregatedHw = _aggregateHardware(table.hardware, totalUnitsAcrossRows);
+    // Aggregate hardware across sizeRows (with exact HYDA HD-641 height step scaling)
+    final aggregatedHw = _aggregateHardware(
+      table.hardware,
+      sizeRows,
+      pattern,
+    );
 
     // Run 1D FFD Bin-Packing
     final barGroups = BinPacker.packSingleCalculation(
@@ -167,21 +169,50 @@ class ParametricSystemResolver {
 
   static List<AggregatedHardwareItem> _aggregateHardware(
     List<HardwareItemSpec> perSetSpecs,
-    int totalSets,
+    List<SizeRowInput> sizeRows,
+    PatternCardDef pattern,
   ) {
     final out = <AggregatedHardwareItem>[];
+    final rows = sizeRows.isNotEmpty
+        ? sizeRows
+        : const [SizeRowInput(widthMm: 2000, heightMm: 2100, qty: 1)];
+    int totalSets = 0;
+    for (final r in rows) {
+      totalSets += r.qty;
+    }
     final mult = totalSets > 0 ? totalSets : 1;
+    final isHydaHeightScaled = pattern.foldingFamily == 'orm90' ||
+        pattern.foldingFamily == 'orm101' ||
+        pattern.foldingFamily == 'sp_fold' ||
+        pattern.foldingFamily == 'alu_fold' ||
+        pattern.baseFormulaKey.startsWith('c4_orm') ||
+        pattern.baseFormulaKey.startsWith('c4_sp_') ||
+        pattern.baseFormulaKey.startsWith('c4_alu_');
+
     for (final h in perSetSpecs) {
       final qt = h.qtyText.trim();
       final m = RegExp(r'^(\d+)\s*(.*)$').firstMatch(qt);
       if (m != null) {
-        final n = int.parse(m.group(1)!);
+        final baseN = int.parse(m.group(1)!);
         final unit = m.group(2)!.trim().isEmpty ? 'ชิ้น' : m.group(2)!.trim();
+        int sumQty = 0;
+        if (isHydaHeightScaled && h.code == 'HD-641') {
+          final axes = pattern.foldingTotalPanels ??
+              (baseN == 4 ? 2 : (baseN >= 9 ? (baseN ~/ 3) : 2));
+          for (final r in rows) {
+            final extraPerAxis = r.heightMm >= 2200
+                ? (((r.heightMm.floor() - 2200) ~/ 500) + 1)
+                : 0;
+            sumQty += (baseN + axes * extraPerAxis) * (r.qty > 0 ? r.qty : 1);
+          }
+        } else {
+          sumQty = baseN * mult;
+        }
         out.add(
           AggregatedHardwareItem(
             code: h.code,
             name: h.name,
-            numericQty: n * mult,
+            numericQty: sumQty,
             unitOrNote: unit,
           ),
         );
@@ -2173,59 +2204,96 @@ class ParametricSystemResolver {
   }
 
   static List<HardwareItemSpec> _buildHydaFoldingHardware(int n, int l, int r) {
+    int countA = 0;
+    int countB = 0;
+    for (final s in [l, r]) {
+      if (s >= 2) {
+        if (s % 2 == 0) {
+          countA += 1;
+          countB += (s ~/ 2) - 1;
+        } else {
+          countB += (s ~/ 2);
+        }
+      }
+    }
     final carrierPairs = (l ~/ 2) + (r ~/ 2);
-    final hasSwingLeaf = (l % 2 == 1) || (r % 2 == 1);
-    final hw = <HardwareItemSpec>[
-      HardwareItemSpec(
-        code: hasSwingLeaf ? 'HD-640B' : 'HD-640A',
-        name: hasSwingLeaf ? 'HD-640B ล้อบนปกติ' : 'HD-640A ล้อบนตัวจบชนบานคู่',
-        qtyText: '${carrierPairs > 0 ? carrierPairs : 1} ชิ้น',
-      ),
-      HardwareItemSpec(
-        code: hasSwingLeaf ? 'HD-643B' : 'HD-643A',
-        name: hasSwingLeaf
-            ? 'HD-643B บานพับไกด์ล่างปกติ'
-            : 'HD-643A บานพับไกด์ล่างตัวจบชนบานคู่',
-        qtyText: '${carrierPairs > 0 ? carrierPairs : 1} ชิ้น',
-      ),
+    final cPairs = carrierPairs > 0 ? carrierPairs : 1;
+    final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
+    final hasTwoOddLeaves = (l % 2 == 1) && (r % 2 == 1);
+    final hw = <HardwareItemSpec>[];
+    if (countA > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'HD-640A',
+        name: 'HD-640A ล้อบนตัวจบชนบานคู่',
+        qtyText: '$countA ชิ้น',
+      ));
+    }
+    if (countB > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'HD-640B',
+        name: 'HD-640B ล้อบนปกติ',
+        qtyText: '$countB ชิ้น',
+      ));
+    }
+    if (countA > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'HD-643A',
+        name: 'HD-643A บานพับไกด์ล่างตัวจบชนบานคู่',
+        qtyText: '$countA ชิ้น',
+      ));
+    }
+    if (countB > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'HD-643B',
+        name: 'HD-643B บานพับไกด์ล่างปกติ',
+        qtyText: '$countB ชิ้น',
+      ));
+    }
+    hw.addAll([
       HardwareItemSpec(
         code: 'HD-641',
         name: 'HD-641 บานพับปกติ',
-        qtyText: '${3 * (n - 1)} ชิ้น',
+        qtyText: '${n == 2 ? 4 : 3 * n} ชิ้น',
       ),
       HardwareItemSpec(
         code: 'HD-642',
         name: 'HD-642 บานพับมือจับ',
-        qtyText: '${carrierPairs > 0 ? carrierPairs : 1} ชิ้น',
+        qtyText: '${(n + 1) ~/ 2} ชิ้น',
       ),
       HardwareItemSpec(
         code: 'HD-321',
         name: 'HD-321 CDQ',
-        qtyText: '${carrierPairs > 0 ? carrierPairs : 1} ชิ้น',
+        qtyText: '$cPairs ชิ้น',
       ),
       HardwareItemSpec(
         code: 'HD-320',
         name: 'HD-320 ปลายกลอนบานเฟี้ยม',
-        qtyText: '${2 * (carrierPairs > 0 ? carrierPairs : 1)} ชิ้น',
+        qtyText: '${2 * cPairs} ชิ้น',
       ),
       HardwareItemSpec(
         code: 'HD-474',
         name: 'HD-474 มือจับปากเป็ด',
-        qtyText: '${carrierPairs > 0 ? carrierPairs : 1} ชิ้น',
+        qtyText: '$cPairs ชิ้น',
       ),
-    ];
-    if (hasSwingLeaf) {
-      hw.addAll(const [
-        HardwareItemSpec(
+    ]);
+    if (hasOddLeaf) {
+      hw.addAll([
+        const HardwareItemSpec(
           code: '',
           name: 'เสื้อกุญแจ 35×85 + ไส้กุญแจ',
           qtyText: '1 ชุด',
         ),
-        HardwareItemSpec(
+        const HardwareItemSpec(
           code: '',
           name: 'มือจับเขาควายมีรูกุญแจ',
           qtyText: '1 คู่',
         ),
+        if (hasTwoOddLeaves || (l >= 3 && r == 1) || (r >= 3 && l == 1))
+          const HardwareItemSpec(
+            code: '',
+            name: 'มือจับเขาควายดัมมี่',
+            qtyText: '1 คู่',
+          ),
       ]);
     }
     return hw;

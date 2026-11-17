@@ -46,6 +46,18 @@ class PricingSummary {
   });
 }
 
+class PricingCatalogAvailability {
+  final bool isComplete;
+  final List<String> availableThicknesses;
+  final List<String> availableColors;
+
+  const PricingCatalogAvailability({
+    required this.isComplete,
+    required this.availableThicknesses,
+    required this.availableColors,
+  });
+}
+
 class PricingEngine {
   PricingEngine._();
 
@@ -87,29 +99,8 @@ class PricingEngine {
     required Map<String, CustomPriceOverride> overrides,
   }) {
     final normCode = code.trim();
-    // Apply custom overrides & custom-added SKUs
-    final merged = <String, OrmPriceSku>{};
-    for (final s in catalog) {
-      final ov = overrides[s.skuKey];
-      merged[s.skuKey] = ov != null
-          ? s.withOverride(ov.pricePerBar, stock: ov.inStock)
-          : s;
-    }
-    for (final ov in overrides.values) {
-      if (!merged.containsKey(ov.skuKey)) {
-        merged[ov.skuKey] = OrmPriceSku(
-          brand: ov.brand,
-          code: ov.code,
-          name: ov.name,
-          thickness: ov.thickness,
-          color: ov.color,
-          stockM: ov.stockM,
-          factoryPrice: ov.pricePerBar,
-          customPrice: ov.pricePerBar,
-          inStock: ov.inStock,
-        );
-      }
-    }
+    if (selectedThickness.isEmpty || selectedColor.isEmpty) return null;
+    final merged = _mergeCatalog(catalog, overrides);
 
     final candidates = merged.values
         .where((s) =>
@@ -138,6 +129,135 @@ class PricingEngine {
     }
 
     return null;
+  }
+
+  static Map<String, OrmPriceSku> _mergeCatalog(
+    List<OrmPriceSku> catalog,
+    Map<String, CustomPriceOverride> overrides,
+  ) {
+    final merged = <String, OrmPriceSku>{};
+    for (final s in catalog) {
+      final ov = overrides[s.skuKey];
+      merged[s.skuKey] = ov != null
+          ? s.withOverride(ov.pricePerBar, stock: ov.inStock)
+          : s;
+    }
+    for (final ov in overrides.values) {
+      if (!merged.containsKey(ov.skuKey)) {
+        merged[ov.skuKey] = OrmPriceSku(
+          brand: ov.brand,
+          code: ov.code,
+          name: ov.name,
+          thickness: ov.thickness,
+          color: ov.color,
+          stockM: ov.stockM,
+          factoryPrice: ov.pricePerBar,
+          customPrice: ov.pricePerBar,
+          inStock: ov.inStock,
+        );
+      }
+    }
+    return merged;
+  }
+
+  /// Computes available thickness and color choices matching Original Toolkit v0.1.7:
+  /// If any profile in [barGroups] has no catalog/custom SKU, returns `isComplete: false`
+  /// with empty options so partial incomplete costs are never silently substituted with zero.
+  static PricingCatalogAvailability computeAvailability({
+    required List<ProfileBarGroup> barGroups,
+    required List<OrmPriceSku> ormCatalog,
+    required Map<String, CustomPriceOverride> customOverrides,
+    String? preferredColor,
+  }) {
+    if (barGroups.isEmpty) {
+      return const PricingCatalogAvailability(
+        isComplete: false,
+        availableThicknesses: [],
+        availableColors: [],
+      );
+    }
+
+    final merged = _mergeCatalog(ormCatalog, customOverrides);
+    Set<String>? commonColors;
+
+    for (final grp in barGroups) {
+      final grpSkus = merged.values
+          .where((s) =>
+              s.brand.toUpperCase() == grp.brand.toUpperCase() &&
+              s.code == grp.code.trim() &&
+              s.inStock)
+          .toList();
+      if (grpSkus.isEmpty) {
+        return const PricingCatalogAvailability(
+          isComplete: false,
+          availableThicknesses: [],
+          availableColors: [],
+        );
+      }
+      final cols = grpSkus.map((s) => s.color).toSet();
+      commonColors = commonColors == null ? cols : commonColors.intersection(cols);
+    }
+
+    if (commonColors == null || commonColors.isEmpty) {
+      return const PricingCatalogAvailability(
+        isComplete: false,
+        availableThicknesses: [],
+        availableColors: [],
+      );
+    }
+
+    final orderedColors = <String>[
+      ...standardColors.where(commonColors.contains),
+      ...commonColors.where((c) => !standardColors.contains(c)),
+    ];
+
+    final activeColor = (preferredColor != null && orderedColors.contains(preferredColor))
+        ? preferredColor
+        : (orderedColors.contains('ตัวดิบ MILL') ? 'ตัวดิบ MILL' : orderedColors.first);
+
+    final candidateThicknesses = <String>{};
+    for (final grp in barGroups) {
+      for (final s in merged.values) {
+        if (s.brand.toUpperCase() == grp.brand.toUpperCase() &&
+            s.code == grp.code.trim() &&
+            s.color == activeColor &&
+            s.inStock) {
+          candidateThicknesses.add(s.thickness);
+        }
+      }
+    }
+
+    final orderedCandidates = <String>[
+      ...standardThicknesses.where(candidateThicknesses.contains),
+      ...candidateThicknesses.where((t) => !standardThicknesses.contains(t)),
+    ];
+
+    final validThicknesses = orderedCandidates.where((t) {
+      return barGroups.every((grp) =>
+          matchSku(
+            brand: grp.brand,
+            code: grp.code,
+            selectedThickness: t,
+            selectedColor: activeColor,
+            catalog: ormCatalog,
+            overrides: customOverrides,
+          ) !=
+          null);
+    }).toList();
+
+    if (validThicknesses.isEmpty) {
+      return const PricingCatalogAvailability(
+        isComplete: false,
+        availableThicknesses: [],
+        availableColors: [],
+      );
+    }
+
+    return PricingCatalogAvailability(
+      isComplete: true,
+      availableThicknesses: validThicknesses,
+      availableColors: orderedColors,
+    );
   }
 
   static PricingSummary evaluate({

@@ -744,8 +744,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   PricingMode _mode = PricingMode.actualLength;
   double _wastePct = 20.0;
   late final TextEditingController _wasteCtrl;
-  String _selectedThickness = '1.2 มม.';
-  String _selectedColor = 'ตัวดิบ MILL';
+  String _selectedThickness = '';
+  String _selectedColor = '';
   Map<String, CustomPriceOverride> _overrides = {};
   bool _loading = true;
 
@@ -756,11 +756,40 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     _reloadOverrides();
   }
 
+  void _syncValidSelection(Map<String, CustomPriceOverride> ov) {
+    final avail = PricingEngine.computeAvailability(
+      barGroups: widget.barGroups,
+      ormCatalog: SeedRepository.instance.ormPrices,
+      customOverrides: ov,
+      preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
+    );
+    if (!avail.isComplete) {
+      _selectedThickness = '';
+      _selectedColor = '';
+    } else {
+      if (!avail.availableColors.contains(_selectedColor)) {
+        _selectedColor = avail.availableColors.contains('ตัวดิบ MILL')
+            ? 'ตัวดิบ MILL'
+            : avail.availableColors.first;
+      }
+      final availForColor = PricingEngine.computeAvailability(
+        barGroups: widget.barGroups,
+        ormCatalog: SeedRepository.instance.ormPrices,
+        customOverrides: ov,
+        preferredColor: _selectedColor,
+      );
+      if (!availForColor.availableThicknesses.contains(_selectedThickness)) {
+        _selectedThickness = availForColor.availableThicknesses.first;
+      }
+    }
+  }
+
   Future<void> _reloadOverrides() async {
     final ov = await AppDatabase.instance.getAllCustomPrices();
     if (!mounted) return;
     setState(() {
       _overrides = ov;
+      _syncValidSelection(ov);
       _loading = false;
     });
     _notifyParent();
@@ -796,6 +825,12 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final avail = PricingEngine.computeAvailability(
+      barGroups: widget.barGroups,
+      ormCatalog: SeedRepository.instance.ormPrices,
+      customOverrides: _overrides,
+      preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
+    );
     final summary = _computeSummary();
 
     return ListView(
@@ -940,52 +975,80 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedThickness,
+                      key: ValueKey('thick_${_selectedThickness}_${avail.availableThicknesses.join(",")}'),
+                      initialValue: avail.availableThicknesses.contains(_selectedThickness)
+                          ? _selectedThickness
+                          : null,
                       decoration: const InputDecoration(
-                        labelText: 'ความหนา',
+                        labelText: 'ความหนาอลูมิเนียม',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
-                      items: PricingEngine.standardThicknesses
+                      items: avail.availableThicknesses
                           .map((t) => DropdownMenuItem(
                               value: t,
                               child: Text(t,
                                   style: const TextStyle(fontSize: 13))))
                           .toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => _selectedThickness = v);
-                          _notifyParent();
-                        }
-                      },
+                      onChanged: avail.availableThicknesses.isEmpty
+                          ? null
+                          : (v) {
+                              if (v != null) {
+                                setState(() => _selectedThickness = v);
+                                _notifyParent();
+                              }
+                            },
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedColor,
+                      key: ValueKey('color_${_selectedColor}_${avail.availableColors.join(",")}'),
+                      initialValue: avail.availableColors.contains(_selectedColor)
+                          ? _selectedColor
+                          : null,
                       decoration: const InputDecoration(
-                        labelText: 'สี / ผิวโปรไฟล์',
+                        labelText: 'สีอลูมิเนียม',
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
-                      items: PricingEngine.standardColors
+                      items: avail.availableColors
                           .map((c) => DropdownMenuItem(
                               value: c,
                               child: Text(c,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontSize: 13))))
                           .toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => _selectedColor = v);
-                          _notifyParent();
-                        }
-                      },
+                      onChanged: avail.availableColors.isEmpty
+                          ? null
+                          : (v) {
+                              if (v != null) {
+                                setState(() {
+                                  _selectedColor = v;
+                                  _syncValidSelection(_overrides);
+                                });
+                                _notifyParent();
+                              }
+                            },
                     ),
                   ),
                 ],
               ),
+              if (!avail.isComplete) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Text(
+                    'ต้นทุนยังไม่ครบ: มีหน้าตัดที่ไม่มีสีหรือราคาในแคตตาล็อก ระบบจะไม่เปลี่ยนเป็นสีอื่นหรือแทนราคาที่ขาดด้วยศูนย์',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

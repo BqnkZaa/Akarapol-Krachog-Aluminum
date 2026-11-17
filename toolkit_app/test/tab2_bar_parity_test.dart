@@ -329,6 +329,36 @@ void main() {
       c3.sets.first.glasses.first.heightMm,
       closeTo(2035.0, 0.01),
     );
+    expect(
+      c3.hardware.firstWhere((h) => h.code == 'HD-641').numericQty,
+      20,
+    );
+    final c3Avail = PricingEngine.computeAvailability(
+      barGroups: c3.barGroups,
+      ormCatalog: SeedRepository.instance.ormPrices,
+      customOverrides: const {},
+    );
+    expect(c3Avail.isComplete, isFalse);
+
+    final c3H2199 = ParametricSystemResolver.calculate(
+      brandTitle: 'ORM',
+      priceBrandKey: 'ORM',
+      systemTitle: 'ORM PANO SUIT Folding',
+      pattern: _findFolding('orm101', 5, 3, 2),
+      selectedOptions: {'sill_mode': 'low'},
+      sizeRows: const [SizeRowInput(widthMm: 3500, heightMm: 2199, qty: 1)],
+    );
+    expect(c3H2199.hardware.firstWhere((h) => h.code == 'HD-641').numericQty, 15);
+
+    final c3H2700 = ParametricSystemResolver.calculate(
+      brandTitle: 'ORM',
+      priceBrandKey: 'ORM',
+      systemTitle: 'ORM PANO SUIT Folding',
+      pattern: _findFolding('orm101', 5, 3, 2),
+      selectedOptions: {'sill_mode': 'low'},
+      sizeRows: const [SizeRowInput(widthMm: 3500, heightMm: 2700, qty: 1)],
+    );
+    expect(c3H2700.hardware.firstWhere((h) => h.code == 'HD-641').numericQty, 25);
 
     // CASE 4: Cat 4 Fuji Folding U-Track 6-4-2-u (4200x2300x1)
     final c4 = ParametricSystemResolver.calculate(
