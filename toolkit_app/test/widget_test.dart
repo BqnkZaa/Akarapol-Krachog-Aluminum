@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:toolkit_app/data/alupro_image_registry.dart';
@@ -18,10 +19,27 @@ import 'package:toolkit_app/pdf/project_pdf.dart';
 import 'package:toolkit_app/pdf/quotation_pdf.dart';
 import 'package:toolkit_app/pdf/single_cut_pdf.dart';
 import 'package:toolkit_app/screens/alupro_thumbnail_widgets.dart';
+import 'package:toolkit_app/screens/catalog_and_input_screens.dart';
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    final fontLoader = FontLoader('Sarabun')
+      ..addFont(
+        Future.value(
+          ByteData.sublistView(
+            File('assets/fonts/Sarabun-Regular.ttf').readAsBytesSync(),
+          ),
+        ),
+      )
+      ..addFont(
+        Future.value(
+          ByteData.sublistView(
+            File('assets/fonts/Sarabun-Bold.ttf').readAsBytesSync(),
+          ),
+        ),
+      );
+    await fontLoader.load();
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     final memDb = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
@@ -577,5 +595,89 @@ void main() {
     await tester.drag(find.byType(ListView).last, const Offset(0, -450));
     await tester.pumpAndSettle();
     expect(find.byType(AluproThumbnail), findsWidgets);
+  });
+
+  testWidgets('Narrow 360dp phone with 1.15x textScaler never squeezes brand, subsystem, or pattern titles', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    Widget wrapPhone(Widget child) => MaterialApp(
+          theme: ThemeData(fontFamily: 'Sarabun'),
+          builder: (ctx, w) => MediaQuery(
+            data: MediaQuery.of(ctx).copyWith(
+              textScaler: const TextScaler.linear(1.15),
+            ),
+            child: w!,
+          ),
+          home: child,
+        );
+
+    // 1. CategorySelectScreen
+    await tester.pumpWidget(wrapPhone(const CategorySelectScreen()));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
+    // 2. All BrandSelectScreens (Cat 2, Cat 3 UAI Euro, Cat 4 UAI Folding, Cat 5 Shower)
+    for (final cat in CatalogDefinitions.categories.where((c) => c.brands.isNotEmpty)) {
+      await tester.pumpWidget(wrapPhone(BrandSelectScreen(category: cat)));
+      await tester.pumpAndSettle();
+      for (final b in cat.brands) {
+        await tester.scrollUntilVisible(
+          find.text(b.title),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        final titleBox = tester.renderObject<RenderBox>(find.text(b.title));
+        final colBox = tester.renderObject<RenderBox>(
+          find.ancestor(of: find.text(b.title), matching: find.byType(Column)).first,
+        );
+        expect(
+          colBox.size.width >= 165.0,
+          isTrue,
+          reason: 'Brand "${b.title}" column in ${cat.id} was squeezed to ${colBox.size.width}px on 360dp phone!',
+        );
+        expect(
+          titleBox.size.height <= 56.0,
+          isTrue,
+          reason: 'Brand "${b.title}" wrapped vertically (${titleBox.size.height}px tall)!',
+        );
+      }
+    }
+
+    // 3. PatternSelectScreen with disabled pattern badge (ALUMET Smart X sliding)
+    final alumetSliding = CatalogDefinitions.categories[1].brands
+        .firstWhere((b) => b.id == 'c2_alumet')
+        .systems
+        .first;
+    await tester.pumpWidget(
+      wrapPhone(
+        PatternSelectScreen(
+          brandTitle: 'ALUMET (Smart X)',
+          priceBrandKey: 'ALUMET',
+          systemTitle: alumetSliding.title,
+          patterns: alumetSliding.patterns,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('บานเลื่อนรางแขวนบานเดี่ยว'),
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    final disabledPatBox = tester.renderObject<RenderBox>(
+      find.text('บานเลื่อนรางแขวนบานเดี่ยว'),
+    );
+    final disabledPatColBox = tester.renderObject<RenderBox>(
+      find.ancestor(
+        of: find.text('บานเลื่อนรางแขวนบานเดี่ยว'),
+        matching: find.byType(Column),
+      ).first,
+    );
+    expect(disabledPatColBox.size.width >= 150.0, isTrue);
+    expect(disabledPatBox.size.height <= 56.0, isTrue);
   });
 }

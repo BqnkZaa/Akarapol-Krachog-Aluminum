@@ -99,11 +99,13 @@ void showAluproImageZoomDialog(
                   color: ToolkitColors.slateMuted,
                 ),
                 SizedBox(width: 5),
-                Text(
-                  'ถ่างสองนิ้วเพื่อซูมขยายดูรายละเอียดรูปและหน้าตัด',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: ToolkitColors.slateMuted,
+                Flexible(
+                  child: Text(
+                    'ถ่างสองนิ้วเพื่อซูมขยายดูรายละเอียดรูปและหน้าตัด',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: ToolkitColors.slateMuted,
+                    ),
                   ),
                 ),
               ],

@@ -15,13 +15,20 @@ class CategorySelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cats = CatalogDefinitions.categories;
-    final screenW = MediaQuery.sizeOf(context).width;
-    final plateW = screenW < 375 ? 104.0 : 122.0;
-    final plateH = screenW < 375 ? 65.0 : 76.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('เลือกหมวดระบบอลูมิเนียม')),
-      body: ListView(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final availW = constraints.maxWidth;
+          final plateW = availW < 420
+              ? 98.0
+              : (availW < 600 ? 110.0 : 124.0);
+          final plateH = availW < 420
+              ? 61.0
+              : (availW < 600 ? 68.0 : 77.0);
+
+          return ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           const Text(
@@ -89,6 +96,8 @@ class CategorySelectScreen extends StatelessWidget {
             ),
           ],
         ],
+          );
+        },
       ),
     );
   }
@@ -184,64 +193,85 @@ class _BrandCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: brand.enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        decoration: BoxDecoration(
-          color: brand.enabled ? Colors.white : ToolkitColors.disabledBg,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardW = constraints.maxWidth;
+        final isCompact = cardW < 520;
+        final isNarrowPhone = cardW < 390;
+        final hasDisabledBadge = !brand.enabled && brand.disabledBadge != null;
+
+        return InkWell(
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: ToolkitColors.cardBorder),
-        ),
-        child: Row(
-          children: [
-            BrandLogoPlate(
-              assetPath: logoAsset,
-              width: 104,
-              height: 54,
-              enabled: brand.enabled,
+          onTap: brand.enabled ? onTap : null,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isNarrowPhone ? 14 : 18,
+              vertical: isNarrowPhone ? 14 : 16,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    brand.title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: brand.enabled
-                          ? ToolkitColors.slateDark
-                          : ToolkitColors.slateMuted,
-                    ),
-                  ),
-                  if (brand.subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      brand.subtitle,
-                      style: const TextStyle(
-                        fontSize: 13.2,
-                        color: ToolkitColors.slateMuted,
+            decoration: BoxDecoration(
+              color: brand.enabled ? Colors.white : ToolkitColors.disabledBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: ToolkitColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                BrandLogoPlate(
+                  assetPath: logoAsset,
+                  width: isNarrowPhone ? 86 : 104,
+                  height: isNarrowPhone ? 46 : 54,
+                  enabled: brand.enabled,
+                ),
+                SizedBox(width: isNarrowPhone ? 13 : 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        brand.title,
+                        style: TextStyle(
+                          fontSize: isNarrowPhone ? 15.5 : 16,
+                          fontWeight: FontWeight.w800,
+                          color: brand.enabled
+                              ? ToolkitColors.slateDark
+                              : ToolkitColors.slateMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                      if (brand.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          brand.subtitle,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      ],
+                      if (isCompact && hasDisabledBadge) ...[
+                        const SizedBox(height: 7),
+                        buildStatusBadge(brand.disabledBadge!),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!isCompact && hasDisabledBadge) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: buildStatusBadge(brand.disabledBadge!),
+                  ),
+                ] else if (brand.enabled) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: ToolkitColors.slateMuted,
+                    size: 23,
+                  ),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            if (!brand.enabled && brand.disabledBadge != null)
-              buildStatusBadge(brand.disabledBadge!)
-            else
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: ToolkitColors.slateMuted,
-                size: 24,
-              ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -578,111 +608,130 @@ class _PatternListBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: patterns.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (ctx, i) {
-        final p = patterns[i];
-        final isSel = p.id == selectedId;
-        final imgAsset = AluproImageRegistry.instance.resolvePatternAsset(p.id);
-        return InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: p.enabled ? () => onSelect(p) : null,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: p.enabled
-                  ? (isSel ? ToolkitColors.softBlueBg : Colors.white)
-                  : ToolkitColors.disabledBg,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final listW = constraints.maxWidth;
+        final isCompact = listW < 560;
+        final thumbW = listW < 400 ? 60.0 : 68.0;
+        final thumbH = listW < 400 ? 44.0 : 48.0;
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: patterns.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (ctx, i) {
+            final p = patterns[i];
+            final isSel = p.id == selectedId;
+            final imgAsset =
+                AluproImageRegistry.instance.resolvePatternAsset(p.id);
+            final hasDisabledBadge = !p.enabled && p.disabledBadge != null;
+
+            return InkWell(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSel
-                    ? ToolkitColors.royalBlue
-                    : ToolkitColors.cardBorder,
-                width: isSel ? 1.8 : 1.0,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  p.enabled
-                      ? (isSel
-                          ? Icons.radio_button_checked_rounded
-                          : Icons.radio_button_off_rounded)
-                      : Icons.lock_clock_outlined,
+              onTap: p.enabled ? () => onSelect(p) : null,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
                   color: p.enabled
-                      ? (isSel
-                          ? ToolkitColors.royalBlue
-                          : ToolkitColors.slateMuted)
-                      : ToolkitColors.slateMuted,
-                  size: 21,
-                ),
-                const SizedBox(width: 10),
-                if (imgAsset != null) ...[
-                  AluproThumbnail(
-                    assetPath: imgAsset,
-                    width: 68,
-                    height: 48,
-                    enableTapToZoom: false,
-                    opacity: p.enabled ? 1.0 : 0.55,
+                      ? (isSel ? ToolkitColors.softBlueBg : Colors.white)
+                      : ToolkitColors.disabledBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSel
+                        ? ToolkitColors.royalBlue
+                        : ToolkitColors.cardBorder,
+                    width: isSel ? 1.8 : 1.0,
                   ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p.title,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: p.enabled
-                              ? ToolkitColors.slateDark
-                              : ToolkitColors.slateMuted,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      p.enabled
+                          ? (isSel
+                              ? Icons.radio_button_checked_rounded
+                              : Icons.radio_button_off_rounded)
+                          : Icons.lock_clock_outlined,
+                      color: p.enabled
+                          ? (isSel
+                              ? ToolkitColors.royalBlue
+                              : ToolkitColors.slateMuted)
+                          : ToolkitColors.slateMuted,
+                      size: 21,
+                    ),
+                    const SizedBox(width: 10),
+                    if (imgAsset != null) ...[
+                      AluproThumbnail(
+                        assetPath: imgAsset,
+                        width: thumbW,
+                        height: thumbH,
+                        enableTapToZoom: false,
+                        opacity: p.enabled ? 1.0 : 0.55,
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.title,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: p.enabled
+                                  ? ToolkitColors.slateDark
+                                  : ToolkitColors.slateMuted,
+                            ),
+                          ),
+                          if (p.subtitle != null && p.subtitle!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              p.subtitle!,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: ToolkitColors.slateMuted,
+                              ),
+                            ),
+                          ],
+                          if (p.warningBadge != null) ...[
+                            const SizedBox(height: 6),
+                            buildStatusBadge(p.warningBadge!, isWarning: true),
+                          ],
+                          if (isCompact && hasDisabledBadge) ...[
+                            const SizedBox(height: 6),
+                            buildStatusBadge(p.disabledBadge!),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (!isCompact && hasDisabledBadge) ...[
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: buildStatusBadge(p.disabledBadge!),
+                      ),
+                    ] else if (p.enabled && imgAsset != null) ...[
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'ซูมดูผังบาน',
+                        onPressed: () => showAluproImageZoomDialog(
+                          ctx,
+                          assetPath: imgAsset,
+                          title: p.title,
+                          subtitle: p.subtitle,
+                        ),
+                        icon: const Icon(
+                          Icons.zoom_in_rounded,
+                          size: 20,
+                          color: ToolkitColors.slateMuted,
                         ),
                       ),
-                      if (p.subtitle != null && p.subtitle!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          p.subtitle!,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            color: ToolkitColors.slateMuted,
-                          ),
-                        ),
-                      ],
-                      if (p.warningBadge != null) ...[
-                        const SizedBox(height: 6),
-                        buildStatusBadge(p.warningBadge!, isWarning: true),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
-                if (!p.enabled && p.disabledBadge != null) ...[
-                  const SizedBox(width: 8),
-                  buildStatusBadge(p.disabledBadge!),
-                ] else if (imgAsset != null) ...[
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: 'ซูมดูผังบาน',
-                    onPressed: () => showAluproImageZoomDialog(
-                      ctx,
-                      assetPath: imgAsset,
-                      title: p.title,
-                      subtitle: p.subtitle,
-                    ),
-                    icon: const Icon(
-                      Icons.zoom_in_rounded,
-                      size: 20,
-                      color: ToolkitColors.slateMuted,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -747,60 +796,76 @@ class _NavCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(15),
-      onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: enabled ? Colors.white : ToolkitColors.disabledBg,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 520;
+        final hasDisabledBadge = !enabled && disabledBadge != null;
+
+        return InkWell(
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: ToolkitColors.cardBorder),
-        ),
-        child: Row(
-          children: [
-            if (leadingWidget != null) ...[
-              leadingWidget!,
-              const SizedBox(width: 14),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: enabled
-                          ? ToolkitColors.slateDark
-                          : ToolkitColors.slateMuted,
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: ToolkitColors.slateMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+          onTap: enabled ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: enabled ? Colors.white : ToolkitColors.disabledBg,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: ToolkitColors.cardBorder),
             ),
-            const SizedBox(width: 8),
-            if (!enabled && disabledBadge != null)
-              buildStatusBadge(disabledBadge!)
-            else
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: ToolkitColors.slateMuted,
-              ),
-          ],
-        ),
-      ),
+            child: Row(
+              children: [
+                if (leadingWidget != null) ...[
+                  leadingWidget!,
+                  const SizedBox(width: 13),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: enabled
+                              ? ToolkitColors.slateDark
+                              : ToolkitColors.slateMuted,
+                        ),
+                      ),
+                      if (subtitle != null && subtitle!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      ],
+                      if (isCompact && hasDisabledBadge) ...[
+                        const SizedBox(height: 7),
+                        buildStatusBadge(disabledBadge!),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!isCompact && hasDisabledBadge) ...[
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: buildStatusBadge(disabledBadge!),
+                  ),
+                ] else if (enabled) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: ToolkitColors.slateMuted,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
