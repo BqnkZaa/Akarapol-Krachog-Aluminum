@@ -389,75 +389,132 @@ void main() {
     expect(find.text('บัญชีของฉัน'), findsOneWidget);
   });
 
-  test('AluproImageRegistry resolves 100% of offline catalog, profile, glass & hardware assets', () {
+  test('AluproImageRegistry enforces 100% strict brand isolation & verified CAD assets', () {
     final reg = AluproImageRegistry.instance;
     expect(reg.isLoaded, isTrue);
 
-    void assertAssetExists(String? path, String ctx) {
-      expect(path, isNotNull, reason: 'Missing image mapping for $ctx');
+    void assertExistingFile(String? path, String ctx) {
+      expect(path, isNotNull, reason: 'Expected asset for $ctx');
       expect(File(path!).existsSync(), isTrue, reason: 'Asset file missing on disk: $path ($ctx)');
     }
 
-    assertAssetExists(reg.glassAsset, 'glass');
+    assertExistingFile(reg.glassAsset, 'glass');
     expect(
-      reg.resolveProfileAsset(code: 'SS-X219', name: 'กรอบบานแนวตั้ง'),
+      reg.resolveProfileAsset(code: 'SS-X219', name: 'กรอบบานแนวตั้ง', brandKey: 'ALUMET'),
       'assets/profiles/ss_x219.png',
     );
     expect(
-      reg.resolveProfileAsset(code: 'sS-X219', name: 'กรอบบานแนวตั้ง'),
+      reg.resolveProfileAsset(code: 'sS-X219', name: 'กรอบบานแนวตั้ง', brandKey: 'ALUMET'),
       'assets/profiles/ss_x219.png',
     );
-    assertAssetExists(
-      reg.resolveProfileAsset(code: 'SS-X219'),
+    assertExistingFile(
+      reg.resolveProfileAsset(code: 'SS-X219', brandKey: 'ALUMET'),
       'custom:SS-X219',
     );
 
-    void checkSys(SubSystemDef sys) {
-      assertAssetExists(reg.resolveSystemAsset(sys.id), 'sys:${sys.id}');
+    // Cross-brand & unverified sister profile codes must NEVER borrow another code's CAD!
+    expect(reg.resolveProfileAsset(code: '801-03', brandKey: 'ALUMET'), isNull);
+    expect(reg.resolveProfileAsset(code: 'ฉากข้อต่อ', brandKey: 'ALUMET'), isNull);
+    expect(reg.resolveProfileAsset(code: 'A1-024-17', brandKey: 'ALUFRAME'), isNull);
+    expect(reg.resolveProfileAsset(code: 'SB-0114', brandKey: 'ALUMET'), isNull);
+    expect(reg.resolveProfileAsset(code: 'SS-X212', brandKey: 'ALUMET'), isNull);
+
+    String familyOf(String brandId) {
+      if (brandId == 'market') return 'market';
+      if (brandId.contains('orm')) return 'orm';
+      if (brandId.contains('schimmer')) return 'schimmer';
+      if (brandId.contains('alumet')) return 'alumet';
+      if (brandId.contains('smartplus')) return 'smartplus';
+      if (brandId.contains('uai')) return 'uai';
+      if (brandId.contains('fuji')) return 'fuji';
+      if (brandId.contains('aluframe')) return 'aluframe';
+      return brandId;
+    }
+
+    final patternAssetOwners = <String, Set<String>>{};
+    int verifiedPatternCount = 0;
+
+    void checkPattern(String brandId, PatternCardDef p) {
+      final path = reg.resolvePatternAsset(p.id);
+      if (path == null) return;
+      verifiedPatternCount++;
+      assertExistingFile(path, 'pat:${p.id}');
+      patternAssetOwners.putIfAbsent(path, () => {}).add(familyOf(brandId));
+
+      if (brandId == 'c2_alumet' || brandId == 'c4_alumet_fold') {
+        expect(
+          path.endsWith('_alumet.jpg'),
+          isTrue,
+          reason: '${p.id} in $brandId must carry pure ALUMET watermark',
+        );
+      } else if (brandId == 'c3_alumet_iconiq') {
+        expect(
+          path.endsWith('_iconiq.jpg'),
+          isTrue,
+          reason: '${p.id} in $brandId must carry ALUMET ICONIQ watermark',
+        );
+      }
+    }
+
+    void checkSys(String brandId, SubSystemDef sys) {
       for (final p in sys.patterns) {
-        assertAssetExists(reg.resolvePatternAsset(p.id), 'pat:${p.id}');
+        checkPattern(brandId, p);
       }
       for (final tab in sys.subTabs) {
-        checkSys(tab);
+        checkSys(brandId, tab);
       }
     }
 
     for (final cat in CatalogDefinitions.categories) {
-      assertAssetExists(reg.resolveCategoryAsset(cat.id), 'cat:${cat.id}');
       for (final sys in cat.directSystems) {
-        checkSys(sys);
+        checkSys('market', sys);
       }
       for (final brand in cat.brands) {
         final brandAsset = reg.resolveBrandAsset(brand.id);
-        assertAssetExists(brandAsset, 'brand:${brand.id}');
+        assertExistingFile(brandAsset, 'brand:${brand.id}');
         expect(
           brandAsset!.startsWith('assets/brands/brand_'),
           isTrue,
           reason: 'Brand ${brand.id} must use manufacturer brand logo asset',
         );
         for (final p in brand.directPatterns) {
-          assertAssetExists(reg.resolvePatternAsset(p.id), 'pat:${p.id}');
+          checkPattern(brand.id, p);
         }
         for (final sys in brand.systems) {
-          checkSys(sys);
+          checkSys(brand.id, sys);
         }
       }
     }
 
+    expect(verifiedPatternCount >= 200, isTrue);
+    for (final e in patternAssetOwners.entries) {
+      expect(
+        e.value.length,
+        1,
+        reason: 'Pattern asset ${e.key} shared across multiple brands: ${e.value}',
+      );
+    }
+
+    int verifiedCutAssets = 0;
+    int verifiedHwAssets = 0;
     for (final tbl in SeedRepository.instance.formulaTables.values) {
       for (final c in tbl.cuts) {
-        assertAssetExists(
-          reg.resolveProfileAsset(code: c.code, name: c.name),
-          'cut:${tbl.key}:${c.code}',
-        );
+        final pAsset = reg.resolveProfileAsset(code: c.code, name: c.name);
+        if (pAsset != null) {
+          verifiedCutAssets++;
+          assertExistingFile(pAsset, 'cut:${tbl.key}:${c.code}');
+        }
       }
       for (final h in tbl.hardware) {
-        assertAssetExists(
-          reg.resolveHardwareAsset(code: h.code, name: h.name),
-          'hw:${tbl.key}:${h.code}|${h.name}',
-        );
+        final hAsset = reg.resolveHardwareAsset(code: h.code, name: h.name);
+        if (hAsset != null) {
+          verifiedHwAssets++;
+          assertExistingFile(hAsset, 'hw:${tbl.key}:${h.code}|${h.name}');
+        }
       }
     }
+    expect(verifiedCutAssets > 1100, isTrue);
+    expect(verifiedHwAssets > 1100, isTrue);
   });
 
   testWidgets('Catalog -> Brand Logos -> Input -> Result renders cleanly on phone & tablet', (tester) async {
@@ -475,23 +532,27 @@ void main() {
     expect(find.text('เลือกแบรนด์และระบบงาน'), findsOneWidget);
     expect(find.byType(BrandLogoPlate), findsNWidgets(6));
 
-    // 2. Verify phone portrait flow through Input -> Result Tabs 1–3
+    // 2. Verify phone portrait flow through ALUMET (Smart X) -> Input -> Result Tabs 1–3
     await tester.binding.setSurfaceSize(const Size(430, 932));
     await tester.pumpAndSettle();
     expect(find.byType(BrandLogoPlate), findsWidgets);
 
-    await tester.tap(find.text('ORM (Asian Trop)'));
+    await tester.tap(find.text('ALUMET (Smart X)'));
+    await tester.pumpAndSettle();
+    expect(find.text('บานเลื่อน Smart X'), findsOneWidget);
+
+    await tester.tap(find.text('บานเลื่อน Smart X'));
     await tester.pumpAndSettle();
     expect(find.byType(AluproThumbnail), findsWidgets);
-
-    await tester.tap(find.text('บานเลื่อน'));
-    await tester.pumpAndSettle();
 
     await tester.tap(find.text('บานเลื่อนสลับ 2 บาน'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('ถัดไป (กรอกขนาดงาน)'));
     await tester.pumpAndSettle();
     expect(find.text('แตะรูปเพื่อขยายดูผังบาน'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -350));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).at(0), '2000');
     await tester.enterText(find.byType(TextField).at(1), '2050');
@@ -504,6 +565,8 @@ void main() {
     expect(find.byType(AluproThumbnail), findsWidgets);
 
     await tester.tap(find.text('จัดเส้น'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -450));
     await tester.pumpAndSettle();
     expect(find.byType(AluproThumbnail), findsWidgets);
   });

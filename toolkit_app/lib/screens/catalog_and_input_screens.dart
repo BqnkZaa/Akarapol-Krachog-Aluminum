@@ -293,6 +293,46 @@ class SubSystemSelectScreen extends StatelessWidget {
     this.targetProjectId,
   });
 
+  ({IconData icon, Color fg, Color bg}) _systemBadgeStyle(SubSystemDef sys) {
+    final t = sys.title;
+    if (t.contains('เลื่อน') || t.contains('200')) {
+      return (
+        icon: Icons.swap_horiz_rounded,
+        fg: const Color(0xFF1E56C5),
+        bg: const Color(0xFFEAF1FE),
+      );
+    }
+    if (t.contains('ประตู') || t.contains('สวิง') || t.contains('250')) {
+      return (
+        icon: Icons.door_front_door_outlined,
+        fg: const Color(0xFFD99014),
+        bg: const Color(0xFFFDF3DF),
+      );
+    }
+    if (t.contains('เฟี้ยม')) {
+      return (
+        icon: Icons.sensor_door_outlined,
+        fg: const Color(0xFFC0425A),
+        bg: const Color(0xFFFAEDEF),
+      );
+    }
+    if (t.contains('ตาย') ||
+        t.contains('ฟิก') ||
+        t.contains('FIX') ||
+        t.contains('ผนังกระจก')) {
+      return (
+        icon: Icons.grid_on_rounded,
+        fg: const Color(0xFF4F46E5),
+        bg: const Color(0xFFEEF2FF),
+      );
+    }
+    return (
+      icon: Icons.window_rounded,
+      fg: const Color(0xFF1F7A5A),
+      bg: const Color(0xFFE7F5EE),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -303,10 +343,23 @@ class SubSystemSelectScreen extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (ctx, i) {
           final sys = systems[i];
+          final badge = _systemBadgeStyle(sys);
           return _NavCard(
             title: sys.title,
             subtitle: sys.subtitle,
-            imageAsset: AluproImageRegistry.instance.resolveSystemAsset(sys.id),
+            leadingWidget: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: sys.enabled ? badge.bg : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                badge.icon,
+                color: sys.enabled ? badge.fg : ToolkitColors.slateMuted,
+                size: 23,
+              ),
+            ),
             enabled: sys.enabled,
             disabledBadge: sys.disabledBadge,
             onTap: () {
@@ -711,7 +764,6 @@ class _NextStickyBar extends StatelessWidget {
 class _NavCard extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final String? imageAsset;
   final Widget? leadingWidget;
   final bool enabled;
   final String? disabledBadge;
@@ -720,7 +772,6 @@ class _NavCard extends StatelessWidget {
   const _NavCard({
     required this.title,
     this.subtitle,
-    this.imageAsset,
     this.leadingWidget,
     this.enabled = true,
     this.disabledBadge,
@@ -744,15 +795,6 @@ class _NavCard extends StatelessWidget {
             if (leadingWidget != null) ...[
               leadingWidget!,
               const SizedBox(width: 14),
-            ] else if (imageAsset != null) ...[
-              AluproThumbnail(
-                assetPath: imageAsset,
-                width: 64,
-                height: 46,
-                enableTapToZoom: false,
-                opacity: enabled ? 1.0 : 0.55,
-              ),
-              const SizedBox(width: 12),
             ],
             Expanded(
               child: Column(

@@ -1,10 +1,3 @@
-class AluproPrefixRule {
-  final String prefix;
-  final String file;
-
-  const AluproPrefixRule({required this.prefix, required this.file});
-}
-
 class AluproKeywordRule {
   final String keywordLower;
   final String file;
@@ -19,13 +12,9 @@ class AluproImageRegistry {
   static const String _assetPrefix = 'assets/alupro/';
 
   String? _glassFile;
-  final Map<String, String> _categories = {};
   final Map<String, String> _brands = {};
-  final Map<String, String> _systems = {};
   final Map<String, String> _patterns = {};
   final Map<String, String> _profiles = {};
-  final List<AluproPrefixRule> _profilePrefixes = [];
-  final List<AluproKeywordRule> _profileRoles = [];
   final Map<String, String> _hardwareCodes = {};
   final List<AluproKeywordRule> _hardwareKeywords = [];
 
@@ -47,40 +36,10 @@ class AluproImageRegistry {
       }
     }
 
-    fillMap(_categories, json['categories']);
     fillMap(_brands, json['brands']);
-    fillMap(_systems, json['systems']);
     fillMap(_patterns, json['patterns']);
     fillMap(_profiles, json['profiles']);
     fillMap(_hardwareCodes, json['hardwareCodes']);
-
-    _profilePrefixes.clear();
-    final rawPrefixes = json['profilePrefixes'];
-    if (rawPrefixes is List) {
-      for (final item in rawPrefixes) {
-        if (item is Map) {
-          final prefix = item['prefix']?.toString() ?? '';
-          final file = item['file']?.toString() ?? '';
-          if (prefix.isNotEmpty && file.isNotEmpty) {
-            _profilePrefixes.add(AluproPrefixRule(prefix: prefix, file: file));
-          }
-        }
-      }
-    }
-
-    _profileRoles.clear();
-    final rawRoles = json['profileRoles'];
-    if (rawRoles is List) {
-      for (final item in rawRoles) {
-        if (item is Map) {
-          final kw = item['kw']?.toString().toLowerCase() ?? '';
-          final file = item['file']?.toString() ?? '';
-          if (kw.isNotEmpty && file.isNotEmpty) {
-            _profileRoles.add(AluproKeywordRule(keywordLower: kw, file: file));
-          }
-        }
-      }
-    }
 
     _hardwareKeywords.clear();
     final rawHwKeywords = json['hardwareKeywords'];
@@ -127,6 +86,47 @@ class AluproImageRegistry {
     'SS-X219': 'assets/profiles/ss_x219.png',
   };
 
+  static final RegExp _thaiCharRegex = RegExp(r'[ก-๙]');
+
+  bool _codeMatchesBrand(String cleanCode, String? brandKey) {
+    if (brandKey == null || brandKey.isEmpty) return true;
+    final upper = cleanCode.toUpperCase();
+    switch (brandKey) {
+      case 'MARKET':
+        return _thaiCharRegex.hasMatch(cleanCode);
+      case 'ORM':
+        return cleanCode.startsWith('8');
+      case 'SCHIMMER':
+        return upper.startsWith('B');
+      case 'ALUMET':
+        return upper.startsWith('SS-') ||
+            upper.startsWith('SC-') ||
+            upper.startsWith('SF-') ||
+            upper.startsWith('SB-') ||
+            upper.startsWith('SO-') ||
+            upper.startsWith('IS-') ||
+            upper.startsWith('IO-') ||
+            upper.startsWith('IC-') ||
+            upper.startsWith('IF-') ||
+            cleanCode == '030038';
+      case 'SMART_PLUS':
+        return cleanCode.startsWith('151') || cleanCode.startsWith('152');
+      case 'UAI':
+        return upper.startsWith('SLI-') || cleanCode == '27490';
+      case 'FUJI':
+        return upper.startsWith('F7');
+      case 'ALUFRAME':
+        return cleanCode.startsWith('156') ||
+            cleanCode.startsWith('159') ||
+            cleanCode.startsWith('160') ||
+            cleanCode == '42029' ||
+            upper.startsWith('A1-') ||
+            upper.startsWith('A2-');
+      default:
+        return false;
+    }
+  }
+
   String? _toAsset(String? file) {
     if (file == null || file.isEmpty) return null;
     if (file.startsWith('assets/')) return file;
@@ -135,49 +135,31 @@ class AluproImageRegistry {
 
   String? get glassAsset => _toAsset(_glassFile);
 
-  String? resolveCategoryAsset(String categoryId) =>
-      _toAsset(_categories[categoryId]);
-
   String? resolveBrandAsset(String brandId) =>
       _toAsset(_brands[brandId] ?? _defaultBrandLogos[brandId]);
-
-  String? resolveSystemAsset(String systemId) => _toAsset(_systems[systemId]);
 
   String? resolvePatternAsset(String patternId) =>
       _toAsset(_patterns[patternId]);
 
-  String? resolveProfileAsset({required String code, String name = ''}) {
+  /// Resolves ONLY exact 1:1 verified profile CAD cross-sections for the matching brand.
+  /// Never falls back across brands, prefixes, or generic role keywords.
+  String? resolveProfileAsset({
+    required String code,
+    String name = '',
+    String? brandKey,
+  }) {
     final clean = code.trim();
-    if (clean.isNotEmpty) {
-      final upper = clean.toUpperCase();
-      final custom = _customProfileOverrides[clean] ?? _customProfileOverrides[upper];
-      if (custom != null) return _toAsset(custom);
+    if (clean.isEmpty) return null;
+    if (!_codeMatchesBrand(clean, brandKey)) return null;
 
-      final direct = _profiles[clean] ?? _profiles[upper];
-      if (direct != null) return _toAsset(direct);
+    final upper = clean.toUpperCase();
+    final custom =
+        _customProfileOverrides[clean] ?? _customProfileOverrides[upper];
+    if (custom != null) return _toAsset(custom);
 
-      if (clean.contains('/')) {
-        for (final part in clean.split('/')) {
-          final trimmed = part.trim();
-          final sub = _profiles[trimmed] ?? _profiles[trimmed.toUpperCase()];
-          if (sub != null) return _toAsset(sub);
-        }
-      }
+    final direct = _profiles[clean] ?? _profiles[upper];
+    if (direct != null) return _toAsset(direct);
 
-      for (final rule in _profilePrefixes) {
-        if (clean.startsWith(rule.prefix) ||
-            upper.startsWith(rule.prefix.toUpperCase())) {
-          return _toAsset(rule.file);
-        }
-      }
-    }
-
-    final hay = '$clean $name'.toLowerCase();
-    for (final rule in _profileRoles) {
-      if (hay.contains(rule.keywordLower)) {
-        return _toAsset(rule.file);
-      }
-    }
     return null;
   }
 

@@ -280,7 +280,11 @@ class _ResultScreenState extends State<ResultScreen>
                             ? 'วัดตามจริง'
                             : 'ตัด ${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม.';
                         final profImg = AluproImageRegistry.instance
-                            .resolveProfileAsset(code: c.code, name: c.name);
+                            .resolveProfileAsset(
+                              code: c.code,
+                              name: c.name,
+                              brandKey: out.priceBrandKey,
+                            );
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 5),
                           child: Row(
@@ -447,6 +451,7 @@ class _ResultScreenState extends State<ResultScreen>
             final profImg = AluproImageRegistry.instance.resolveProfileAsset(
               code: g.code,
               name: g.combinedNames,
+              brandKey: g.brand,
             );
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
@@ -704,6 +709,7 @@ class ProfileBarGroupCard extends StatelessWidget {
     final profImg = AluproImageRegistry.instance.resolveProfileAsset(
       code: group.code,
       name: group.combinedNames,
+      brandKey: group.brand,
     );
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1250,6 +1256,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     AluproImageRegistry.instance.resolveProfileAsset(
                   code: g.code,
                   name: g.combinedNames,
+                  brandKey: g.brand,
                 );
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1773,6 +1780,7 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                           AluproImageRegistry.instance.resolveProfileAsset(
                         code: s.code,
                         name: s.name,
+                        brandKey: s.brand,
                       );
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),

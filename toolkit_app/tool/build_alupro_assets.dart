@@ -9,11 +9,13 @@ import 'package:toolkit_app/models/app_models.dart';
 
 const String _outputsDir =
     r'C:\Users\ayumg\.gemini\antigravity\brain\e96a7de5-9a54-42b4-b7f2-ed54af4f20d0\browser_sandbox\outputs';
+const String _backupAssetsDir =
+    r'C:\Users\ayumg\.gemini\antigravity\brain\0d53fa8f-761f-439c-a650-e88e0e13a265\scratch\alupro_existing_backup';
 const String _glassDownloadPath =
     r'C:\Users\ayumg\.gemini\antigravity\brain\0d53fa8f-761f-439c-a650-e88e0e13a265\browser_sandbox\downloads\glass.jpg';
 
 const List<int> _processStepNums = [
-  241, 243, 245, 250, 252, 256, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 282,
+  245, 250, 252, 256, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 282, 379,
 ];
 const List<int> _homeStepNums = [
   289, 291, 293, 295, 297, 299, 301, 303, 305, 307, 309, 311, 313, 315, 317, 319, 324, 326, 328, 330, 332,
@@ -45,13 +47,102 @@ Uint8List _decodeDataUri(String dataUri) {
   return base64Decode(b64.replaceAll(RegExp(r'\s+'), ''));
 }
 
+/// Finds a clean pure-white horizontal row separating the window/door diagram
+/// from the bottom brand/series watermark strip, wipes everything below that row
+/// to `#FFFFFF`, and composites the official ALUMET or ICONIQ badge cleanly.
+img.Image _rebrandAlumetPatternDiagram({
+  required img.Image source,
+  required img.Image badgeCrop,
+  required int badgeDstX,
+  required int badgeDstY,
+}) {
+  // Normalize canvas to 240x168 white if source width differs (e.g. 195x168)
+  final canvas = img.Image(width: 240, height: 168);
+  img.fill(canvas, color: img.ColorRgb8(255, 255, 255));
+
+  // Find white separator row in source between y=112..148
+  int? splitY;
+  for (int y = 112; y <= 148 && y < source.height; y++) {
+    bool allWhite = true;
+    for (int x = 0; x < source.width; x++) {
+      final p = source.getPixel(x, y);
+      if (p.r < 242 || p.g < 242 || p.b < 242) {
+        allWhite = false;
+        break;
+      }
+    }
+    if (allWhite) {
+      splitY = y;
+      break;
+    }
+  }
+  if (splitY == null) {
+    throw StateError(
+      'Could not find pure-white separator row between diagram and watermark (${source.width}x${source.height})',
+    );
+  }
+
+  final offsetX = ((240 - source.width) / 2).round();
+  for (int y = 0; y < splitY; y++) {
+    for (int x = 0; x < source.width; x++) {
+      final dx = x + offsetX;
+      if (dx >= 0 && dx < 240) {
+        final p = source.getPixel(x, y);
+        canvas.setPixelRgb(dx, y, p.r, p.g, p.b);
+      }
+    }
+  }
+
+  // Copy badgeCrop into bottom-right
+  for (int y = 0; y < badgeCrop.height; y++) {
+    final dy = badgeDstY + y;
+    if (dy < 0 || dy >= 168) continue;
+    for (int x = 0; x < badgeCrop.width; x++) {
+      final dx = badgeDstX + x;
+      if (dx < 0 || dx >= 240) continue;
+      final p = badgeCrop.getPixel(x, y);
+      canvas.setPixelRgb(dx, dy, p.r, p.g, p.b);
+    }
+  }
+  return canvas;
+}
+
 void main() async {
   final rawImagesByHash = <String, Uint8List>{};
   final processCodeToHash = <String, String>{};
   final homeItems = <Map<String, dynamic>>[];
   final jidToHash = <String, String>{};
 
-  // 1. Load all extracted process.php outputs (CAD profile cross-sections + hardware photos)
+  // 0. Seed rawImagesByHash from existing assets/alupro and backup folder so
+  //    earlier step_241 / step_243 (ชุดตลาด) CAD & hardware JPEGs are preserved!
+  for (final dirPath in [_backupAssetsDir, 'assets/alupro']) {
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) continue;
+    for (final f in dir.listSync().whereType<File>()) {
+      final name = f.uri.pathSegments.last;
+      if (!name.endsWith('.jpg') || name == 'glass.jpg') continue;
+      final stem = name.substring(0, name.length - 4);
+      if (stem.contains('_')) continue; // skip stamped variants
+      final bytes = f.readAsBytesSync();
+      if (bytes.length > 500) {
+        rawImagesByHash.putIfAbsent(stem, () => bytes);
+      }
+    }
+  }
+
+  // 1. Load extracted process.php outputs (ONLY exact 1:1 profile CAD cross-sections)
+  const nonProfileHardwareWords = {
+    'Anti-Strike',
+    'Anti-Theft',
+    'Auxiliary',
+    'Spigot',
+    'CDQ20',
+  };
+  final gluedRodRegex = RegExp(r'^([0-9]{5})(?:Transmission|Connecting)\b');
+  final codeRegex = RegExp(
+    r'^([A-Za-z0-9]+(?:-[A-Za-z0-9.]+)*)\s*[ก-๙A-Za-z(]',
+  );
+
   for (final step in _processStepNums) {
     final f = File('$_outputsDir/step_$step.json');
     if (!f.existsSync()) {
@@ -67,25 +158,32 @@ void main() async {
       }
     }
     final rows = (val['rows'] as List<dynamic>?) ?? [];
-    final codeRegex = RegExp(
-      r'^([A-Za-z0-9]+(?:-[A-Za-z0-9.]+)*)\s*[ก-๙A-Za-z(]',
-    );
     for (final r in rows) {
       final m = r as Map<String, dynamic>;
       final h = (m['imgHash'] as String? ?? '').trim();
       final rawText = (m['rawText'] as String? ?? '').trim();
       if (h.isEmpty || !rawImagesByHash.containsKey(h)) continue;
-      final match = codeRegex.firstMatch(rawText);
-      if (match != null) {
-        final code = match.group(1)!.trim();
-        if (code.length >= 4 && !code.startsWith('ขนาด')) {
-          processCodeToHash.putIfAbsent(code, () => h);
+
+      String? extractedCode;
+      final rodMatch = gluedRodRegex.firstMatch(rawText);
+      if (rodMatch != null) {
+        extractedCode = rodMatch.group(1)!.trim();
+      } else {
+        final match = codeRegex.firstMatch(rawText);
+        if (match != null) {
+          extractedCode = match.group(1)!.trim();
         }
+      }
+      if (extractedCode != null &&
+          extractedCode.length >= 4 &&
+          !extractedCode.startsWith('ขนาด') &&
+          !nonProfileHardwareWords.contains(extractedCode)) {
+        processCodeToHash.putIfAbsent(extractedCode, () => h);
       }
     }
   }
 
-  // 2. Load all extracted home.php outputs (Window/Door/Folding/Shower pattern diagrams)
+  // 2. Load extracted home.php outputs (Window/Door/Folding pattern diagrams)
   for (final step in _homeStepNums) {
     final f = File('$_outputsDir/step_$step.json');
     if (!f.existsSync()) {
@@ -115,7 +213,7 @@ void main() async {
   }
 
   print('Loaded ${rawImagesByHash.length} valid unique AluProSmart images.');
-  print('Auto-detected ${processCodeToHash.length} direct profile CAD codes & ${jidToHash.length} pattern jids.');
+  print('Exact verified profile CAD codes: ${processCodeToHash.length}; pattern jids: ${jidToHash.length}.');
 
   final missingJids = <String>{};
   String jidHash(String jid) {
@@ -127,14 +225,17 @@ void main() async {
     return h;
   }
 
-  // Parse all folding diagrams from homeItems (g08b01, u09b01, g04b01, u04b01, g02b01, u06b01, u08b01)
+  // Parse all folding diagrams from homeItems (strictly skipping AluProSmart's
+  // mislabeled g04b0105 / g04b0106 which contain '240-3R' inside the image!)
+  const mislabeledAluproFoldingJids = {'g04b0105', 'g04b0106'};
   final foldingEntries = <_FoldingDiagramEntry>[];
   for (final it in homeItems) {
     final cat = it['cat'] as String? ?? '';
     if (!cat.contains('b0')) continue;
+    final jid = it['jid'] as String? ?? '';
+    if (mislabeledAluproFoldingJids.contains(jid)) continue;
     final name = it['name'] as String? ?? '';
     final hash = it['hash'] as String;
-    final jid = it['jid'] as String? ?? '';
 
     int? n, l, r;
     final hyphenMatch = RegExp(r'(\d{1,2})-(\d{1,2})-(\d{1,2})').firstMatch(name);
@@ -178,65 +279,27 @@ void main() async {
       );
     }
   }
-  print('Parsed ${foldingEntries.length} folding diagrams across brands.');
+  print('Parsed ${foldingEntries.length} verified folding diagrams across brands.');
 
-  String resolveFoldingHash(String family, int n, int l, int r) {
+  // STRICT SAME-BRAND & EXACT (n, l, r) ONLY! Zero cross-brand or mirror borrowing!
+  String? resolveFoldingHash(String family, int n, int l, int r) {
     final preferredCat = switch (family) {
       'orm90' || 'orm101' => 'g08b01',
       'fuji_std' || 'fuji_u' => 'u09b01',
       'sch240' => 'g04b01',
       'sp_fold' => 'u04b01',
       'alu_fold' => 'g02b01',
-      _ => 'g08b01',
+      _ => '',
     };
+    if (preferredCat.isEmpty) return null;
 
-    // 1. Exact (n, l, r) in brand's own category
     for (final e in foldingEntries) {
       if (e.cat == preferredCat && e.n == n && e.l == l && e.r == r) {
         return e.hash;
       }
     }
-    // 2. Mirror (n, r, l) in brand's own category
-    for (final e in foldingEntries) {
-      if (e.cat == preferredCat && e.n == n && e.l == r && e.r == l) {
-        return e.hash;
-      }
-    }
-    // 3. Exact (n, l, r) across any extracted folding category
-    const fallbackOrder = ['u09b01', 'g08b01', 'u04b01', 'g02b01', 'g04b01', 'u06b01', 'u08b01'];
-    for (final cat in fallbackOrder) {
-      for (final e in foldingEntries) {
-        if (e.cat == cat && e.n == n && e.l == l && e.r == r) {
-          return e.hash;
-        }
-      }
-    }
-    // 4. Mirror (n, r, l) across any folding category
-    for (final cat in fallbackOrder) {
-      for (final e in foldingEntries) {
-        if (e.cat == cat && e.n == n && e.l == r && e.r == l) {
-          return e.hash;
-        }
-      }
-    }
-    // 5. Same total panel count n in brand's own category or any category
-    for (final e in foldingEntries) {
-      if (e.cat == preferredCat && e.n == n) return e.hash;
-    }
-    for (final e in foldingEntries) {
-      if (e.n == n) return e.hash;
-    }
-    return jidHash('g08b0104');
+    return null;
   }
-
-  // 3. Category & Brand & Pattern Image Mapping via exact AluProSmart jid
-  final categoryHashes = <String, String>{
-    'cat1_market': jidHash('g01s0101'),
-    'cat2_pattana': jidHash('g08s0201'),
-    'cat3_euro': jidHash('g08s0105'),
-    'cat4_folding': jidHash('g08b0104'),
-    'cat5_shower': jidHash('g01g0201'),
-  };
 
   final brandAssets = <String, String>{
     'c2_orm': 'assets/brands/brand_orm.png',
@@ -262,16 +325,15 @@ void main() async {
     'c5_rp_dis': 'assets/brands/brand_rp.png',
   };
 
+  // STRICT 100% SAME-BRAND & EXACT-LAYOUT PATTERN JIDs ONLY!
   final explicitPatternJids = <String, String>{
-    // Category 1: ชุดตลาด
+    // Category 1: ชุดตลาด (g01* ONLY)
     'c1_pat_s2_alt': 'g01s0101',
     'c1_pat_s2_1s1f': 'g01s0116',
     'c1_pat_s4_ctr': 'g01s0201',
     'c1_dis_s3': 'g01s0301',
     'c1_dis_s2_top': 'g01s0105',
     'c1_dis_s2_bot': 'g01s0103',
-    'c1_dis_1s1f_top': 'g01s0109',
-    'c1_dis_1s1f_bot': 'g01s0110',
     'c1_dis_s4_top': 'g01s0203',
     'c1_dis_s4_bot': 'g01s0204',
     'c1_pat_swing1': 'g01w0101',
@@ -281,7 +343,7 @@ void main() async {
     'c1_pat_union_case1': 'g01c0126',
     'c1_pat_union_awn1': 'g01c0104',
 
-    // Category 2: ORM (Asian Trop)
+    // Category 2: ORM Asian Trop (g08* ONLY)
     'c2_orm_s2_card': 'g08s0201',
     'c2_orm_s2_top_card': 'g08s0403',
     'c2_orm_s2_bot_card': 'g08s0407',
@@ -289,7 +351,6 @@ void main() async {
     'c2_orm_s4_top_card': 'g08s0411',
     'c2_orm_s4_bot_card': 'g08s0415',
     'c2_orm_case1_card': 'g08c0101',
-    'c2_orm_case1_top_card': 'g08c0107',
     'c2_orm_case1_bot_card': 'g08c0106',
     'c2_orm_case_div2_card': 'g08c0102',
     'c2_orm_case_div3_card': 'g08c0109',
@@ -297,9 +358,8 @@ void main() async {
     'c2_orm_fix1_card': 'g08f0101',
     'c2_orm_wood1_card': 'g08o0101',
     'c2_orm_wood2_dis': 'g08o0102',
-    'c2_orm_wood_top_dis': 'g08o0111',
 
-    // Category 2: SMS SCHIMMER
+    // Category 2: SMS SCHIMMER (g04* ONLY)
     'c2_sch_200_001_card': 'g04s0201',
     'c2_sch_200_002_card': 'g04s0202',
     'c2_sch_200_004_card': 'g04s0205',
@@ -316,18 +376,12 @@ void main() async {
     'c2_sch_260_fm_card': 'g04c0202',
     'c2_sch_260_nm_card': 'g04c0204',
 
-    // Category 2: ALUMET Smart X
+    // Category 2: ALUMET Smart X (g02* ONLY — normalized with pure ALUMET logo!)
     'c2_alu_s2_card': 'g02s0104',
     'c2_alu_s2_top_card': 'g02s0308',
     'c2_alu_s3_card': 'g02s0201',
-    'c2_alu_s3_top_card': 'g02s0309',
-    'c2_alu_s4_card': 'g02s0105',
+    'c2_alu_s4_card': 'g02s0101',
     'c2_alu_s4_top_card': 'g02s0102',
-    'c2_alu_corner22_card': 'g04s0211',
-    'c2_alu_corner23_card': 'g04s0213',
-    'c2_alu_corner32_card': 'g04s0213',
-    'c2_alu_corner33_card': 'g04s0214',
-    'c2_alu_hang_dis': 'g01h0101',
     'c2_alu_win1_card': 'g02c0201',
     'c2_alu_win3_card': 'g02c0207',
     'c2_alu_win4_card': 'g02c0101',
@@ -340,33 +394,25 @@ void main() async {
     'c2_alu_fix2_dis': 'g02f0102',
     'c2_alu_fix3_dis': 'g02f0103',
 
-    // Category 2: SMART PLUS Semi Euro
+    // Category 2: SMART PLUS Semi Euro (u04* ONLY)
     'c2_sp_s2_card': 'u04s0103',
     'c2_sp_s4_card': 'u04s0104',
     'c2_sp_s3_card': 'u04s0101',
     'c2_sp_s2_sec_card': 'u04s0103',
-    'c2_sp_more_dis': 'u04s0102',
     'c2_sp_case1_card': 'u04c0201',
-    'c2_sp_case1_top_card': 'u04c0109',
     'c2_sp_awn1_card': 'u04c0101',
-    'c2_sp_awn1_top_card': 'u04c0109',
 
-    // Category 2: UAI Super Frame
+    // Category 2: UAI Super Frame (u06* ONLY)
     'c2_uai_s2_card': 'u06s0101',
     'c2_uai_s3_dis': 'u06s0205',
     'c2_uai_s4_card': 'u06s0201',
-    'c2_uai_s6_card': 'u08s0304',
     'c2_uai_24_1': 'u06c0101',
     'c2_uai_24_2': 'u06c0201',
     'c2_uai_24_3': 'u06c0209',
-    'c2_uai_25_1': 'u09f0101',
-    'c2_uai_25_2': 'u09f0102',
-    'c2_uai_25_3': 'u09f0103',
     'c2_uai_25_4': 'u06s0102',
     'c2_uai_25_5': 'u06s0103',
-    'c2_uai_25_6': 'g08s0421',
 
-    // Category 3: ORM Pano Suit
+    // Category 3: ORM Pano Suit (g08* ONLY)
     'c3_orm_s2_card': 'g08s0105',
     'c3_orm_s3_card': 'g08s0104',
     'c3_orm_s4_ctr_card': 'g08s0102',
@@ -376,9 +422,8 @@ void main() async {
     'c3_orm_awn1_card': 'g08c0202',
     'c3_orm_awn2_dis': 'g08c0102',
 
-    // Category 3: Fuji Eurotech
+    // Category 3: Fuji Eurotech (u09* ONLY)
     'c3_fuji_s2_card': 'u09s0101',
-    'c3_fuji_s2_1s1f_card': 'u09s0101',
     'c3_fuji_s3_card': 'u09s0105',
     'c3_fuji_s4_ctr_card': 'u09s0102',
     'c3_fuji_4t_int_card': 'u09s0106',
@@ -386,53 +431,33 @@ void main() async {
     'c3_fuji_s4_2t_card': 'u09s0102',
     'c3_fuji_s4_3t_card': 'u09s0104',
     'c3_fuji_s5_card': 'u09s0107',
-    'c3_fuji_dis_1': 'u06s0102',
-    'c3_fuji_dis_2': 'u06s0103',
-    'c3_fuji_dis_3': 'g08s0502',
-    'c3_fuji_dis_4': 'g08s0407',
-    'c3_fuji_dis_5': 'u06s0202',
-    'c3_fuji_dis_6': 'u06s0203',
-    'c3_fuji_dis_7': 'g08s0421',
-    'c3_fuji_dis_8': 'g08s0421',
-    'c3_fuji_dis_9': 'g04s0211',
-    'c3_fuji_dis_10': 'g04s0213',
     'c3_fuji_w1_card': 'u09c0101',
     'c3_fuji_w2_card': 'u09c0102',
     'c3_fuji_w1_mosq_card': 'u09c0201',
     'c3_fuji_w1_bot_card': 'u09c0111',
     'c3_fuji_w2_bot_card': 'u09c0112',
     'c3_fuji_d_dis1': 'u09o0101',
-    'c3_fuji_d_dis2': 'g02o0105',
-    'c3_fuji_d_dis3': 'u06o0102',
-    'c3_fuji_d_dis4': 'g02o0109',
-    'c3_fuji_d_dis5': 'g02o0103',
-    'c3_fuji_d_dis6': 'g02o0111',
     'c3_fuji_f_dis1': 'u09f0101',
     'c3_fuji_f_dis2': 'u09f0102',
     'c3_fuji_f_dis3': 'u09f0103',
     'c3_fuji_f_dis4': 'u09f0104',
-    'c3_fuji_f_dis5': 'g01f0146',
 
-    // Category 3: ALUMET Iconiq Euro
+    // Category 3: ALUMET Iconiq Euro (g02* ONLY — normalized with ALUMET ICONIQ EURO SERIES!)
     'c3_alu_s2_card': 'g02s0301',
     'c3_alu_s2_in_mosq_card': 'g02s0203',
     'c3_alu_s2_top_card': 'g02s0308',
     'c3_alu_s3_card': 'g02s0302',
     'c3_alu_s4_ctr_card': 'g02s0303',
     'c3_alu_s4_ctr_top_card': 'g02s0306',
-    'c3_alu_s4_1w_card': 'u09s0106',
-    'c3_alu_s4_1w_top_card': 'g02s0306',
-    'c3_alu_s6_corner_dis': 'g04s0214',
     'c3_alu_awn1_card': 'g02c0101',
     'c3_alu_awn1_bot_card': 'g02c0111',
     'c3_alu_case1_card': 'g02c0201',
-    'c3_alu_case2_card': 'g02c0202',
     'c3_alu_d1_card': 'g02o0101',
     'c3_alu_d2_card': 'g02o0105',
     'c3_alu_fix1_dis': 'g02f0101',
     'c3_alu_fix2_dis': 'g02f0102',
 
-    // Category 3: SMART PLUS Euro
+    // Category 3: SMART PLUS Euro (u04* ONLY)
     'c3_sp_s2_2t_card': 'u04s0201',
     'c3_sp_s4_2t_card': 'u04s0202',
     'c3_sp_s2_3t_45_card': 'u04s0201',
@@ -441,26 +466,18 @@ void main() async {
     'c3_sp_s4_4t_card': 'u04s0202',
     'c3_sp_s2_3t_sec_card': 'u04s0201',
     'c3_sp_s4_3t_sec_card': 'u04s0202',
-    'c3_sp_corner_dis': 'g04s0211',
     'c3_sp_90_s2_card': 'u04s0204',
-    'c3_sp_90_s2_top_card': 'u08s0109',
     'c3_sp_90_s3_card': 'u04s0203',
-    'c3_sp_90_s3_top_card': 'g08s0502',
     'c3_sp_90_s4_card': 'u04s0205',
-    'c3_sp_90_s4_top_card': 'u08s0117',
-    'c3_sp_win1_top_card': 'u08c0403',
     'c3_sp_win2_card': 'u04c0202',
-    'c3_sp_win2_top_card': 'u06c0206',
     'c3_sp_w_sec1_dis': 'u04c0201',
     'c3_sp_w_sec2_dis': 'u04c0202',
     'c3_sp_w_sec3_dis': 'u04c0101',
     'c3_sp_w_fix_dis': 'u04f0102',
     'c3_sp_door1_card': 'u04o0105',
     'c3_sp_door2_card': 'u04o0103',
-    'c3_sp_door1_top_dis': 'u06o0102',
-    'c3_sp_door2_top_dis': 'g08o0111',
 
-    // Category 3: ALUFRAME Euro
+    // Category 3: ALUFRAME Euro (u08* ONLY)
     'c3_af_s2_card': 'u08s0301',
     'c3_af_s3_card': 'u08s0303',
     'c3_af_s4_ctr_card': 'u08s0302',
@@ -474,86 +491,139 @@ void main() async {
     'c3_af_awn2_card': 'u08c0309',
     'c3_af_awn2_top_card': 'u08c0311',
 
-    // Category 4: Non-parametric Schimmer & SmartPlus corner disabled cards
+    // Category 4: SMS SCHIMMER Folding (g04* ONLY — verified exact panel labels)
     'c4_sch_2l_card': 'g04b0101',
-    'c4_sch_3_1l2r_card': 'g04b0105',
     'c4_sch_3_3l_card': 'g04b0103',
     'c4_sch_4_1l3r_card': 'g04b0109',
     'c4_sch_4_2l2r_card': 'g04b0111',
     'c4_sch_4_4l_card': 'g04b0107',
-    'fold_sp_corner_1': 'g04s0211',
-    'fold_sp_corner_2': 'g04s0212',
   };
 
-  // Walk the entire CatalogDefinitions tree to populate ALL patternHashes & systemHashes
-  final patternHashes = <String, String>{};
-  final systemHashes = <String, String>{
-    'c1_sys_fixed': jidHash('g01f0102'),
-    'c2_uai_doors': jidHash('u06o0101'),
-    'c3_orm_fixed_dis': jidHash('g08f0101'),
-    'c3_orm_cw_dis': jidHash('g08f0115'),
-    'c3_fuji_wood_dis': jidHash('u09o0101'),
-  };
+  // Enforce compile-time brand-prefix guard on every explicit JID!
+  String expectedJidPrefixForBrand(String brandId) {
+    if (brandId == 'market') return 'g01';
+    if (brandId.contains('orm')) return 'g08';
+    if (brandId.contains('schimmer')) return 'g04';
+    if (brandId.contains('alumet')) return 'g02';
+    if (brandId.contains('smartplus')) return 'u04';
+    if (brandId.contains('uai')) return 'u06';
+    if (brandId.contains('fuji')) return 'u09';
+    if (brandId.contains('aluframe')) return 'u08';
+    throw StateError('Unknown brandId: $brandId');
+  }
 
-  void registerPattern(PatternCardDef p) {
+  // Extract official ALUMET & ALUMET ICONIQ EURO SERIES watermark crops
+  final alumetRefImg = img.decodeImage(rawImagesByHash[jidHash('g02s0101')]!)!;
+  final alumetBadgeCrop = img.copyCrop(
+    alumetRefImg,
+    x: 142,
+    y: 135,
+    width: 98,
+    height: 33,
+  );
+  final iconiqRefImg = img.decodeImage(rawImagesByHash[jidHash('g02s0301')]!)!;
+  final iconiqBadgeCrop = img.copyCrop(
+    iconiqRefImg,
+    x: 84,
+    y: 135,
+    width: 156,
+    height: 33,
+  );
+
+  final patternFiles = <String, String>{};
+  final referencedPlainHashes = <String>{};
+  final generatedCustomJpegs = <String, Uint8List>{};
+
+  String registerAlumetVariant(String rawHash, {required bool isIconiq}) {
+    final variantKey = isIconiq ? '${rawHash}_iconiq' : '${rawHash}_alumet';
+    final fileName = '$variantKey.jpg';
+    if (!generatedCustomJpegs.containsKey(fileName)) {
+      final src = img.decodeImage(rawImagesByHash[rawHash]!)!;
+      final stamped = _rebrandAlumetPatternDiagram(
+        source: src,
+        badgeCrop: isIconiq ? iconiqBadgeCrop : alumetBadgeCrop,
+        badgeDstX: isIconiq ? 84 : 142,
+        badgeDstY: 135,
+      );
+      generatedCustomJpegs[fileName] = Uint8List.fromList(
+        img.encodeJpg(stamped, quality: 88),
+      );
+    }
+    return fileName;
+  }
+
+  void registerPattern(String brandId, PatternCardDef p) {
+    final expPrefix = expectedJidPrefixForBrand(brandId);
+    String? resolvedHash;
     if (explicitPatternJids.containsKey(p.id)) {
-      patternHashes[p.id] = jidHash(explicitPatternJids[p.id]!);
+      final jid = explicitPatternJids[p.id]!;
+      if (!jid.startsWith(expPrefix)) {
+        throw StateError(
+          'CROSS-BRAND VIOLATION: ${p.id} in $brandId mapped to $jid (expected $expPrefix*)',
+        );
+      }
+      resolvedHash = jidHash(jid);
     } else if (p.foldingFamily != null &&
         p.foldingTotalPanels != null &&
         p.foldingLeftPanels != null &&
         p.foldingRightPanels != null) {
-      patternHashes[p.id] = resolveFoldingHash(
+      resolvedHash = resolveFoldingHash(
         p.foldingFamily!,
         p.foldingTotalPanels!,
         p.foldingLeftPanels!,
         p.foldingRightPanels!,
       );
+    }
+
+    if (resolvedHash == null || resolvedHash.isEmpty) {
+      return; // Cleanly omit thumbnail when brand lacks this exact diagram
+    }
+
+    if (brandId == 'c2_alumet' || brandId == 'c4_alumet_fold') {
+      patternFiles[p.id] = registerAlumetVariant(resolvedHash, isIconiq: false);
+    } else if (brandId == 'c3_alumet_iconiq') {
+      patternFiles[p.id] = registerAlumetVariant(resolvedHash, isIconiq: true);
     } else {
-      throw StateError('Unmapped PatternCardDef: ${p.id} (${p.title})');
+      referencedPlainHashes.add(resolvedHash);
+      patternFiles[p.id] = '$resolvedHash.jpg';
     }
   }
 
-  void registerSystem(SubSystemDef sys) {
+  void walkSystem(String brandId, SubSystemDef sys) {
     for (final p in sys.patterns) {
-      registerPattern(p);
+      registerPattern(brandId, p);
     }
     for (final tab in sys.subTabs) {
-      registerSystem(tab);
-    }
-    if (!systemHashes.containsKey(sys.id)) {
-      if (sys.patterns.isNotEmpty) {
-        systemHashes[sys.id] = patternHashes[sys.patterns.first.id]!;
-      } else if (sys.subTabs.isNotEmpty && sys.subTabs.first.patterns.isNotEmpty) {
-        systemHashes[sys.id] = patternHashes[sys.subTabs.first.patterns.first.id]!;
-      }
+      walkSystem(brandId, tab);
     }
   }
 
   for (final cat in CatalogDefinitions.categories) {
-    if (!categoryHashes.containsKey(cat.id)) {
-      throw StateError('Unmapped CategoryDef: ${cat.id}');
-    }
     for (final sys in cat.directSystems) {
-      registerSystem(sys);
+      walkSystem('market', sys);
     }
     for (final brand in cat.brands) {
       if (!brandAssets.containsKey(brand.id)) {
         throw StateError('Unmapped BrandDef: ${brand.id}');
       }
       for (final p in brand.directPatterns) {
-        registerPattern(p);
+        registerPattern(brand.id, p);
       }
       for (final sys in brand.systems) {
-        registerSystem(sys);
+        walkSystem(brand.id, sys);
       }
     }
   }
 
-  // 4. Profile CAD Cross-Section Map (Direct + Sister Variants + Market Thai Roles)
+  // 4. STRICT 1:1 Profile CAD Cross-Sections ONLY!
+  //    (Exact AluProSmart codes + verified customer overrides + Cat 1 ชุดตลาด standard profiles)
   final profileCodeHashes = <String, String>{
     ...processCodeToHash,
 
-    // Market (ชุดตลาด) Thai descriptive codes
+    // Verified customer CAD overrides
+    'SS-X219': 'assets/profiles/ss_x219.png',
+
+    // Category 1 (ชุดตลาด) standard generic Thai profile names ONLY
     'เฟรมบนไม่ติดกล่อง': 'ce723f4b',
     'เฟรมล่างไม่ติดกล่อง': 'fdc611ed',
     'เฟรมข้างไม่ติดกล่อง': '322020dc',
@@ -568,7 +638,6 @@ void main() async {
     'ขวางบน / ขวางล่าง': 'bd4877e5',
     'กรอบบานขวางล่าง': '20474a68',
     'ฉากข้อต่อ': '3c052cea',
-    'ฉากประกอบบานหลัก 6 มม.': '3c052cea',
     'กล่องเรียบ': '13596996',
     'กล่องเรียบแนวตั้ง': '13596996',
     'กล่องเรียบแนวขวางล่าง': '13596996',
@@ -591,237 +660,9 @@ void main() async {
     'กรอบนอกยูเนี่ยน': '2cfa5183',
     'กรอบในยูเนี่ยน': '2fe28be0',
     'คิ้วยูเนี่ยน': '68b6b5fd',
-
-    // ORM sister variants & descriptive codes
-    '801-01': '51f67a71',
-    '801-05': 'b1fdd5d1',
-    '801-23': 'b1585ca3',
-    '801-25': '8bc440e6',
-    '801-27': 'd7eda83e',
-    '801-28': '42281481',
-    '803-05': '6be7223a',
-    '803-06': '7f6e8434',
-    '803-07': '494c4785',
-    '803-08': '494c4785',
-    '803-10': '19f42d81',
-    '803-17': '494c4785',
-    'รอยืนยัน': '494c4785',
-    '804-20': '2b5e8698',
-    '811-13': '9df04014',
-    '812-11': '60f41ccb',
-    'คิ้วบานยูโร · เลือกตามชุด (812-10 / 812-11)': '60f41ccb',
-    'กรอบบานเฟี้ยมมาตรฐาน': '7fca1b97',
-    '805-11': '25a63e03',
-    '805-12': 'db6f131f',
-    '805-13': '7537f9ff',
-    '805-14': '94b78c45',
-    'เส้น C-กรุ๊ฟ': '9ace630c',
-    'เส้นซีกรุฟ (C-Groove)': '9ace630c',
-
-    // SMS SCHIMMER sister variants
-    'B20014': '47603309',
-    'B20016': '47603309',
-    'B20020': '27b8c312',
-    'B30006': 'b5aa1807',
-    'B26003': 'b3e11316',
-    'B10002': '81f41889',
-    'B10003': '399fffcf',
-    'B10004': '81f41889',
-    'B10010': '399fffcf',
-    'B10016': '7345e974',
-    'B10019': '7345e974',
-    'B10023': '7345e974',
-
-    // ALUMET Smart X & Iconiq sister variants
-    'SS-X101': '463e473d',
-    'SS-X104': '463e473d',
-    'SS-X105': '6e502055',
-    'SS-X106': '6e502055',
-    'SS-X107': 'c270ebc2',
-    'SS-X107 / SS-0120': 'c270ebc2',
-    'SS-X109': '463e473d',
-    'SS-X110': '463e473d',
-    'SS-X111': '0ca0c2f7',
-    'SS-X212': 'ded15733',
-    'SS-X213': 'a6b5c2b2',
-    'SS-X214': 'a6b5c2b2',
-    'SS-X216': '5aca9cf2',
-    'SS-X217': 'c8eed1e0',
-    'SS-X219': 'assets/profiles/ss_x219.png',
-    'SS-0141': 'a6b5c2b2',
-    'SC-X104': 'f14db19f',
-    'SC-X106': '2b04e9c6',
-    'SC-X107': 'f14db19f',
-    'SC-X108': '2b04e9c6',
-    'SC-X204': '2df967cb',
-    'SC-0212': '2b04e9c6',
-    'SO-X201': '2df967cb',
-    'SF-X105': '3fd1cdb5',
-    'SF-X108': '3fd1cdb5',
-    'SF-X109': 'f14db19f',
-    'SF-X110': 'f14db19f',
-    'SF-X111': '3fd1cdb5',
-    'iC-0101': 'a0c1bce1',
-    'iC-0102': 'a0c1bce1',
-    'iC-0107': 'a0c1bce1',
-    'iC-0108': 'a0c1bce1',
-    'iC-0201': 'aef67579',
-    'iF-0101': 'a0c1bce1',
-    'iF-0102': 'a0c1bce1',
-    'iF-0104': 'a1220bab',
-    'iS-0113': '53aaea59',
-    'iS-0116': '30b11915',
-    'iS-0201': '1dcc50a7',
-    'iS-0202': '373eac56',
-    'iS-0205': '1dcc50a7',
-    'SB-0101': '74bdc4bc',
-    'SB-0103': '0432ce65',
-    'SB-0105': 'd8833d5c',
-    'SB-0108': 'f28f221b',
-    'SB-0109': '69aafbc1',
-    'SB-0113': 'e874a7b3',
-    'SB-0114': 'fc51c5cb',
-    'SB-0115': '0432ce65',
-    'SB-0116': '0432ce65',
-    'SB-0117': 'e874a7b3',
-
-    // SMART PLUS sister variants
-    '15107': '7300ca95',
-    '15111': '2c7f0014',
-    '15117': 'f29b54fd',
-    '15124': '80e30949',
-    '15128': '9889fac0',
-    '15131': 'b226e534',
-    '15132': '6db307c3',
-    '15133': 'a4362899',
-    '15138': 'ddcc64c6',
-    '15140': '8505ef5c',
-    '15141': 'a9ecf803',
-    '15142': 'e55d9f10',
-    '15143': 'b226e534',
-    '15145': 'a4362899',
-    '15155': 'b226e534',
-    '15159': 'f1248b70',
-    '15160': '80e30949',
-    '15162': '9343d9b8',
-    '15163': 'f1248b70',
-    '15177': 'e874a7b3',
-    '15178': 'e874a7b3',
-    '15179': '11e8d959',
-    '15181': 'e874a7b3',
-    '15182': '9343d9b8',
-    '15183': '2f350747',
-    '15190': '9343d9b8',
-    '15191': '80e30949',
-    '15192': '6db307c3',
-    '15212': '80e30949',
-    '23 มม. ×4 ต่อมุ้ง · เส้น 6000 มม. · ใบตัด 4 มม./ครั้ง': '3c052cea',
-
-    // UAI sister variants
-    'SLI-32019': '149d1b26',
-    'SLI-30756': '0e103c0b',
-    'SLI-30753': '0e103c0b',
-    'SLI-30755': '2fd5b1db',
-    'SLI-33089': 'd688d976',
-    'SLI-33001': 'd688d976',
-    'SLI-33002': '77ba44b6',
-    'SLI-30754': '77ba44b6',
-    'SLI-30900': '0e103c0b',
-    'SLI-30909': '0e103c0b',
-
-    // Fuji Eurotech sister variants
-    'F7980': 'b94c37b2',
-    'F7983': '8ed8c3fe',
-    'F7992': '33988e70',
-    'F7997': 'fbb12d6c',
-    'F7860': '82969d36',
-    'F7944': 'f9d4fbc6',
-    'F7949': '82969d36',
-    'F7945': 'fbb12d6c',
-    'F7974': '6542e872',
-    'F7961': 'e820173b',
-    'F7962': '6542e872',
-    'F7932': '1d961b64',
-
-    // ALUFRAME codes
-    'A2-002-15': '999a058e',
-    'A2-003-15': '999a058e',
-    'A2-006-15': '999a058e',
-    'A2-010-15': '35996529',
-    'A2-012-12': '2c65a3d2',
-    'A2-016-12': '999a058e',
-    'A2-018-14': '344974c5',
-    'A1-001-15': '5118d06e',
-    'A1-002-15': '5118d06e',
-    'A1-007-15': '5118d06e',
-    'A1-009-15': '6db307c3',
-    'A1-011-14R': 'f1248b70',
-    'A1-018-11': 'c24a9c8d',
-    'A1-021-12': '2c65a3d2',
-    'A1-024-17': 'cb0bceea',
-    'A1-026-15': '80e30949',
-    'A1-027-15': 'ddcc64c6',
-    'A1-028-15': '2f350747',
   };
 
-  // Prefix fallbacks for any remaining ORM / brand SKUs in orm_prices_1139.json
-  final profilePrefixHashes = <Map<String, String>>[
-    {'prefix': '801-', 'hash': '809d85d0'},
-    {'prefix': '802-', 'hash': '5cb798dd'},
-    {'prefix': '803-', 'hash': '494c4785'},
-    {'prefix': '804-', 'hash': '2b5e8698'},
-    {'prefix': '805-', 'hash': '7fca1b97'},
-    {'prefix': '806-', 'hash': '5cb798dd'},
-    {'prefix': '807-', 'hash': 'e5c54c5d'},
-    {'prefix': '808-', 'hash': '13596996'},
-    {'prefix': '809-', 'hash': '13596996'},
-    {'prefix': '810-', 'hash': '9ace630c'},
-    {'prefix': '811-', 'hash': '923d6928'},
-    {'prefix': '812-', 'hash': '7cbec794'},
-    {'prefix': 'B200', 'hash': 'e7b129c6'},
-    {'prefix': 'B240', 'hash': '99039356'},
-    {'prefix': 'B250', 'hash': '81f41889'},
-    {'prefix': 'B260', 'hash': 'b3e11316'},
-    {'prefix': 'SS-', 'hash': 'ded15733'},
-    {'prefix': 'SC-', 'hash': 'f14db19f'},
-    {'prefix': 'SF-', 'hash': '3fd1cdb5'},
-    {'prefix': 'SB-', 'hash': 'fc51c5cb'},
-    {'prefix': 'iS-', 'hash': '1dcc50a7'},
-    {'prefix': 'iO-', 'hash': 'aef67579'},
-    {'prefix': 'iC-', 'hash': 'a0c1bce1'},
-    {'prefix': 'iF-', 'hash': 'a0c1bce1'},
-    {'prefix': 'SLI-', 'hash': '0e103c0b'},
-    {'prefix': 'F79', 'hash': 'b94c37b2'},
-    {'prefix': 'F78', 'hash': '7bd74382'},
-    {'prefix': '151', 'hash': '6db307c3'},
-    {'prefix': '156', 'hash': '999a058e'},
-    {'prefix': '159', 'hash': '5118d06e'},
-    {'prefix': 'A1-', 'hash': '5118d06e'},
-    {'prefix': 'A2-', 'hash': '999a058e'},
-    {'prefix': 'M04', 'hash': 'ce723f4b'},
-    {'prefix': 'M40', 'hash': '200a1410'},
-    {'prefix': 'M03', 'hash': '13596996'},
-    {'prefix': 'M05', 'hash': '2cfa5183'},
-  ];
-
-  // Role keyword fallbacks for custom user-entered profile names
-  final profileRoleKeywords = <Map<String, String>>[
-    {'kw': 'ฉาก', 'hash': '3c052cea'},
-    {'kw': 'คิ้ว', 'hash': '6be7223a'},
-    {'kw': 'เสากุญแจ', 'hash': '685151f2'},
-    {'kw': 'เสาเกี่ยว', 'hash': '1f65d563'},
-    {'kw': 'ตบเกี่ยว', 'hash': 'f7e8daf3'},
-    {'kw': 'เฟรมบน', 'hash': '809d85d0'},
-    {'kw': 'เฟรมล่าง', 'hash': '51f67a71'},
-    {'kw': 'เฟรมข้าง', 'hash': 'b1fdd5d1'},
-    {'kw': 'กรอบบาน', 'hash': '2b5e8698'},
-    {'kw': 'วงกบ', 'hash': '494c4785'},
-    {'kw': 'ขวาง', 'hash': 'db7d7740'},
-    {'kw': 'กล่อง', 'hash': '13596996'},
-    {'kw': 'ราง', 'hash': '923d6928'},
-  ];
-
-  // 5. Hardware Code & Keyword Rules
+  // 5. Hardware Code & Keyword Rules (cleaned of brand-mismatched catch-alls)
   final hardwareCodeHashes = <String, String>{
     'HD-929-2': '1be83179',
     'HD-929-4': '1be83179',
@@ -851,13 +692,13 @@ void main() async {
     'HD-453': 'b8e27ded',
     'HD-481A': '3fa25e09',
     '00-024': '3fa25e09',
-    'HD-414': 'f1545b21',
-    'HD-414D': 'f1545b21',
-    'HD-414-C2': 'f1545b21',
-    'HD-414-B': 'c3183fcd',
-    '00-001': 'f1545b21',
-    '00-030': 'ae8dc36a',
-    '00-031': 'ae8dc36a',
+    'HD-414': '120c52ff',
+    'HD-414D': '120c52ff',
+    'HD-414-C2': '120c52ff',
+    'HD-414-B': '120c52ff',
+    '00-001': '3fa25e09',
+    '00-030': '120c52ff',
+    '00-031': '120c52ff',
     'HD-851': '62d17139',
     'HD-310': 'acfb50ec',
     'HD-321': 'acfb50ec',
@@ -951,24 +792,23 @@ void main() async {
     {'kw': 'บานพับ', 'hash': '185ae7a2'},
     {'kw': 'โช๊คสวิง', 'hash': 'ffc37936'},
     {'kw': 'มือจับกระทุ้งยูเนี่ยน', 'hash': '7ff3e10b'},
-    {'kw': 'มือจับกระทุ้ง', 'hash': 'b8e27ded'},
-    {'kw': 'spindle', 'hash': 'b8e27ded'},
+    {'kw': 'มือจับกระทุ้ง', 'hash': '3fa25e09'},
+    {'kw': 'spindle', 'hash': '3fa25e09'},
     {'kw': 'เขาควาย', 'hash': '3fa25e09'},
     {'kw': 'mortise lock', 'hash': '3fa25e09'},
     {'kw': 'มือจับบานพร้อมกุญแจ', 'hash': '3fa25e09'},
-    {'kw': 'auto lock', 'hash': 'f1545b21'},
-    {'kw': 'multi point', 'hash': 'f1545b21'},
-    {'kw': 'multi-point', 'hash': 'f1545b21'},
-    {'kw': 'multi-lock', 'hash': 'f1545b21'},
-    {'kw': 'มัลติพอยท์', 'hash': 'f1545b21'},
-    {'kw': 'มัลติพ้อย', 'hash': 'f1545b21'},
-    {'kw': 'ยกล็อค', 'hash': 'f1545b21'},
-    {'kw': 'hd-414', 'hash': 'f1545b21'},
-    {'kw': 'ปากนกแก้ว', 'hash': 'ae8dc36a'},
-    {'kw': 'มือจับฝัง', 'hash': 'c3183fcd'},
-    {'kw': 'มือจับดัมมี่', 'hash': 'c3183fcd'},
-    {'kw': 'dummy', 'hash': 'c3183fcd'},
-    {'kw': 'มือจับ', 'hash': 'c3183fcd'},
+    {'kw': 'auto lock', 'hash': '120c52ff'},
+    {'kw': 'multi point', 'hash': '62d17139'},
+    {'kw': 'multi-point', 'hash': '62d17139'},
+    {'kw': 'multi-lock', 'hash': '62d17139'},
+    {'kw': 'มัลติพอยท์', 'hash': '62d17139'},
+    {'kw': 'มัลติพ้อย', 'hash': '62d17139'},
+    {'kw': 'ยกล็อค', 'hash': '62d17139'},
+    {'kw': 'ปากนกแก้ว', 'hash': '120c52ff'},
+    {'kw': 'มือจับฝัง', 'hash': '120c52ff'},
+    {'kw': 'มือจับดัมมี่', 'hash': '3fa25e09'},
+    {'kw': 'dummy', 'hash': '3fa25e09'},
+    {'kw': 'มือจับ', 'hash': '3fa25e09'},
     {'kw': 'ไส้กุญแจ', 'hash': '78bb471c'},
     {'kw': 'เสื้อกุญแจ', 'hash': '62d17139'},
     {'kw': 'cdq', 'hash': 'acfb50ec'},
@@ -1043,29 +883,21 @@ void main() async {
     {'kw': 'ซิลิโคน', 'hash': '523d300c'},
     {'kw': 'sealant', 'hash': '523d300c'},
     {'kw': 'pu', 'hash': '523d300c'},
-    {'kw': 'อุปกรณ์', 'hash': 'f1545b21'},
-    {'kw': 'ผู้ใช้กำหนด', 'hash': 'f1545b21'},
   ];
 
-  // Collect EVERY referenced hash across all maps so we ONLY bundle needed assets!
-  final referencedHashes = <String>{
-    ...categoryHashes.values,
-    ...systemHashes.values,
-    ...patternHashes.values,
-    ...profileCodeHashes.values.where((v) => !v.startsWith('assets/')),
-    ...profilePrefixHashes.map((e) => e['hash']!),
-    ...profileRoleKeywords.map((e) => e['hash']!),
-    ...hardwareCodeHashes.values,
-    ...hardwareKeywordRules.map((e) => e['hash']!),
-  };
+  // Collect EVERY referenced plain hash across all maps so we ONLY bundle needed assets!
+  referencedPlainHashes.addAll(
+    profileCodeHashes.values.where((v) => !v.startsWith('assets/')),
+  );
+  referencedPlainHashes.addAll(hardwareCodeHashes.values);
+  referencedPlainHashes.addAll(hardwareKeywordRules.map((e) => e['hash']!));
 
   if (missingJids.isNotEmpty) {
-    final availCats = homeItems.map((e) => e['cat']).toSet().toList()..sort();
-    throw StateError('Missing jids: $missingJids (available cats: $availCats)');
+    throw StateError('Missing jids: $missingJids');
   }
-  for (final h in referencedHashes) {
+  for (final h in referencedPlainHashes) {
     if (!rawImagesByHash.containsKey(h)) {
-      throw StateError('Referenced image hash $h does not exist in extracted AluProSmart JSON!');
+      throw StateError('Referenced image hash $h does not exist in rawImagesByHash!');
     }
   }
 
@@ -1077,48 +909,56 @@ void main() async {
   outAssetsDir.createSync(recursive: true);
 
   int totalBytesWritten = 0;
-  for (final h in referencedHashes.toList()..sort()) {
+  for (final h in referencedPlainHashes.toList()..sort()) {
     final rawBytes = rawImagesByHash[h]!;
     final decoded = img.decodeImage(rawBytes);
     if (decoded == null) {
       throw StateError('Failed to decode image for hash $h');
     }
     final reencoded = Uint8List.fromList(img.encodeJpg(decoded, quality: 82));
-    // Keep whichever is smaller (re-encoded Q82 vs original)
     final bestBytes = reencoded.length < rawBytes.length ? reencoded : rawBytes;
     final outFile = File('${outAssetsDir.path}/$h.jpg');
     await outFile.writeAsBytes(bestBytes);
     totalBytesWritten += bestBytes.length;
   }
 
+  for (final entry in generatedCustomJpegs.entries.toList()
+    ..sort((a, b) => a.key.compareTo(b.key))) {
+    final outFile = File('${outAssetsDir.path}/${entry.key}');
+    await outFile.writeAsBytes(entry.value);
+    totalBytesWritten += entry.value.length;
+  }
+
   // Copy & optimize glass.jpg
-  final glassRaw = await File(_glassDownloadPath).readAsBytes();
+  final glassSourceFile = File(_glassDownloadPath).existsSync()
+      ? File(_glassDownloadPath)
+      : File('$_backupAssetsDir/glass.jpg');
+  final glassRaw = await glassSourceFile.readAsBytes();
   final glassDecoded = img.decodeImage(glassRaw)!;
   final glassResized = glassDecoded.width > 320
-      ? img.copyResize(glassDecoded, width: 320, interpolation: img.Interpolation.average)
+      ? img.copyResize(
+          glassDecoded,
+          width: 320,
+          interpolation: img.Interpolation.average,
+        )
       : glassDecoded;
   final glassEncoded = Uint8List.fromList(img.encodeJpg(glassResized, quality: 82));
   final glassBest = glassEncoded.length < glassRaw.length ? glassEncoded : glassRaw;
   await File('${outAssetsDir.path}/glass.jpg').writeAsBytes(glassBest);
   totalBytesWritten += glassBest.length;
 
-  // Build assets/data/alupro_image_map.json
   Map<String, String> withExt(Map<String, String> m) =>
       m.map((k, v) => MapEntry(k, v.startsWith('assets/') ? v : '$v.jpg'));
 
   final jsonPayload = <String, dynamic>{
     'glass': 'glass.jpg',
-    'categories': withExt(categoryHashes),
+    'categories': <String, String>{},
     'brands': brandAssets,
-    'systems': withExt(systemHashes),
-    'patterns': withExt(patternHashes),
+    'systems': <String, String>{},
+    'patterns': patternFiles,
     'profiles': withExt(profileCodeHashes),
-    'profilePrefixes': profilePrefixHashes
-        .map((e) => {'prefix': e['prefix']!, 'file': '${e['hash']!}.jpg'})
-        .toList(),
-    'profileRoles': profileRoleKeywords
-        .map((e) => {'kw': e['kw']!, 'file': '${e['hash']!}.jpg'})
-        .toList(),
+    'profilePrefixes': const <Map<String, String>>[],
+    'profileRoles': const <Map<String, String>>[],
     'hardwareCodes': withExt(hardwareCodeHashes),
     'hardwareKeywords': hardwareKeywordRules
         .map((e) => {'kw': e['kw']!, 'file': '${e['hash']!}.jpg'})
@@ -1136,49 +976,21 @@ void main() async {
           as List<dynamic>;
   int totalCuts = 0, matchedCuts = 0;
   int totalHw = 0, matchedHw = 0;
-  final unmatchedCuts = <String>{};
-  final unmatchedHw = <String>{};
-
-  String? testResolveProfile(String code, String name) {
-    final clean = code.trim();
-    if (profileCodeHashes.containsKey(clean)) return profileCodeHashes[clean];
-    for (final p in profilePrefixHashes) {
-      if (clean.startsWith(p['prefix']!)) return p['hash'];
-    }
-    final combined = '$clean $name';
-    for (final r in profileRoleKeywords) {
-      if (combined.contains(r['kw']!)) return r['hash'];
-    }
-    return null;
-  }
-
-  String? testResolveHw(String code, String name) {
-    final clean = code.trim();
-    if (hardwareCodeHashes.containsKey(clean)) return hardwareCodeHashes[clean];
-    final hay = '$clean $name'.toLowerCase();
-    for (final r in hardwareKeywordRules) {
-      if (hay.contains(r['kw']!.toLowerCase())) return r['hash'];
-    }
-    return null;
-  }
-
   for (final item in formulasList) {
     final tbl = VerifiedFormulaTable.fromJson(item as Map<String, dynamic>);
     for (final c in tbl.cuts) {
       totalCuts++;
-      if (testResolveProfile(c.code, c.name) != null) {
+      if (profileCodeHashes.containsKey(c.code.trim())) {
         matchedCuts++;
-      } else {
-        unmatchedCuts.add('${tbl.key}: ${c.code} (${c.name})');
       }
     }
     for (final h in tbl.hardware) {
       totalHw++;
-      if (testResolveHw(h.code, h.name) != null) {
-        matchedHw++;
-      } else {
-        unmatchedHw.add('${tbl.key}: ${h.code} | ${h.name}');
-      }
+      final clean = h.code.trim();
+      final hay = '$clean ${h.name}'.toLowerCase();
+      final hit = hardwareCodeHashes.containsKey(clean) ||
+          hardwareKeywordRules.any((r) => hay.contains(r['kw']!.toLowerCase()));
+      if (hit) matchedHw++;
     }
   }
 
@@ -1188,26 +1000,22 @@ void main() async {
   int matchedSkus = 0;
   for (final s in ormSkus) {
     final sku = OrmPriceSku.fromJson(s as Map<String, dynamic>);
-    if (testResolveProfile(sku.code, sku.name) != null) {
+    if (profileCodeHashes.containsKey(sku.code.trim())) {
       matchedSkus++;
     }
   }
 
+  final totalFiles = referencedPlainHashes.length + generatedCustomJpegs.length + 1;
   print('=======================================================');
-  print('Generated ${referencedHashes.length + 1} offline images in assets/alupro/');
-  print('Total bundled image size: ${(totalBytesWritten / (1024 * 1024)).toStringAsFixed(2)} MB');
-  print('Categories mapped : ${categoryHashes.length}/${CatalogDefinitions.categories.length}');
-  print('Brands mapped     : ${brandAssets.length}');
-  print('SubSystems mapped : ${systemHashes.length}');
-  print('Patterns mapped   : ${patternHashes.length}');
-  print('Formula Cuts      : $matchedCuts/$totalCuts (unmatched: ${unmatchedCuts.length})');
-  print('Formula Hardware  : $matchedHw/$totalHw (unmatched: ${unmatchedHw.length})');
-  print('Price SKUs        : $matchedSkus/${ormSkus.length}');
-  if (unmatchedCuts.isNotEmpty) {
-    print('Unmatched cuts: ${unmatchedCuts.take(10).join(" ; ")}');
-  }
-  if (unmatchedHw.isNotEmpty) {
-    print('Unmatched hw: ${unmatchedHw.take(10).join(" ; ")}');
-  }
+  print('Generated $totalFiles offline images in assets/alupro/');
+  print('  - Plain verified hashes : ${referencedPlainHashes.length}');
+  print('  - Stamped ALUMET/ICONIQ : ${generatedCustomJpegs.length}');
+  print('Total bundled image size  : ${(totalBytesWritten / (1024 * 1024)).toStringAsFixed(2)} MB');
+  print('Brands mapped             : ${brandAssets.length}');
+  print('Exact Patterns mapped     : ${patternFiles.length}');
+  print('Exact Profile CAD codes   : ${profileCodeHashes.length}');
+  print('Formula Cuts (exact CAD)  : $matchedCuts/$totalCuts');
+  print('Formula Hardware          : $matchedHw/$totalHw');
+  print('Price SKUs (exact CAD)    : $matchedSkus/${ormSkus.length}');
   print('=======================================================');
 }
