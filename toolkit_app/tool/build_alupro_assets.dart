@@ -950,9 +950,17 @@ void main() async {
   Map<String, String> withExt(Map<String, String> m) =>
       m.map((k, v) => MapEntry(k, v.startsWith('assets/') ? v : '$v.jpg'));
 
+  final categoryAssets = <String, String>{
+    'cat1_market': 'assets/brands/cat1_market.png',
+    'cat2_pattana': 'assets/brands/cat2_pattana.png',
+    'cat3_euro': 'assets/brands/cat3_euro.png',
+    'cat4_folding': 'assets/brands/cat4_folding.png',
+    'cat5_shower': 'assets/brands/cat5_shower.png',
+  };
+
   final jsonPayload = <String, dynamic>{
     'glass': 'glass.jpg',
-    'categories': <String, String>{},
+    'categories': categoryAssets,
     'brands': brandAssets,
     'systems': <String, String>{},
     'patterns': patternFiles,

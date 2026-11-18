@@ -466,6 +466,13 @@ void main() {
     }
 
     for (final cat in CatalogDefinitions.categories) {
+      final catAsset = reg.resolveCategoryAsset(cat.id);
+      assertExistingFile(catAsset, 'cat:${cat.id}');
+      expect(
+        catAsset!.startsWith('assets/brands/cat'),
+        isTrue,
+        reason: 'Category ${cat.id} must use composite brand plate asset',
+      );
       for (final sys in cat.directSystems) {
         checkSys('market', sys);
       }
@@ -526,6 +533,7 @@ void main() {
     await tester.tap(find.text('ระบบคำนวณ'));
     await tester.pumpAndSettle();
     expect(find.text('เลือกชุดระบบหลัก'), findsOneWidget);
+    expect(find.byType(BrandLogoPlate), findsNWidgets(5));
 
     await tester.tap(find.text('2. ชุดพัฒนา'));
     await tester.pumpAndSettle();

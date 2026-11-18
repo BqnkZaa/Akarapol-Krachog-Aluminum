@@ -12,44 +12,13 @@ class CategorySelectScreen extends StatelessWidget {
 
   const CategorySelectScreen({super.key, this.targetProjectId});
 
-  ({IconData icon, Color fg, Color bg}) _categoryBadgeStyle(String categoryId) {
-    switch (categoryId) {
-      case 'cat1_market':
-        return (
-          icon: Icons.grid_view_rounded,
-          fg: const Color(0xFF1E56C5),
-          bg: const Color(0xFFEAF1FE),
-        );
-      case 'cat2_pattana':
-        return (
-          icon: Icons.dashboard_customize_rounded,
-          fg: const Color(0xFFD99014),
-          bg: const Color(0xFFFDF3DF),
-        );
-      case 'cat3_euro':
-        return (
-          icon: Icons.widgets_rounded,
-          fg: const Color(0xFF1F7A5A),
-          bg: const Color(0xFFE7F5EE),
-        );
-      case 'cat4_folding':
-        return (
-          icon: Icons.sensor_door_outlined,
-          fg: const Color(0xFFC0425A),
-          bg: const Color(0xFFFAEDEF),
-        );
-      default:
-        return (
-          icon: Icons.shower_outlined,
-          fg: const Color(0xFF4F46E5),
-          bg: const Color(0xFFEEF2FF),
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cats = CatalogDefinitions.categories;
+    final screenW = MediaQuery.sizeOf(context).width;
+    final plateW = screenW < 375 ? 104.0 : 122.0;
+    final plateH = screenW < 375 ? 65.0 : 76.0;
+
     return Scaffold(
       appBar: AppBar(title: const Text('เลือกหมวดระบบอลูมิเนียม')),
       body: ListView(
@@ -77,18 +46,16 @@ class CategorySelectScreen extends StatelessWidget {
             Builder(
               builder: (_) {
                 final cat = cats[i];
-                final badge = _categoryBadgeStyle(cat.id);
+                final catIconAsset = AluproImageRegistry.instance
+                    .resolveCategoryAsset(cat.id);
                 return _NavCard(
                   title: '${i + 1}. ${cat.title}',
                   subtitle: cat.subtitle,
-                  leadingWidget: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: badge.bg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(badge.icon, color: badge.fg, size: 25),
+                  leadingWidget: BrandLogoPlate(
+                    assetPath: catIconAsset,
+                    width: plateW,
+                    height: plateH,
+                    enabled: cat.enabled,
                   ),
                   enabled: cat.enabled,
                   disabledBadge: cat.disabledBadge,

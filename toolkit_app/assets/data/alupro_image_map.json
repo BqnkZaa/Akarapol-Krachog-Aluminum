@@ -1,6 +1,12 @@
 {
   "glass": "glass.jpg",
-  "categories": {},
+  "categories": {
+    "cat1_market": "assets/brands/cat1_market.png",
+    "cat2_pattana": "assets/brands/cat2_pattana.png",
+    "cat3_euro": "assets/brands/cat3_euro.png",
+    "cat4_folding": "assets/brands/cat4_folding.png",
+    "cat5_shower": "assets/brands/cat5_shower.png"
+  },
   "brands": {
     "c2_orm": "assets/brands/brand_orm.png",
     "c2_schimmer": "assets/brands/brand_schimmer.png",

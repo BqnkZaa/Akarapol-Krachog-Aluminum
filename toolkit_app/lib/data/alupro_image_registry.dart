@@ -12,6 +12,7 @@ class AluproImageRegistry {
   static const String _assetPrefix = 'assets/alupro/';
 
   String? _glassFile;
+  final Map<String, String> _categories = {};
   final Map<String, String> _brands = {};
   final Map<String, String> _patterns = {};
   final Map<String, String> _profiles = {};
@@ -36,6 +37,7 @@ class AluproImageRegistry {
       }
     }
 
+    fillMap(_categories, json['categories']);
     fillMap(_brands, json['brands']);
     fillMap(_patterns, json['patterns']);
     fillMap(_profiles, json['profiles']);
@@ -57,6 +59,14 @@ class AluproImageRegistry {
       }
     }
   }
+
+  static const Map<String, String> _defaultCategoryLogos = {
+    'cat1_market': 'assets/brands/cat1_market.png',
+    'cat2_pattana': 'assets/brands/cat2_pattana.png',
+    'cat3_euro': 'assets/brands/cat3_euro.png',
+    'cat4_folding': 'assets/brands/cat4_folding.png',
+    'cat5_shower': 'assets/brands/cat5_shower.png',
+  };
 
   static const Map<String, String> _defaultBrandLogos = {
     'c2_orm': 'assets/brands/brand_orm.png',
@@ -134,6 +144,9 @@ class AluproImageRegistry {
   }
 
   String? get glassAsset => _toAsset(_glassFile);
+
+  String? resolveCategoryAsset(String categoryId) =>
+      _toAsset(_categories[categoryId] ?? _defaultCategoryLogos[categoryId]);
 
   String? resolveBrandAsset(String brandId) =>
       _toAsset(_brands[brandId] ?? _defaultBrandLogos[brandId]);
