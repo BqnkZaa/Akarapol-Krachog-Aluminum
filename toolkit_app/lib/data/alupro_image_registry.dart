@@ -123,6 +123,10 @@ class AluproImageRegistry {
     'c5_rp_dis': 'assets/brands/brand_rp.png',
   };
 
+  static const Map<String, String> _customProfileOverrides = {
+    'SS-X219': 'assets/profiles/ss_x219.png',
+  };
+
   String? _toAsset(String? file) {
     if (file == null || file.isEmpty) return null;
     if (file.startsWith('assets/')) return file;
@@ -145,19 +149,24 @@ class AluproImageRegistry {
   String? resolveProfileAsset({required String code, String name = ''}) {
     final clean = code.trim();
     if (clean.isNotEmpty) {
-      final direct = _profiles[clean];
+      final upper = clean.toUpperCase();
+      final custom = _customProfileOverrides[clean] ?? _customProfileOverrides[upper];
+      if (custom != null) return _toAsset(custom);
+
+      final direct = _profiles[clean] ?? _profiles[upper];
       if (direct != null) return _toAsset(direct);
 
       if (clean.contains('/')) {
         for (final part in clean.split('/')) {
           final trimmed = part.trim();
-          final sub = _profiles[trimmed];
+          final sub = _profiles[trimmed] ?? _profiles[trimmed.toUpperCase()];
           if (sub != null) return _toAsset(sub);
         }
       }
 
       for (final rule in _profilePrefixes) {
-        if (clean.startsWith(rule.prefix)) {
+        if (clean.startsWith(rule.prefix) ||
+            upper.startsWith(rule.prefix.toUpperCase())) {
           return _toAsset(rule.file);
         }
       }

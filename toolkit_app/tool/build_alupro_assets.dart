@@ -647,7 +647,7 @@ void main() async {
     'SS-X214': 'a6b5c2b2',
     'SS-X216': '5aca9cf2',
     'SS-X217': 'c8eed1e0',
-    'SS-X219': 'ded15733',
+    'SS-X219': 'assets/profiles/ss_x219.png',
     'SS-0141': 'a6b5c2b2',
     'SC-X104': 'f14db19f',
     'SC-X106': '2b04e9c6',
@@ -1052,7 +1052,7 @@ void main() async {
     ...categoryHashes.values,
     ...systemHashes.values,
     ...patternHashes.values,
-    ...profileCodeHashes.values,
+    ...profileCodeHashes.values.where((v) => !v.startsWith('assets/')),
     ...profilePrefixHashes.map((e) => e['hash']!),
     ...profileRoleKeywords.map((e) => e['hash']!),
     ...hardwareCodeHashes.values,
@@ -1104,7 +1104,7 @@ void main() async {
 
   // Build assets/data/alupro_image_map.json
   Map<String, String> withExt(Map<String, String> m) =>
-      m.map((k, v) => MapEntry(k, '$v.jpg'));
+      m.map((k, v) => MapEntry(k, v.startsWith('assets/') ? v : '$v.jpg'));
 
   final jsonPayload = <String, dynamic>{
     'glass': 'glass.jpg',

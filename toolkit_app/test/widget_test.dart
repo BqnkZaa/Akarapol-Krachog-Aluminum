@@ -399,6 +399,18 @@ void main() {
     }
 
     assertAssetExists(reg.glassAsset, 'glass');
+    expect(
+      reg.resolveProfileAsset(code: 'SS-X219', name: 'กรอบบานแนวตั้ง'),
+      'assets/profiles/ss_x219.png',
+    );
+    expect(
+      reg.resolveProfileAsset(code: 'sS-X219', name: 'กรอบบานแนวตั้ง'),
+      'assets/profiles/ss_x219.png',
+    );
+    assertAssetExists(
+      reg.resolveProfileAsset(code: 'SS-X219'),
+      'custom:SS-X219',
+    );
 
     void checkSys(SubSystemDef sys) {
       assertAssetExists(reg.resolveSystemAsset(sys.id), 'sys:${sys.id}');
