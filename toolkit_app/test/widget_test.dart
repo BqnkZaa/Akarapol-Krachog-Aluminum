@@ -12,6 +12,7 @@ import 'package:toolkit_app/engine/bin_packer.dart';
 import 'package:toolkit_app/engine/formula_evaluator.dart';
 import 'package:toolkit_app/engine/parametric_system_resolver.dart';
 import 'package:toolkit_app/engine/pricing_engine.dart';
+import 'package:toolkit_app/engine/quotation_spec_formatter.dart';
 import 'package:toolkit_app/engine/thai_baht_text.dart';
 import 'package:toolkit_app/main.dart';
 import 'package:toolkit_app/models/app_models.dart';
@@ -20,6 +21,7 @@ import 'package:toolkit_app/pdf/quotation_pdf.dart';
 import 'package:toolkit_app/pdf/single_cut_pdf.dart';
 import 'package:toolkit_app/screens/alupro_thumbnail_widgets.dart';
 import 'package:toolkit_app/screens/catalog_and_input_screens.dart';
+import 'package:toolkit_app/screens/projects_and_quotation_screens.dart';
 
 void main() {
   setUpAll(() async {
@@ -679,5 +681,124 @@ void main() {
     );
     expect(disabledPatColBox.size.width >= 150.0, isTrue);
     expect(disabledPatBox.size.height <= 56.0, isTrue);
+  });
+
+  testWidgets('QuotationSpecFormatter & QuotationBuilderScreen render full profile, thickness, and glass specs', (tester) async {
+    final itemAlumet = SavedProjectItem(
+      id: 1,
+      projectId: 10,
+      sortIndex: 0,
+      brandTitle: 'ALUMET (Smart X)',
+      priceBrandKey: 'ALUMET',
+      systemTitle: 'ประตูบานเปิด',
+      patternId: 'c2_alu_door2_card',
+      patternTitle: 'ประตูบานเปิดคู่',
+      selectedOptions: const {},
+      sizeRows: const [SizeRowInput(widthMm: 1500, heightMm: 2000, qty: 1)],
+      evaluatedSets: const [],
+      hardware: const [],
+    );
+
+    expect(
+      QuotationSpecFormatter.formatLineTitle(itemAlumet, 1),
+      '01 · ประตูบานเปิดคู่',
+    );
+    expect(
+      QuotationSpecFormatter.formatProfileSeriesName(itemAlumet),
+      'โปรไฟล์ ALUMET รุ่น Smart X',
+    );
+    expect(
+      QuotationSpecFormatter.formatQuotationSize(itemAlumet),
+      '1500 × 2000 มม.',
+    );
+
+    final fullSubtitle = QuotationSpecFormatter.buildItemSpecSubtitle(
+      item: itemAlumet,
+      globalAluThickness: '1.2 มม.',
+      globalAluColor: 'สีดำ',
+      globalGlassType: 'กระจกเขียวตัดแสง',
+      globalGlassThickness: '6 มม.',
+    );
+    expect(
+      fullSubtitle,
+      'โปรไฟล์ ALUMET รุ่น Smart X · ความหนา 1.2 มม. · สีดำ\nกระจกเขียวตัดแสง หนา 6 มม.',
+    );
+
+    // Check Schimmer HOMELIFE 200 and Market framing names
+    final itemSchimmer = SavedProjectItem(
+      projectId: 10,
+      sortIndex: 1,
+      brandTitle: 'SMS SCHIMMER',
+      priceBrandKey: 'SCHIMMER',
+      systemTitle: 'HOMELIFE 200 (บานเลื่อน)',
+      patternId: 'c2_sch_s2',
+      patternTitle: 'บานเลื่อนสลับ 2 บาน',
+      selectedOptions: const {},
+      sizeRows: const [SizeRowInput(widthMm: 2000, heightMm: 2050, qty: 1)],
+      evaluatedSets: const [],
+      hardware: const [],
+    );
+    expect(
+      QuotationSpecFormatter.formatProfileSeriesName(itemSchimmer),
+      'โปรไฟล์ SMS SCHIMMER รุ่น HOMELIFE 200',
+    );
+
+    // Mount QuotationBuilderScreen and verify live chip updates
+    final proj = SavedProject(
+      id: 10,
+      name: 'บริษัท วรรณพร 1988 จำกัด',
+      createdAt: DateTime(2026, 11, 19),
+      updatedAt: DateTime(2026, 11, 19),
+      items: [itemAlumet],
+    );
+    const shop = ShopInfo(
+      shopName: 'บริษัท อัครพลกระจกอลูมิเนียม จำกัด',
+      proposerName: 'มอส',
+    );
+
+    await tester.binding.setSurfaceSize(const Size(430, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(fontFamily: 'Sarabun'),
+        home: QuotationBuilderScreen(
+          project: proj,
+          shopInfo: shop,
+          estimatedAluminumCost: 8500,
+          initialAluminumThickness: '1.2 มม.',
+          initialAluminumColor: 'พ่นดำ ซุปเปอร์แบล็ค',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Select ITEMIZED mode
+    await tester.tap(find.text('แยกรายการ'));
+    await tester.pumpAndSettle();
+
+    // Select glass type & thickness via quick chips
+    await tester.drag(find.byType(ListView), const Offset(0, -450));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('กระจกเขียวตัดแสง'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('กระจกเขียวตัดแสง'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('6 มม.'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('6 มม.'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -320));
+    await tester.pumpAndSettle();
+
+    expect(find.text('01 · ประตูบานเปิดคู่'), findsOneWidget);
+    expect(
+      find.text(
+        'โปรไฟล์ ALUMET รุ่น Smart X · ความหนา 1.2 มม. · สีดำ\nกระจกเขียวตัดแสง หนา 6 มม.',
+      ),
+      findsOneWidget,
+    );
   });
 }

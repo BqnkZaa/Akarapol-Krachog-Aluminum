@@ -8,6 +8,7 @@ import '../data/app_database.dart';
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
 import '../engine/pricing_engine.dart';
+import '../engine/quotation_spec_formatter.dart';
 import '../engine/thai_baht_text.dart';
 import '../models/app_models.dart';
 import '../pdf/project_pdf.dart';
@@ -911,6 +912,8 @@ class ProjectPricingScreen extends StatefulWidget {
 
 class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
   double _estimatedCost = 0.0;
+  String _selectedThickness = '';
+  String _selectedColor = '';
   late final List<ProfileBarGroup> _packedGroups;
 
   @override
@@ -934,6 +937,8 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
           project: widget.project,
           shopInfo: shop,
           estimatedAluminumCost: _estimatedCost,
+          initialAluminumThickness: _selectedThickness,
+          initialAluminumColor: _selectedColor,
         ),
       ),
     );
@@ -949,9 +954,18 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
             child: PricingWorkspaceWidget(
               barGroups: _packedGroups,
               onSummaryChanged: (s) {
-                if ((_estimatedCost - s.totalCost).abs() > 0.005) {
+                final costDiff = (_estimatedCost - s.totalCost).abs() > 0.005;
+                final specDiff = _selectedThickness != s.selectedThickness ||
+                    _selectedColor != s.selectedColor;
+                if (costDiff || specDiff) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => _estimatedCost = s.totalCost);
+                    if (mounted) {
+                      setState(() {
+                        _estimatedCost = s.totalCost;
+                        _selectedThickness = s.selectedThickness;
+                        _selectedColor = s.selectedColor;
+                      });
+                    }
                   });
                 }
               },
@@ -995,39 +1009,57 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
 // Quotation Builder Screen (All Verbatim Validations + Itemized & Lump Sum)
 // =============================================================================
 class _EditableQtLine {
-  final String label;
-  final String subtitle;
+  final SavedProjectItem sourceItem;
+  final TextEditingController labelCtrl;
+  final TextEditingController subtitleCtrl;
   final String sizeText;
   final int qty;
   final TextEditingController unitPriceCtrl;
   bool confirmed;
+  bool editingSpec;
+  bool userCustomizedSubtitle;
 
   _EditableQtLine({
-    required this.label,
-    required this.subtitle,
+    required this.sourceItem,
+    required String label,
+    required String subtitle,
     required this.sizeText,
     required this.qty,
     required double suggestedUnitPrice,
-  })  : unitPriceCtrl = TextEditingController(
+  })  : labelCtrl = TextEditingController(text: label),
+        subtitleCtrl = TextEditingController(text: subtitle),
+        unitPriceCtrl = TextEditingController(
             text: suggestedUnitPrice.toStringAsFixed(2)),
-        confirmed = false;
+        confirmed = false,
+        editingSpec = false,
+        userCustomizedSubtitle = false;
 
+  String get label => labelCtrl.text.trim();
+  String get subtitle => subtitleCtrl.text.trim();
   double get unitPrice => double.tryParse(unitPriceCtrl.text.trim()) ?? 0.0;
   double get lineTotal => unitPrice * qty;
 
-  void dispose() => unitPriceCtrl.dispose();
+  void dispose() {
+    labelCtrl.dispose();
+    subtitleCtrl.dispose();
+    unitPriceCtrl.dispose();
+  }
 }
 
 class QuotationBuilderScreen extends StatefulWidget {
   final SavedProject project;
   final ShopInfo shopInfo;
   final double estimatedAluminumCost;
+  final String? initialAluminumThickness;
+  final String? initialAluminumColor;
 
   const QuotationBuilderScreen({
     super.key,
     required this.project,
     required this.shopInfo,
     required this.estimatedAluminumCost,
+    this.initialAluminumThickness,
+    this.initialAluminumColor,
   });
 
   @override
@@ -1052,6 +1084,14 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   final TextEditingController _leadTimeCtrl = TextEditingController();
   final TextEditingController _warrantyCtrl = TextEditingController();
   final TextEditingController _remarksCtrl = TextEditingController();
+
+  // Global Quotation Material Spec Controls
+  late String _globalAluThick;
+  late String _globalAluColor;
+  String _globalGlassType = 'ไม่ระบุ';
+  String _globalGlassThick = 'ไม่ระบุ';
+  final TextEditingController _customGlassNoteCtrl = TextEditingController();
+
   final List<_EditableQtLine> _lines = [];
 
   @override
@@ -1076,6 +1116,15 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _custNameCtrl = TextEditingController(text: widget.project.name);
     _projNameCtrl = TextEditingController(text: widget.project.name);
 
+    final initThick = widget.initialAluminumThickness?.trim() ?? '';
+    _globalAluThick =
+        QuotationSpecFormatter.aluminumThicknessChoices.contains(initThick)
+            ? initThick
+            : 'ตามรายการ';
+    _globalAluColor = QuotationSpecFormatter.normalizePricingColorForQuotation(
+      widget.initialAluminumColor,
+    );
+
     final totalUnits =
         widget.project.items.fold(0, (s, i) => s + i.totalUnits);
     final basePerUnit = totalUnits > 0 && widget.estimatedAluminumCost > 0
@@ -1085,11 +1134,17 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     double sumInit = 0.0;
     for (int i = 0; i < widget.project.items.length; i++) {
       final it = widget.project.items[i];
-      final tag = it.displayOrderTag(i + 1);
       final line = _EditableQtLine(
-        label: '[$tag] ${it.brandTitle} · ${it.patternTitle}',
-        subtitle: it.installLocation,
-        sizeText: it.sizeSummaryText,
+        sourceItem: it,
+        label: QuotationSpecFormatter.formatLineTitle(it, i + 1),
+        subtitle: QuotationSpecFormatter.buildItemSpecSubtitle(
+          item: it,
+          globalAluThickness: _globalAluThick,
+          globalAluColor: _globalAluColor,
+          globalGlassType: _globalGlassType,
+          globalGlassThickness: _globalGlassThick,
+        ),
+        sizeText: QuotationSpecFormatter.formatQuotationSize(it),
         qty: it.totalUnits,
         suggestedUnitPrice: basePerUnit,
       );
@@ -1097,6 +1152,24 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       _lines.add(line);
     }
     _lumpSumCtrl = TextEditingController(text: sumInit.toStringAsFixed(2));
+  }
+
+  void _syncSubtitlesFromSpec({bool forceResetAll = false}) {
+    for (final ln in _lines) {
+      if (forceResetAll) {
+        ln.userCustomizedSubtitle = false;
+      }
+      if (!ln.userCustomizedSubtitle) {
+        ln.subtitleCtrl.text = QuotationSpecFormatter.buildItemSpecSubtitle(
+          item: ln.sourceItem,
+          globalAluThickness: _globalAluThick,
+          globalAluColor: _globalAluColor,
+          globalGlassType: _globalGlassType,
+          globalGlassThickness: _globalGlassThick,
+          customGlassNote: _customGlassNoteCtrl.text,
+        );
+      }
+    }
   }
 
   @override
@@ -1116,6 +1189,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _leadTimeCtrl.dispose();
     _warrantyCtrl.dispose();
     _remarksCtrl.dispose();
+    _customGlassNoteCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1300,6 +1374,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // 2.5 สเปกโปรไฟล์ ความหนา และกระจกสำหรับแสดงในตารางใบเสนอราคา
+                _buildGlobalMaterialSpecCard(),
+                const SizedBox(height: 12),
+
                 // 3. กำหนดราคาขายตามโหมด
                 if (_mode == 'ITEMIZED')
                   _card(
@@ -1313,8 +1391,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                           color: ToolkitColors.softBlueBg,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             Text(
                               'ต้นทุนเส้นประเมิน: ฿${_moneyFmt.format(widget.estimatedAluminumCost)}',
@@ -1348,20 +1428,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                ln.label,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                'ขนาด: ${ln.sizeText} · จำนวน ${ln.qty} ชุด',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: ToolkitColors.slateMuted,
-                                ),
-                              ),
+                              _buildLineSpecPreviewAndEditor(ln),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -1421,6 +1488,29 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                         ),
                         onChanged: (_) => setState(() {}),
                       ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'ตัวอย่างรายการและสเปกที่จะแสดงในตารางใบเสนอราคา:',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: ToolkitColors.slateBody,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...List.generate(_lines.length, (i) {
+                        final ln = _lines[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(11),
+                          decoration: BoxDecoration(
+                            color: ToolkitColors.bgScaffold,
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(color: ToolkitColors.cardBorder),
+                          ),
+                          child: _buildLineSpecPreviewAndEditor(ln),
+                        );
+                      }),
                     ],
                   ),
 
@@ -1583,6 +1673,208 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGlobalMaterialSpecCard() {
+    Widget specRow({
+      required String title,
+      required List<String> choices,
+      required String current,
+      required ValueChanged<String> onSelected,
+    }) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12.8,
+                fontWeight: FontWeight.w600,
+                color: ToolkitColors.slateBody,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: choices.map((ch) {
+                final sel = current == ch;
+                return ChoiceChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(ch),
+                  selected: sel,
+                  selectedColor: ToolkitColors.softBlueBg,
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel
+                        ? ToolkitColors.royalBlue
+                        : ToolkitColors.slateBody,
+                  ),
+                  side: BorderSide(
+                    color: sel
+                        ? ToolkitColors.royalBlue
+                        : ToolkitColors.cardBorder,
+                  ),
+                  onSelected: (_) => onSelected(ch),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _card(
+      title: 'สเปกโปรไฟล์ ความหนา และประเภทกระจก (แสดงในช่องรายการ)',
+      children: [
+        const Text(
+          'ระบบระบุชื่อชุดโปรไฟล์ให้อัตโนมัติ เลือกความหนา สี และกระจกเพื่อให้แสดงครบในใบเสนอราคา (หรือกดแก้ไขแยกแต่ละบานได้)',
+          style: TextStyle(
+            fontSize: 12,
+            color: ToolkitColors.slateMuted,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+        specRow(
+          title: 'ความหนาอลูมิเนียม',
+          choices: QuotationSpecFormatter.aluminumThicknessChoices,
+          current: _globalAluThick,
+          onSelected: (v) => setState(() {
+            _globalAluThick = v;
+            _syncSubtitlesFromSpec();
+          }),
+        ),
+        specRow(
+          title: 'สีอลูมิเนียม',
+          choices: QuotationSpecFormatter.aluminumColorChoices,
+          current: _globalAluColor,
+          onSelected: (v) => setState(() {
+            _globalAluColor = v;
+            _syncSubtitlesFromSpec();
+          }),
+        ),
+        specRow(
+          title: 'ประเภทกระจก',
+          choices: QuotationSpecFormatter.glassTypeChoices,
+          current: _globalGlassType,
+          onSelected: (v) => setState(() {
+            _globalGlassType = v;
+            _syncSubtitlesFromSpec();
+          }),
+        ),
+        if (_globalGlassType != 'ไม่รวมกระจก')
+          specRow(
+            title: 'ความหนากระจก',
+            choices: QuotationSpecFormatter.glassThicknessChoices,
+            current: _globalGlassThick,
+            onSelected: (v) => setState(() {
+              _globalGlassThick = v;
+              _syncSubtitlesFromSpec();
+            }),
+          ),
+        TextField(
+          controller: _customGlassNoteCtrl,
+          decoration: const InputDecoration(
+            labelText: 'ระบุสเปกกระจกเพิ่มเติมเอง (ถ้ามี เช่น ลามิเนตใส 5+5 มม.)',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: (_) => setState(() => _syncSubtitlesFromSpec()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLineSpecPreviewAndEditor(_EditableQtLine ln) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ln.label.isEmpty ? '-' : ln.label,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: ToolkitColors.slateDark,
+                    ),
+                  ),
+                  if (ln.subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      ln.subtitle,
+                      style: const TextStyle(
+                        fontSize: 12.2,
+                        color: ToolkitColors.royalBlue,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    'ขนาด: ${ln.sizeText.replaceAll('\n', ', ')} · จำนวน ${ln.qty} ชุด',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: ToolkitColors.slateMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              onPressed: () =>
+                  setState(() => ln.editingSpec = !ln.editingSpec),
+              icon: Icon(
+                ln.editingSpec ? Icons.expand_less : Icons.edit_note_rounded,
+                size: 17,
+              ),
+              label: Text(
+                ln.editingSpec ? 'พับเก็บ' : 'แก้สเปก',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        if (ln.editingSpec) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: ln.labelCtrl,
+            decoration: const InputDecoration(
+              labelText: 'ชื่อรายการหลัก',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: ln.subtitleCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'รายละเอียดโปรไฟล์ / ความหนา / กระจก / ตำแหน่ง',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {
+              ln.userCustomizedSubtitle = true;
+            }),
+          ),
+        ],
+      ],
     );
   }
 }

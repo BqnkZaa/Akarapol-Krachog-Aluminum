@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
+import '../engine/quotation_spec_formatter.dart';
 import '../models/app_models.dart';
 import 'pdf_fonts.dart';
 import 'single_cut_pdf.dart';
@@ -191,11 +192,18 @@ class ProjectPdfGenerator {
                 ],
                 data: List.generate(project.items.length, (idx) {
                   final it = project.items[idx];
+                  final specSub = QuotationSpecFormatter.buildItemSpecSubtitle(
+                    item: it,
+                    globalAluThickness: 'ตามรายการ',
+                    globalAluColor: 'ไม่ระบุ',
+                    globalGlassType: 'ไม่ระบุ',
+                    globalGlassThickness: 'ไม่ระบุ',
+                  ).split('\n').where((l) => !l.startsWith('ตำแหน่งติดตั้ง:')).join('\n');
                   return [
                     '[${it.displayOrderTag(idx + 1)}]',
                     it.installLocation.isEmpty ? '-' : it.installLocation,
-                    '${it.brandTitle} · ${it.patternTitle}',
-                    it.sizeSummaryText,
+                    '${it.patternTitle}\n$specSub',
+                    QuotationSpecFormatter.formatQuotationSize(it),
                     '${it.totalUnits} ชุด',
                   ];
                 }),

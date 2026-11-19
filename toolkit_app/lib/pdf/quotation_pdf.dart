@@ -258,52 +258,136 @@ class QuotationPdfGenerator {
           w.add(pw.SizedBox(height: 12));
 
           // 3. Line Items Table (Mode A: 6 Columns vs Mode B: Heading + 4 Columns + Lump Sum Bar)
+          pw.Widget cellBox(
+            pw.Widget child, {
+            pw.Alignment alignment = pw.Alignment.center,
+          }) {
+            return pw.Container(
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              alignment: alignment,
+              child: child,
+            );
+          }
+
+          pw.Widget headerText(String t, {pw.TextAlign align = pw.TextAlign.center}) {
+            return pw.Text(
+              t,
+              textAlign: align,
+              style: pw.TextStyle(
+                fontSize: 8.8,
+                fontWeight: pw.FontWeight.bold,
+                color: navy,
+              ),
+            );
+          }
+
+          pw.Widget descriptionCell(QuotationLineEntry ln) {
+            final subLines = ln.subtitle
+                .split('\n')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList();
+            return pw.Container(
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+              alignment: pw.Alignment.centerLeft,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    ln.label,
+                    style: pw.TextStyle(
+                      fontSize: 9.2,
+                      fontWeight: pw.FontWeight.bold,
+                      color: navy,
+                    ),
+                  ),
+                  ...subLines.map(
+                    (s) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(top: 1.8),
+                      child: pw.Text(
+                        s,
+                        style: const pw.TextStyle(
+                          fontSize: 8.4,
+                          color: PdfColor.fromInt(0xFF334155),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           if (isItemized) {
             w.add(
-              pw.TableHelper.fromTextArray(
+              pw.Table(
                 border: pw.TableBorder.all(color: borderGray, width: 0.6),
-                headerDecoration: const pw.BoxDecoration(color: slateBg),
-                headerStyle: pw.TextStyle(
-                    fontSize: 8.8, fontWeight: pw.FontWeight.bold, color: navy),
-                cellStyle: const pw.TextStyle(fontSize: 8.8),
-                cellAlignments: {
-                  0: pw.Alignment.center,
-                  1: pw.Alignment.centerLeft,
-                  2: pw.Alignment.center,
-                  3: pw.Alignment.center,
-                  4: pw.Alignment.centerRight,
-                  5: pw.Alignment.centerRight,
+                defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(0.52),
+                  1: pw.FlexColumnWidth(3.42),
+                  2: pw.FlexColumnWidth(1.20),
+                  3: pw.FlexColumnWidth(0.68),
+                  4: pw.FlexColumnWidth(1.10),
+                  5: pw.FlexColumnWidth(1.18),
                 },
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.6),
-                  1: const pw.FlexColumnWidth(2.8),
-                  2: const pw.FlexColumnWidth(1.4),
-                  3: const pw.FlexColumnWidth(0.8),
-                  4: const pw.FlexColumnWidth(1.2),
-                  5: const pw.FlexColumnWidth(1.3),
-                },
-                headers: const [
-                  'ลำดับ',
-                  'รายการ',
-                  'ขนาด',
-                  'จำนวน',
-                  'ราคา/หน่วย',
-                  'ราคารวม',
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: slateBg),
+                    children: [
+                      cellBox(headerText('ลำดับ')),
+                      cellBox(headerText('รายการ', align: pw.TextAlign.left),
+                          alignment: pw.Alignment.centerLeft),
+                      cellBox(headerText('ขนาด')),
+                      cellBox(headerText('จำนวน')),
+                      cellBox(headerText('ราคา/หน่วย', align: pw.TextAlign.right),
+                          alignment: pw.Alignment.centerRight),
+                      cellBox(headerText('ราคารวม', align: pw.TextAlign.right),
+                          alignment: pw.Alignment.centerRight),
+                    ],
+                  ),
+                  ...List.generate(quotation.lines.length, (i) {
+                    final ln = quotation.lines[i];
+                    return pw.TableRow(
+                      children: [
+                        cellBox(
+                          pw.Text('${i + 1}',
+                              style: const pw.TextStyle(fontSize: 8.8)),
+                        ),
+                        descriptionCell(ln),
+                        cellBox(
+                          pw.Text(
+                            ln.sizeText,
+                            textAlign: pw.TextAlign.center,
+                            style: const pw.TextStyle(fontSize: 8.6),
+                          ),
+                        ),
+                        cellBox(
+                          pw.Text('${ln.qty} ชุด',
+                              style: const pw.TextStyle(fontSize: 8.8)),
+                        ),
+                        cellBox(
+                          pw.Text(formatMoney(ln.unitPrice),
+                              style: const pw.TextStyle(fontSize: 8.8)),
+                          alignment: pw.Alignment.centerRight,
+                        ),
+                        cellBox(
+                          pw.Text(
+                            formatMoney(ln.lineTotal),
+                            style: pw.TextStyle(
+                              fontSize: 8.8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: navy,
+                            ),
+                          ),
+                          alignment: pw.Alignment.centerRight,
+                        ),
+                      ],
+                    );
+                  }),
                 ],
-                data: List.generate(quotation.lines.length, (i) {
-                  final ln = quotation.lines[i];
-                  final desc = ln.subtitle.trim().isNotEmpty
-                      ? '${ln.label}\n${ln.subtitle}'
-                      : ln.label;
-                  return [
-                    '${i + 1}',
-                    desc,
-                    ln.sizeText,
-                    '${ln.qty} ชุด',
-                    formatMoney(ln.unitPrice),
-                    formatMoney(ln.lineTotal),
-                  ];
-                }),
               ),
             );
           } else {
@@ -321,37 +405,50 @@ class QuotationPdfGenerator {
               ),
             );
             w.add(
-              pw.TableHelper.fromTextArray(
+              pw.Table(
                 border: pw.TableBorder.all(color: borderGray, width: 0.6),
-                headerDecoration: const pw.BoxDecoration(color: slateBg),
-                headerStyle: pw.TextStyle(
-                    fontSize: 8.8, fontWeight: pw.FontWeight.bold, color: navy),
-                cellStyle: const pw.TextStyle(fontSize: 8.8),
-                cellAlignments: {
-                  0: pw.Alignment.center,
-                  1: pw.Alignment.centerLeft,
-                  2: pw.Alignment.center,
-                  3: pw.Alignment.center,
+                defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+                columnWidths: const {
+                  0: pw.FlexColumnWidth(0.65),
+                  1: pw.FlexColumnWidth(3.85),
+                  2: pw.FlexColumnWidth(1.65),
+                  3: pw.FlexColumnWidth(0.95),
                 },
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(0.7),
-                  1: const pw.FlexColumnWidth(3.6),
-                  2: const pw.FlexColumnWidth(1.8),
-                  3: const pw.FlexColumnWidth(1.0),
-                },
-                headers: const ['ลำดับ', 'รายการ', 'ขนาด', 'จำนวน'],
-                data: List.generate(quotation.lines.length, (i) {
-                  final ln = quotation.lines[i];
-                  final desc = ln.subtitle.trim().isNotEmpty
-                      ? '${ln.label}\n${ln.subtitle}'
-                      : ln.label;
-                  return [
-                    '${i + 1}',
-                    desc,
-                    ln.sizeText,
-                    '${ln.qty} ชุด',
-                  ];
-                }),
+                children: [
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(color: slateBg),
+                    children: [
+                      cellBox(headerText('ลำดับ')),
+                      cellBox(headerText('รายการ', align: pw.TextAlign.left),
+                          alignment: pw.Alignment.centerLeft),
+                      cellBox(headerText('ขนาด')),
+                      cellBox(headerText('จำนวน')),
+                    ],
+                  ),
+                  ...List.generate(quotation.lines.length, (i) {
+                    final ln = quotation.lines[i];
+                    return pw.TableRow(
+                      children: [
+                        cellBox(
+                          pw.Text('${i + 1}',
+                              style: const pw.TextStyle(fontSize: 8.8)),
+                        ),
+                        descriptionCell(ln),
+                        cellBox(
+                          pw.Text(
+                            ln.sizeText,
+                            textAlign: pw.TextAlign.center,
+                            style: const pw.TextStyle(fontSize: 8.6),
+                          ),
+                        ),
+                        cellBox(
+                          pw.Text('${ln.qty} ชุด',
+                              style: const pw.TextStyle(fontSize: 8.8)),
+                        ),
+                      ],
+                    );
+                  }),
+                ],
               ),
             );
             w.add(

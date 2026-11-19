@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/alupro_image_registry.dart';
 import '../data/catalog_definitions.dart';
 import '../engine/parametric_system_resolver.dart';
+import '../engine/quotation_spec_formatter.dart';
 import '../models/app_models.dart';
 import 'alupro_thumbnail_widgets.dart';
 import 'result_and_pricing_screens.dart';
@@ -1184,6 +1185,10 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
 
                 // Dimension Table / Form
                 _buildSizeInputSection(),
+                const SizedBox(height: 14),
+
+                // Optional Material & Glass Spec for Quotation
+                _buildQuotationSpecCard(),
               ],
             ),
           ),
@@ -1588,6 +1593,148 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('เข้าใจแล้ว'),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuotationSpecCard() {
+    final pat = widget.pattern;
+    final hasOwnThickness = pat.optionGroups.any((g) => g.id == 'thickness');
+    final hasOwnGlassThick = pat.optionGroups.any((g) => g.id == 'glass_thick');
+
+    final curAluThick = _selectedOpts['spec_alu_thick'] ?? 'ตามรายการ';
+    final curAluColor = _selectedOpts['spec_alu_color'] ?? 'ไม่ระบุ';
+    final curGlassType = _selectedOpts['spec_glass_type'] ?? 'ไม่ระบุ';
+    final curGlassThick = _selectedOpts['spec_glass_thick'] ?? 'ไม่ระบุ';
+
+    final summaryBadges = <String>[
+      if (!hasOwnThickness &&
+          curAluThick != 'ตามรายการ' &&
+          curAluThick != 'ไม่ระบุ')
+        'หนา $curAluThick',
+      if (curAluColor != 'ไม่ระบุ') curAluColor,
+      if (curGlassType != 'ไม่ระบุ')
+        (curGlassType == 'ไม่รวมกระจก' ||
+                hasOwnGlassThick ||
+                curGlassThick == 'ไม่ระบุ')
+            ? curGlassType
+            : '$curGlassType $curGlassThick'
+      else if (!hasOwnGlassThick && curGlassThick != 'ไม่ระบุ')
+        'กระจก $curGlassThick',
+    ];
+
+    Widget chipGroup({
+      required String label,
+      required List<String> choices,
+      required String current,
+      required ValueChanged<String> onPick,
+    }) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: ToolkitColors.slateBody,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: choices.map((ch) {
+                final sel = current == ch;
+                return ChoiceChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(ch),
+                  selected: sel,
+                  selectedColor: ToolkitColors.softBlueBg,
+                  labelStyle: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel
+                        ? ToolkitColors.royalBlue
+                        : ToolkitColors.slateBody,
+                  ),
+                  side: BorderSide(
+                    color: sel
+                        ? ToolkitColors.royalBlue
+                        : ToolkitColors.cardBorder,
+                  ),
+                  onSelected: (_) => onPick(ch),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ToolkitColors.cardBorder),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
+        childrenPadding: const EdgeInsets.fromLTRB(15, 0, 15, 10),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        title: const Text(
+          'ระบุความหนา / สี / ประเภทกระจก (สำหรับใบเสนอราคา)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: ToolkitColors.slateDark,
+          ),
+        ),
+        subtitle: Text(
+          summaryBadges.isEmpty
+              ? 'ไม่บังคับ — เลือกไว้ล่วงหน้าหรือกำหนดตอนสร้างใบเสนอราคาได้'
+              : summaryBadges.join(' · '),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight:
+                summaryBadges.isEmpty ? FontWeight.w400 : FontWeight.w600,
+            color: summaryBadges.isEmpty
+                ? ToolkitColors.slateMuted
+                : ToolkitColors.royalBlue,
+          ),
+        ),
+        children: [
+          if (!hasOwnThickness)
+            chipGroup(
+              label: 'ความหนาอลูมิเนียม',
+              choices: QuotationSpecFormatter.aluminumThicknessChoices,
+              current: curAluThick,
+              onPick: (v) => setState(() => _selectedOpts['spec_alu_thick'] = v),
+            ),
+          chipGroup(
+            label: 'สีอลูมิเนียม',
+            choices: QuotationSpecFormatter.aluminumColorChoices,
+            current: curAluColor,
+            onPick: (v) => setState(() => _selectedOpts['spec_alu_color'] = v),
+          ),
+          chipGroup(
+            label: 'ประเภทกระจก',
+            choices: QuotationSpecFormatter.glassTypeChoices,
+            current: curGlassType,
+            onPick: (v) => setState(() => _selectedOpts['spec_glass_type'] = v),
+          ),
+          if (curGlassType != 'ไม่รวมกระจก' && !hasOwnGlassThick)
+            chipGroup(
+              label: 'ความหนากระจก',
+              choices: QuotationSpecFormatter.glassThicknessChoices,
+              current: curGlassThick,
+              onPick: (v) =>
+                  setState(() => _selectedOpts['spec_glass_thick'] = v),
+            ),
         ],
       ),
     );
