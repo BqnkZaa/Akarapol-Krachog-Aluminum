@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/seed_repository.dart';
 import 'catalog_and_input_screens.dart';
+import 'custom_system_studio_screens.dart';
 import 'projects_and_quotation_screens.dart';
 import 'result_and_pricing_screens.dart';
 import 'theme_tokens.dart';
@@ -344,12 +345,25 @@ class HomeScreen extends StatelessWidget {
                             ),
                             _ShortcutChip(
                               icon: Icons.price_change_outlined,
-                              label: 'กำหนด/แก้ไขราคาเส้นเอง',
+                              label: 'จัดการ/อัปเดตราคา',
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const CustomPriceScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _ShortcutChip(
+                              icon: Icons.architecture_rounded,
+                              label: 'เพิ่มชุดโปรไฟล์ใหม่',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const CustomSystemListScreen(),
                                   ),
                                 );
                               },

@@ -171,6 +171,11 @@ class QuotationSpecFormatter {
         return 'โปรไฟล์ยูโร ALUFRAME (อลูเฟรม)';
 
       default:
+        if (bTitle.isNotEmpty &&
+            sTitle.isNotEmpty &&
+            !bTitle.toLowerCase().contains(sTitle.toLowerCase())) {
+          return 'โปรไฟล์ $bTitle รุ่น $sTitle';
+        }
         return bTitle.isNotEmpty ? 'โปรไฟล์ $bTitle' : 'โปรไฟล์อลูมิเนียม';
     }
   }
@@ -203,9 +208,15 @@ class QuotationSpecFormatter {
     if (c.isEmpty || c.contains('MILL') || c.contains('ตัวดิบ')) {
       return 'ไม่ระบุ';
     }
-    if (c.contains('ซุปเปอร์แบล็ค') || c == 'สีดำ') return 'สีดำ';
-    if (c.contains('คอตตอน ไวท์') || c == 'สีขาวอบ') return 'สีขาวอบ';
+    if (c.contains('ซุปเปอร์แบล็ค') || c.contains('อบดำ') || c == 'สีดำ') {
+      return 'สีดำ';
+    }
+    if (c.contains('คอตตอน ไวท์') || c.contains('อบขาว') || c == 'สีขาวอบ') {
+      return 'สีขาวอบ';
+    }
     if (c.contains('ชุบขาว')) return 'สีชุบขาว (NA)';
+    if (c.contains('เทาซาฮาร่า')) return 'สีเทาซาฮาร่า';
+    if (c.contains('ทรายซาฮาร่า') || c.contains('สีชา')) return 'สีชา';
     if (c.contains('แชมเปญเกรย์')) return 'สีแชมเปญเกรย์';
     if (c.contains('ลายไม้')) return 'ลายไม้';
     return c;

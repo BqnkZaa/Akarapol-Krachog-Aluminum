@@ -1,5 +1,28 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'theme_tokens.dart';
+
+Widget buildAssetOrFileImage(
+  String path, {
+  BoxFit fit = BoxFit.contain,
+  FilterQuality filterQuality = FilterQuality.medium,
+  Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
+}) {
+  if (path.startsWith('assets/')) {
+    return Image.asset(
+      path,
+      fit: fit,
+      filterQuality: filterQuality,
+      errorBuilder: errorBuilder,
+    );
+  }
+  return Image.file(
+    File(path),
+    fit: fit,
+    filterQuality: filterQuality,
+    errorBuilder: errorBuilder,
+  );
+}
 
 void showAluproImageZoomDialog(
   BuildContext context, {
@@ -79,7 +102,7 @@ void showAluproImageZoomDialog(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Center(
-                      child: Image.asset(
+                      child: buildAssetOrFileImage(
                         assetPath,
                         fit: BoxFit.contain,
                         filterQuality: FilterQuality.medium,
@@ -164,7 +187,7 @@ class AluproThumbnail extends StatelessWidget {
         children: [
           Opacity(
             opacity: opacity,
-            child: Image.asset(
+            child: buildAssetOrFileImage(
               path,
               fit: BoxFit.contain,
               filterQuality: FilterQuality.medium,
@@ -231,7 +254,21 @@ class BrandLogoPlate extends StatelessWidget {
   Widget build(BuildContext context) {
     final path = assetPath;
     if (path == null || path.isEmpty) {
-      return SizedBox(width: width, height: height);
+      return Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: ToolkitColors.softBlueBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: ToolkitColors.cardBorder),
+        ),
+        child: const Icon(
+          Icons.precision_manufacturing_outlined,
+          size: 26,
+          color: ToolkitColors.royalBlue,
+        ),
+      );
     }
 
     return SizedBox(
@@ -239,7 +276,7 @@ class BrandLogoPlate extends StatelessWidget {
       height: height,
       child: Opacity(
         opacity: enabled ? 1.0 : 0.48,
-        child: Image.asset(
+        child: buildAssetOrFileImage(
           path,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,

@@ -5,20 +5,43 @@ import '../engine/parametric_system_resolver.dart';
 import '../engine/quotation_spec_formatter.dart';
 import '../models/app_models.dart';
 import 'alupro_thumbnail_widgets.dart';
+import 'custom_system_studio_screens.dart';
 import 'result_and_pricing_screens.dart';
 import 'theme_tokens.dart';
 
-class CategorySelectScreen extends StatelessWidget {
+class CategorySelectScreen extends StatefulWidget {
   final int? targetProjectId;
 
   const CategorySelectScreen({super.key, this.targetProjectId});
 
   @override
+  State<CategorySelectScreen> createState() => _CategorySelectScreenState();
+}
+
+class _CategorySelectScreenState extends State<CategorySelectScreen> {
+  Future<void> _openStudio() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CustomSystemListScreen()),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cats = CatalogDefinitions.categories;
+    final cats = CatalogDefinitions.mergedCategories();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('เลือกหมวดระบบอลูมิเนียม')),
+      appBar: AppBar(
+        title: const Text('เลือกหมวดระบบอลูมิเนียม'),
+        actions: [
+          IconButton(
+            tooltip: 'เพิ่ม / จัดการชุดโปรไฟล์ใหม่',
+            onPressed: _openStudio,
+            icon: const Icon(Icons.add_box_outlined),
+          ),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final availW = constraints.maxWidth;
@@ -30,73 +53,91 @@ class CategorySelectScreen extends StatelessWidget {
               : (availW < 600 ? 68.0 : 77.0);
 
           return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          const Text(
-            'เลือกชุดระบบหลัก',
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
-              color: ToolkitColors.slateDark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'เลือกประเภทชุดที่ตรงกับงานที่กำลังทำ',
-            style: TextStyle(
-              fontSize: 13.5,
-              color: ToolkitColors.slateMuted,
-            ),
-          ),
-          const SizedBox(height: 16),
-          for (int i = 0; i < cats.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            Builder(
-              builder: (_) {
-                final cat = cats[i];
-                final catIconAsset = AluproImageRegistry.instance
-                    .resolveCategoryAsset(cat.id);
-                return _NavCard(
-                  title: '${i + 1}. ${cat.title}',
-                  subtitle: cat.subtitle,
-                  leadingWidget: BrandLogoPlate(
-                    assetPath: catIconAsset,
-                    width: plateW,
-                    height: plateH,
-                    enabled: cat.enabled,
-                  ),
-                  enabled: cat.enabled,
-                  disabledBadge: cat.disabledBadge,
-                  onTap: () {
-                    if (cat.directSystems.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SubSystemSelectScreen(
-                            brandTitle: cat.title,
-                            priceBrandKey: 'MARKET',
-                            systems: cat.directSystems,
-                            targetProjectId: targetProjectId,
-                          ),
-                        ),
-                      );
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BrandSelectScreen(
-                            category: cat,
-                            targetProjectId: targetProjectId,
-                          ),
-                        ),
-                      );
-                    }
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              const Text(
+                'เลือกชุดระบบหลัก',
+                style: TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ToolkitColors.slateDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'เลือกประเภทชุดที่ตรงกับงานที่กำลังทำ',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: ToolkitColors.slateMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+              for (int i = 0; i < cats.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                Builder(
+                  builder: (_) {
+                    final cat = cats[i];
+                    final catIconAsset = AluproImageRegistry.instance
+                        .resolveCategoryAsset(cat.id);
+                    return _NavCard(
+                      title: '${i + 1}. ${cat.title}',
+                      subtitle: cat.subtitle,
+                      leadingWidget: BrandLogoPlate(
+                        assetPath: catIconAsset,
+                        width: plateW,
+                        height: plateH,
+                        enabled: cat.enabled,
+                      ),
+                      enabled: cat.enabled,
+                      disabledBadge: cat.disabledBadge,
+                      onTap: () async {
+                        if (cat.directSystems.isNotEmpty) {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SubSystemSelectScreen(
+                                brandTitle: cat.title,
+                                priceBrandKey: 'MARKET',
+                                systems: cat.directSystems,
+                                targetProjectId: widget.targetProjectId,
+                              ),
+                            ),
+                          );
+                        } else {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BrandSelectScreen(
+                                category: cat,
+                                targetProjectId: widget.targetProjectId,
+                              ),
+                            ),
+                          );
+                        }
+                        if (mounted) setState(() {});
+                      },
+                    );
                   },
-                );
-              },
-            ),
-          ],
-        ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  side: const BorderSide(color: ToolkitColors.royalBlue),
+                  foregroundColor: ToolkitColors.royalBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _openStudio,
+                icon: const Icon(Icons.add_circle_outline_rounded, size: 19),
+                label: const Text(
+                  'เพิ่ม / จัดการชุดโปรไฟล์ใหม่',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -104,7 +145,7 @@ class CategorySelectScreen extends StatelessWidget {
   }
 }
 
-class BrandSelectScreen extends StatelessWidget {
+class BrandSelectScreen extends StatefulWidget {
   final CategoryDef category;
   final int? targetProjectId;
 
@@ -115,9 +156,44 @@ class BrandSelectScreen extends StatelessWidget {
   });
 
   @override
+  State<BrandSelectScreen> createState() => _BrandSelectScreenState();
+}
+
+class _BrandSelectScreenState extends State<BrandSelectScreen> {
+  CategoryDef get _activeCategory {
+    final merged = CatalogDefinitions.mergedCategories();
+    return merged.firstWhere(
+      (c) => c.id == widget.category.id,
+      orElse: () => widget.category,
+    );
+  }
+
+  Future<void> _openStudioForCategory() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CustomSystemListScreen(
+          initialCategoryId: widget.category.id,
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final category = _activeCategory;
     return Scaffold(
-      appBar: AppBar(title: Text(category.title)),
+      appBar: AppBar(
+        title: Text(category.title),
+        actions: [
+          IconButton(
+            tooltip: 'เพิ่มชุดโปรไฟล์ในหมวดนี้',
+            onPressed: _openStudioForCategory,
+            icon: const Icon(Icons.add_box_outlined),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
@@ -155,7 +231,7 @@ class BrandSelectScreen extends StatelessWidget {
                         priceBrandKey: brand.priceBrandKey,
                         systemTitle: brand.subtitle,
                         patterns: brand.directPatterns,
-                        targetProjectId: targetProjectId,
+                        targetProjectId: widget.targetProjectId,
                       ),
                     ),
                   );
@@ -167,7 +243,7 @@ class BrandSelectScreen extends StatelessWidget {
                         brandTitle: brand.title,
                         priceBrandKey: brand.priceBrandKey,
                         systems: brand.systems,
-                        targetProjectId: targetProjectId,
+                        targetProjectId: widget.targetProjectId,
                       ),
                     ),
                   );

@@ -1,7 +1,147 @@
 import '../models/app_models.dart';
+import 'seed_repository.dart';
 
 class CatalogDefinitions {
   CatalogDefinitions._();
+
+  /// Merges built-in categories with any user-created [CustomProfileSystem]s.
+  static List<CategoryDef> mergedCategories([
+    List<CustomProfileSystem>? customOverride,
+  ]) {
+    final customs = customOverride ?? SeedRepository.instance.customSystems;
+    if (customs.isEmpty) return categories;
+
+    return categories.map((cat) {
+      final forCat = customs.where((c) => c.categoryId == cat.id).toList();
+      if (forCat.isEmpty) return cat;
+
+      // Category 1 uses directSystems (no brand layer)
+      if (cat.directSystems.isNotEmpty && cat.brands.isEmpty) {
+        final nextSystems = List<SubSystemDef>.from(cat.directSystems);
+        for (final cs in forCat) {
+          final pat = cs.toPatternCardDef();
+          final sysTitle = cs.systemTitle.trim().isEmpty
+              ? 'ชุดตลาดเพิ่มเติม'
+              : cs.systemTitle.trim();
+          final idx = nextSystems.indexWhere((s) => s.title == sysTitle);
+          if (idx >= 0) {
+            final existing = nextSystems[idx];
+            nextSystems[idx] = SubSystemDef(
+              id: existing.id,
+              title: existing.title,
+              subtitle: existing.subtitle,
+              enabled: true,
+              patterns: [...existing.patterns, pat],
+              subTabs: existing.subTabs,
+            );
+          } else {
+            nextSystems.add(
+              SubSystemDef(
+                id: 'cust_sys_${cs.id}',
+                title: sysTitle,
+                subtitle: cs.brandTitle.isNotEmpty
+                    ? cs.brandTitle
+                    : 'ชุดโปรไฟล์ที่เพิ่มเอง',
+                patterns: [pat],
+              ),
+            );
+          }
+        }
+        return CategoryDef(
+          id: cat.id,
+          title: cat.title,
+          subtitle: cat.subtitle,
+          enabled: true,
+          directSystems: nextSystems,
+        );
+      }
+
+      // Categories 2–5 use brands
+      final nextBrands = List<BrandDef>.from(cat.brands);
+      for (final cs in forCat) {
+        final pat = cs.toPatternCardDef();
+        final bIdx = nextBrands.indexWhere(
+          (b) =>
+              b.id == cs.brandId ||
+              b.title.toLowerCase() == cs.brandTitle.trim().toLowerCase(),
+        );
+        final sysTitle = cs.systemTitle.trim().isEmpty
+            ? 'ชุดระบบโปรไฟล์'
+            : cs.systemTitle.trim();
+
+        if (bIdx >= 0) {
+          final existingB = nextBrands[bIdx];
+          if (existingB.directPatterns.isNotEmpty && existingB.systems.isEmpty) {
+            nextBrands[bIdx] = BrandDef(
+              id: existingB.id,
+              title: existingB.title,
+              subtitle: existingB.subtitle,
+              priceBrandKey: existingB.priceBrandKey,
+              enabled: true,
+              directPatterns: [...existingB.directPatterns, pat],
+            );
+          } else {
+            final nextSys = List<SubSystemDef>.from(existingB.systems);
+            final sIdx = nextSys.indexWhere((s) => s.title == sysTitle);
+            if (sIdx >= 0) {
+              final exSys = nextSys[sIdx];
+              nextSys[sIdx] = SubSystemDef(
+                id: exSys.id,
+                title: exSys.title,
+                subtitle: exSys.subtitle,
+                enabled: true,
+                patterns: [...exSys.patterns, pat],
+                subTabs: exSys.subTabs,
+              );
+            } else {
+              nextSys.add(
+                SubSystemDef(
+                  id: 'cust_sub_${cs.id}',
+                  title: sysTitle,
+                  subtitle: 'ชุดโปรไฟล์ที่เพิ่มเอง',
+                  patterns: [pat],
+                ),
+              );
+            }
+            nextBrands[bIdx] = BrandDef(
+              id: existingB.id,
+              title: existingB.title,
+              subtitle: existingB.subtitle,
+              priceBrandKey: existingB.priceBrandKey,
+              enabled: true,
+              systems: nextSys,
+            );
+          }
+        } else {
+          nextBrands.add(
+            BrandDef(
+              id: cs.brandId,
+              title: cs.brandTitle.trim(),
+              subtitle: sysTitle,
+              priceBrandKey: cs.priceBrandKey.trim().toUpperCase(),
+              enabled: true,
+              systems: [
+                SubSystemDef(
+                  id: 'cust_sub_${cs.id}',
+                  title: sysTitle,
+                  subtitle: 'ชุดโปรไฟล์ที่เพิ่มเอง',
+                  patterns: [pat],
+                ),
+              ],
+            ),
+          );
+        }
+      }
+
+      return CategoryDef(
+        id: cat.id,
+        title: cat.title,
+        subtitle: cat.subtitle,
+        enabled: true,
+        brands: nextBrands,
+      );
+    }).toList();
+  }
 
   // ===========================================================================
   // Reusable Option Groups (Verbatim Thai Labels from Toolkit v0.1.7)

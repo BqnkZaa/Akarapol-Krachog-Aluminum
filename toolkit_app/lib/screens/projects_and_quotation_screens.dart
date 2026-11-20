@@ -915,11 +915,40 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
   String _selectedThickness = '';
   String _selectedColor = '';
   late final List<ProfileBarGroup> _packedGroups;
+  late final List<EvaluatedGlassItem> _projectGlasses;
+  late final List<AggregatedHardwareItem> _projectHardware;
 
   @override
   void initState() {
     super.initState();
     _packedGroups = BinPacker.packProjectItems(widget.project.items);
+    _projectGlasses = widget.project.items
+        .expand((it) => it.evaluatedSets.expand((s) => s.glasses))
+        .toList();
+    _projectHardware = _mergeProjectHardware(widget.project.items);
+  }
+
+  static List<AggregatedHardwareItem> _mergeProjectHardware(
+    List<SavedProjectItem> items,
+  ) {
+    final map = <String, AggregatedHardwareItem>{};
+    for (final it in items) {
+      for (final h in it.hardware) {
+        final key = '${h.code}|${h.name}|${h.unitOrNote}';
+        final ex = map[key];
+        if (ex == null) {
+          map[key] = h;
+        } else if (ex.numericQty != null && h.numericQty != null) {
+          map[key] = AggregatedHardwareItem(
+            code: ex.code,
+            name: ex.name,
+            numericQty: ex.numericQty! + h.numericQty!,
+            unitOrNote: ex.unitOrNote,
+          );
+        }
+      }
+    }
+    return map.values.toList();
   }
 
   Future<void> _onTapCreateQuotation() async {
@@ -953,6 +982,19 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
           Expanded(
             child: PricingWorkspaceWidget(
               barGroups: _packedGroups,
+              glasses: _projectGlasses,
+              fallbackOpeningAreaSqM: widget.project.items.fold(
+                0.0,
+                (sum, it) =>
+                    sum +
+                    it.sizeRows.fold(
+                      0.0,
+                      (s2, r) =>
+                          s2 +
+                          ((r.widthMm * r.heightMm) / 1000000.0) * r.qty * 0.88,
+                    ),
+              ),
+              hardware: _projectHardware,
               onSummaryChanged: (s) {
                 final costDiff = (_estimatedCost - s.totalCost).abs() > 0.005;
                 final specDiff = _selectedThickness != s.selectedThickness ||

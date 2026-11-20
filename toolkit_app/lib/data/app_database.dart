@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../models/app_models.dart';
@@ -39,7 +40,7 @@ class CustomPriceOverride {
       };
 
   factory CustomPriceOverride.fromMap(Map<String, dynamic> m) =>
-      CustomPriceOverride(
+       CustomPriceOverride(
         skuKey: m['sku_key'] as String,
         brand: m['brand'] as String,
         code: m['code'] as String,
@@ -50,6 +51,88 @@ class CustomPriceOverride {
         pricePerBar: (m['price_per_bar'] as num).toDouble(),
         inStock: (m['in_stock'] as int? ?? 1) == 1,
       );
+
+  Map<String, dynamic> toJson() => {
+        'skuKey': skuKey,
+        'brand': brand,
+        'code': code,
+        'name': name,
+        'thickness': thickness,
+        'color': color,
+        'stockM': stockM,
+        'pricePerBar': pricePerBar,
+        'inStock': inStock,
+      };
+
+  factory CustomPriceOverride.fromJson(Map<String, dynamic> j) =>
+      CustomPriceOverride(
+        skuKey: j['skuKey'] as String,
+        brand: j['brand'] as String,
+        code: j['code'] as String,
+        name: j['name'] as String? ?? '',
+        thickness: j['thickness'] as String,
+        color: j['color'] as String,
+        stockM: (j['stockM'] as num?)?.toDouble() ?? 6.4,
+        pricePerBar: (j['pricePerBar'] as num).toDouble(),
+        inStock: j['inStock'] as bool? ?? true,
+      );
+}
+
+class CustomMaterialRateOverride {
+  final String rateKey;
+  final String category; // 'GLASS' | 'HARDWARE'
+  final String code;
+  final String name;
+  final String unit;
+  final double price;
+
+  const CustomMaterialRateOverride({
+    required this.rateKey,
+    required this.category,
+    required this.code,
+    required this.name,
+    required this.unit,
+    required this.price,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'rate_key': rateKey,
+        'category': category,
+        'code': code,
+        'name': name,
+        'unit': unit,
+        'price': price,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+  factory CustomMaterialRateOverride.fromMap(Map<String, dynamic> m) =>
+      CustomMaterialRateOverride(
+        rateKey: m['rate_key'] as String,
+        category: m['category'] as String,
+        code: m['code'] as String? ?? '',
+        name: m['name'] as String? ?? '',
+        unit: m['unit'] as String? ?? 'ชิ้น',
+        price: (m['price'] as num).toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'rateKey': rateKey,
+        'category': category,
+        'code': code,
+        'name': name,
+        'unit': unit,
+        'price': price,
+      };
+
+  factory CustomMaterialRateOverride.fromJson(Map<String, dynamic> j) =>
+      CustomMaterialRateOverride(
+        rateKey: j['rateKey'] as String,
+        category: j['category'] as String,
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        unit: j['unit'] as String? ?? 'ชิ้น',
+        price: (j['price'] as num).toDouble(),
+      );
 }
 
 class AppDatabase {
@@ -57,6 +140,9 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   Database? _db;
+  Map<String, CustomPriceOverride>? _cachedCustomPrices;
+  Map<String, CustomMaterialRateOverride>? _cachedMaterialRates;
+  bool? _cachedPricingNoticeSeen;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -64,8 +150,9 @@ class AppDatabase {
     final path = p.join(dbDir, 'akkaraphon_toolkit_v1.db');
     _db = await openDatabase(
       path,
-      version: 1,
-      onCreate: _onCreate,
+      version: 2,
+      onCreate: (db, _) => _ensureAllTables(db),
+      onUpgrade: (db, _, _) => _ensureAllTables(db),
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -75,10 +162,13 @@ class AppDatabase {
 
   Future<void> initForTesting(Database testDb) async {
     _db = testDb;
-    await _onCreate(testDb, 1);
+    _cachedCustomPrices = {};
+    _cachedMaterialRates = {};
+    _cachedPricingNoticeSeen = false;
+    await _ensureAllTables(testDb);
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  Future<void> _ensureAllTables(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS app_flags (
         flag_key TEXT PRIMARY KEY,
@@ -111,6 +201,41 @@ class AppDatabase {
         stock_m REAL NOT NULL DEFAULT 6.4,
         price_per_bar REAL NOT NULL,
         in_stock INTEGER NOT NULL DEFAULT 1,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS custom_material_rates (
+        rate_key TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        code TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'ชิ้น',
+        price REAL NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS custom_profile_systems (
+        id TEXT PRIMARY KEY,
+        category_id TEXT NOT NULL,
+        brand_id TEXT NOT NULL,
+        brand_title TEXT NOT NULL,
+        price_brand_key TEXT NOT NULL,
+        brand_logo_path TEXT,
+        system_title TEXT NOT NULL,
+        pattern_title TEXT NOT NULL,
+        pattern_subtitle TEXT NOT NULL DEFAULT '',
+        pattern_image_path TEXT,
+        table_mode TEXT NOT NULL DEFAULT 'standardMultiRow',
+        aux_type TEXT NOT NULL DEFAULT 'none',
+        aux_label TEXT,
+        formula_json TEXT NOT NULL,
+        profile_images_json TEXT NOT NULL DEFAULT '{}',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
     ''');
@@ -179,16 +304,19 @@ class AppDatabase {
 
   // --- Pricing Beta Notice Flag ---
   Future<bool> hasSeenPricingNotice() async {
+    if (_cachedPricingNoticeSeen != null) return _cachedPricingNoticeSeen!;
     final db = await database;
     final rows = await db.query(
       'app_flags',
       where: 'flag_key = ?',
       whereArgs: ['pricing_beta_ack'],
     );
-    return rows.isNotEmpty;
+    _cachedPricingNoticeSeen = rows.isNotEmpty;
+    return _cachedPricingNoticeSeen!;
   }
 
   Future<void> markPricingNoticeSeen() async {
+    _cachedPricingNoticeSeen = true;
     final db = await database;
     await db.insert(
       'app_flags',
@@ -214,8 +342,11 @@ class AppDatabase {
     );
   }
 
-  // --- Custom Prices ---
+  // --- Custom Aluminum Profile Prices ---
   Future<Map<String, CustomPriceOverride>> getAllCustomPrices() async {
+    if (_cachedCustomPrices != null) {
+      return Map<String, CustomPriceOverride>.from(_cachedCustomPrices!);
+    }
     final db = await database;
     final rows = await db.query('custom_prices');
     final map = <String, CustomPriceOverride>{};
@@ -223,7 +354,8 @@ class AppDatabase {
       final item = CustomPriceOverride.fromMap(r);
       map[item.skuKey] = item;
     }
-    return map;
+    _cachedCustomPrices = map;
+    return Map<String, CustomPriceOverride>.from(map);
   }
 
   Future<void> upsertCustomPrice(CustomPriceOverride override) async {
@@ -233,11 +365,212 @@ class AppDatabase {
       override.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    _cachedCustomPrices?[override.skuKey] = override;
+  }
+
+  Future<void> upsertCustomPricesBatch(List<CustomPriceOverride> items) async {
+    if (items.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final item in items) {
+      batch.insert(
+        'custom_prices',
+        item.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      _cachedCustomPrices?[item.skuKey] = item;
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> deleteCustomPrice(String skuKey) async {
     final db = await database;
     await db.delete('custom_prices', where: 'sku_key = ?', whereArgs: [skuKey]);
+    _cachedCustomPrices?.remove(skuKey);
+  }
+
+  Future<int> resetBrandCustomPrices({String? brandFilter}) async {
+    final db = await database;
+    if (brandFilter == null || brandFilter == 'ทั้งหมด') {
+      _cachedCustomPrices?.clear();
+      return db.delete('custom_prices');
+    }
+    _cachedCustomPrices?.removeWhere((_, v) => v.brand == brandFilter);
+    return db.delete(
+      'custom_prices',
+      where: 'brand = ?',
+      whereArgs: [brandFilter],
+    );
+  }
+
+  Future<int> applyBulkPriceAdjustment({
+    required List<OrmPriceSku> currentMergedSkus,
+    String? brandFilter,
+    String? colorFilter,
+    required double percentDelta,
+    double flatBahtDelta = 0.0,
+  }) async {
+    final targets = currentMergedSkus.where((s) {
+      if (brandFilter != null &&
+          brandFilter.isNotEmpty &&
+          brandFilter != 'ทั้งหมด' &&
+          s.brand != brandFilter) {
+        return false;
+      }
+      if (colorFilter != null &&
+          colorFilter.isNotEmpty &&
+          colorFilter != 'ทั้งหมด' &&
+          s.color != colorFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (targets.isEmpty) return 0;
+
+    final db = await database;
+    final batch = db.batch();
+    for (final s in targets) {
+      final rawNext =
+          s.effectivePrice * (1.0 + percentDelta / 100.0) + flatBahtDelta;
+      final nextPrice = ((rawNext < 0 ? 0.0 : rawNext) * 100.0).round() / 100.0;
+      final ov = CustomPriceOverride(
+        skuKey: s.skuKey,
+        brand: s.brand,
+        code: s.code,
+        name: s.name,
+        thickness: s.thickness,
+        color: s.color,
+        stockM: s.stockM,
+        pricePerBar: nextPrice,
+        inStock: s.inStock,
+      );
+      batch.insert(
+        'custom_prices',
+        ov.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      _cachedCustomPrices?[ov.skuKey] = ov;
+    }
+    await batch.commit(noResult: true);
+    return targets.length;
+  }
+
+  // --- Custom Material Rates (Glass & Hardware) ---
+  Future<Map<String, CustomMaterialRateOverride>>
+      getAllCustomMaterialRates() async {
+    if (_cachedMaterialRates != null) {
+      return Map<String, CustomMaterialRateOverride>.from(
+          _cachedMaterialRates!);
+    }
+    final db = await database;
+    final rows = await db.query('custom_material_rates');
+    final map = <String, CustomMaterialRateOverride>{};
+    for (final r in rows) {
+      final item = CustomMaterialRateOverride.fromMap(r);
+      map[item.rateKey] = item;
+    }
+    _cachedMaterialRates = map;
+    return Map<String, CustomMaterialRateOverride>.from(map);
+  }
+
+  Future<void> upsertCustomMaterialRate(
+      CustomMaterialRateOverride override) async {
+    final db = await database;
+    await db.insert(
+      'custom_material_rates',
+      override.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    _cachedMaterialRates?[override.rateKey] = override;
+  }
+
+  Future<void> deleteCustomMaterialRate(String rateKey) async {
+    final db = await database;
+    await db.delete(
+      'custom_material_rates',
+      where: 'rate_key = ?',
+      whereArgs: [rateKey],
+    );
+    _cachedMaterialRates?.remove(rateKey);
+  }
+
+  // --- Pricing JSON Backup Export / Import ---
+  Future<String> exportPricesBackupJson() async {
+    final profs = await getAllCustomPrices();
+    final mats = await getAllCustomMaterialRates();
+    final payload = {
+      'type': 'akkaraphon_price_backup',
+      'version': 2,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'profileOverrides': profs.values.map((e) => e.toJson()).toList(),
+      'materialOverrides': mats.values.map((e) => e.toJson()).toList(),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  Future<({int profilesImported, int materialsImported})>
+      importPricesBackupJson(String rawJson) async {
+    final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+    final profList = (decoded['profileOverrides'] as List<dynamic>? ?? [])
+        .map((e) => CustomPriceOverride.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final matList = (decoded['materialOverrides'] as List<dynamic>? ?? [])
+        .map((e) =>
+            CustomMaterialRateOverride.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final db = await database;
+    final batch = db.batch();
+    for (final pItem in profList) {
+      batch.insert(
+        'custom_prices',
+        pItem.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      _cachedCustomPrices?[pItem.skuKey] = pItem;
+    }
+    for (final mItem in matList) {
+      batch.insert(
+        'custom_material_rates',
+        mItem.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      _cachedMaterialRates?[mItem.rateKey] = mItem;
+    }
+    await batch.commit(noResult: true);
+    return (
+      profilesImported: profList.length,
+      materialsImported: matList.length,
+    );
+  }
+
+  // --- Custom Profile Systems (Studio) ---
+  Future<List<CustomProfileSystem>> listCustomProfileSystems() async {
+    final db = await database;
+    final rows = await db.query(
+      'custom_profile_systems',
+      orderBy: 'updated_at DESC',
+    );
+    return rows.map(CustomProfileSystem.fromMap).toList();
+  }
+
+  Future<void> upsertCustomProfileSystem(CustomProfileSystem system) async {
+    final db = await database;
+    await db.insert(
+      'custom_profile_systems',
+      system.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteCustomProfileSystem(String id) async {
+    final db = await database;
+    await db.delete(
+      'custom_profile_systems',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // --- Projects & Items ---

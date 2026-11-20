@@ -15,6 +15,7 @@ import '../engine/pricing_engine.dart';
 import '../models/app_models.dart';
 import '../pdf/single_cut_pdf.dart';
 import 'alupro_thumbnail_widgets.dart';
+import 'custom_system_studio_screens.dart';
 import 'projects_and_quotation_screens.dart';
 import 'theme_tokens.dart';
 
@@ -132,7 +133,19 @@ class _ResultScreenState extends State<ResultScreen>
                 _buildTab1CutLengths(out),
                 _buildTab2BomSummary(out),
                 _buildTab3BarPacking(out),
-                PricingWorkspaceWidget(barGroups: out.barGroups),
+                PricingWorkspaceWidget(
+                  barGroups: out.barGroups,
+                  glasses: out.sets.expand((s) => s.glasses).toList(),
+                  fallbackOpeningAreaSqM: out.sets.fold(
+                    0.0,
+                    (sum, s) =>
+                        sum +
+                        ((s.sizeRow.widthMm * s.sizeRow.heightMm) / 1000000.0) *
+                            s.sizeRow.qty *
+                            0.88,
+                  ),
+                  hardware: out.hardware,
+                ),
               ],
             ),
           ),
@@ -867,11 +880,17 @@ class ProfileBarGroupCard extends StatelessWidget {
 // =============================================================================
 class PricingWorkspaceWidget extends StatefulWidget {
   final List<ProfileBarGroup> barGroups;
+  final List<EvaluatedGlassItem> glasses;
+  final double fallbackOpeningAreaSqM;
+  final List<AggregatedHardwareItem> hardware;
   final ValueChanged<PricingSummary>? onSummaryChanged;
 
   const PricingWorkspaceWidget({
     super.key,
     required this.barGroups,
+    this.glasses = const [],
+    this.fallbackOpeningAreaSqM = 0.0,
+    this.hardware = const [],
     this.onSummaryChanged,
   });
 
@@ -885,49 +904,80 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   late final TextEditingController _wasteCtrl;
   String _selectedThickness = '';
   String _selectedColor = '';
+  bool _includeGlass = false;
+  String _selectedGlassKey = 'GLASS|กระจกใส 6 มม.';
+  bool _includeHardware = false;
+
   Map<String, CustomPriceOverride> _overrides = {};
+  Map<String, CustomMaterialRateOverride> _materialOverrides = {};
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _wasteCtrl = TextEditingController(text: '20');
+    _includeGlass = widget.glasses.isNotEmpty &&
+        (widget.glasses.any((g) => !g.siteCut && (g.widthMm ?? 0) > 0) ||
+            widget.fallbackOpeningAreaSqM > 0);
+    _includeHardware = widget.hardware.any((h) => (h.numericQty ?? 0) > 0);
     _reloadOverrides();
+  }
+
+  List<MaterialRateItem> _mergedGlassRates() {
+    return PricingEngine.mergeMaterialRates(
+      SeedRepository.instance.glassRates,
+      _materialOverrides,
+      category: 'GLASS',
+    );
   }
 
   void _syncValidSelection(Map<String, CustomPriceOverride> ov) {
     final avail = PricingEngine.computeAvailability(
       barGroups: widget.barGroups,
-      ormCatalog: SeedRepository.instance.ormPrices,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: ov,
       preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
     );
-    if (!avail.isComplete) {
-      _selectedThickness = '';
-      _selectedColor = '';
-    } else {
-      if (!avail.availableColors.contains(_selectedColor)) {
-        _selectedColor = avail.availableColors.contains('ตัวดิบ MILL')
-            ? 'ตัวดิบ MILL'
-            : avail.availableColors.first;
-      }
-      final availForColor = PricingEngine.computeAvailability(
-        barGroups: widget.barGroups,
-        ormCatalog: SeedRepository.instance.ormPrices,
-        customOverrides: ov,
-        preferredColor: _selectedColor,
-      );
-      if (!availForColor.availableThicknesses.contains(_selectedThickness)) {
-        _selectedThickness = availForColor.availableThicknesses.first;
-      }
+    if (avail.availableColors.isEmpty) {
+      _selectedColor = 'ตัวดิบ MILL';
+    } else if (!avail.availableColors.contains(_selectedColor)) {
+      _selectedColor = avail.availableColors.contains('อบดำ (8816)')
+          ? 'อบดำ (8816)'
+          : (avail.availableColors.contains('ตัวดิบ MILL')
+              ? 'ตัวดิบ MILL'
+              : avail.availableColors.first);
+    }
+
+    final availForColor = PricingEngine.computeAvailability(
+      barGroups: widget.barGroups,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
+      customOverrides: ov,
+      preferredColor: _selectedColor,
+    );
+    if (availForColor.availableThicknesses.isEmpty) {
+      _selectedThickness = '1.2 มม.';
+    } else if (!availForColor.availableThicknesses
+        .contains(_selectedThickness)) {
+      _selectedThickness =
+          availForColor.availableThicknesses.contains('1.2 มม.')
+              ? '1.2 มม.'
+              : availForColor.availableThicknesses.first;
+    }
+
+    final gRates = _mergedGlassRates();
+    if (gRates.isNotEmpty &&
+        !gRates.any((r) => r.rateKey == _selectedGlassKey)) {
+      _selectedGlassKey = gRates.first.rateKey;
     }
   }
 
   Future<void> _reloadOverrides() async {
     final ov = await AppDatabase.instance.getAllCustomPrices();
+    final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
     if (!mounted) return;
     setState(() {
       _overrides = ov;
+      _materialOverrides = matOv;
       _syncValidSelection(ov);
       _loading = false;
     });
@@ -941,14 +991,329 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   }
 
   PricingSummary _computeSummary() {
+    final gRates = _mergedGlassRates();
+    final activeGlass = gRates.where((r) => r.rateKey == _selectedGlassKey);
+    final glassRate = activeGlass.isNotEmpty
+        ? activeGlass.first.effectivePrice
+        : (gRates.isNotEmpty ? gRates.first.effectivePrice : 205.0);
+
     return PricingEngine.evaluate(
       barGroups: widget.barGroups,
       mode: _mode,
       wastePercent: _wastePct,
       selectedThickness: _selectedThickness,
       selectedColor: _selectedColor,
-      ormCatalog: SeedRepository.instance.ormPrices,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: _overrides,
+      glasses: widget.glasses,
+      fallbackOpeningAreaSqM: widget.fallbackOpeningAreaSqM,
+      hardware: widget.hardware,
+      includeGlass: _includeGlass,
+      selectedGlassKey: _selectedGlassKey,
+      glassRatePerSqM: glassRate,
+      includeHardware: _includeHardware,
+      hardwareCatalog: SeedRepository.instance.hardwareRates,
+      materialOverrides: _materialOverrides,
+    );
+  }
+
+  Future<void> _openInlineProfilePriceDialog(ProfileCostLine ln) async {
+    final grp = ln.group;
+    final sku = ln.matchedSku;
+    final targetCode = sku?.code ??
+        PricingEngine.expandCandidateCodes(grp.code).firstOrNull ??
+        grp.code.trim();
+    final targetThick = sku?.thickness ??
+        (_selectedThickness.isNotEmpty ? _selectedThickness : '1.2 มม.');
+    final targetColor = sku?.color ??
+        (_selectedColor.isNotEmpty ? _selectedColor : 'อบดำ (8816)');
+    final stockM = sku?.stockM ?? (grp.stockLengthMm / 1000.0);
+
+    final priceCtrl = TextEditingController(
+      text: ln.unitPricePerBar != null
+          ? ln.unitPricePerBar!.toStringAsFixed(2)
+          : '',
+    );
+    bool applyToUnpricedColors = !ln.isMatched;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: Text('${grp.brand} · ${grp.code}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  grp.combinedNames,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: ToolkitColors.slateDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'สเปกที่กำลังคำนวณ: $targetThick · $targetColor · ยาว ${stockM.toStringAsFixed(1)} ม./เส้น',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: ToolkitColors.slateMuted,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: priceCtrl,
+                  autofocus: true,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'ราคาต่อเส้น (บาท) *',
+                    hintText: 'เช่น 1680',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: applyToUnpricedColors,
+                  title: const Text(
+                    'ใช้ราคานี้เป็นฐานให้สีอื่นของรหัสนี้ที่ยังไม่มีราคาด้วย',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
+                  onChanged: (v) =>
+                      setModal(() => applyToUnpricedColors = v ?? false),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (sku?.customPrice != null)
+              TextButton(
+                onPressed: () async {
+                  await AppDatabase.instance.deleteCustomPrice(sku!.skuKey);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _reloadOverrides();
+                },
+                child: const Text('คืนค่าราคาตั้งต้น'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('ยกเลิก'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final val = double.tryParse(priceCtrl.text.trim());
+                if (val == null || val < 0) return;
+
+                final batch = <CustomPriceOverride>[
+                  CustomPriceOverride(
+                    skuKey: '${grp.brand}|$targetCode|$targetThick|$targetColor',
+                    brand: grp.brand,
+                    code: targetCode,
+                    name: grp.combinedNames,
+                    thickness: targetThick,
+                    color: targetColor,
+                    stockM: stockM,
+                    pricePerBar: val,
+                  ),
+                ];
+
+                if (applyToUnpricedColors) {
+                  final merged = PricingEngine.mergeProfileCatalog(
+                    SeedRepository.instance.allCatalogPrices,
+                    _overrides,
+                  );
+                  for (final col in PricingEngine.fallbackDefaultColors) {
+                    if (col == targetColor) continue;
+                    final exists = merged.values.any(
+                      (s) =>
+                          s.brand.toUpperCase() == grp.brand.toUpperCase() &&
+                          s.code == targetCode &&
+                          s.color == col,
+                    );
+                    if (!exists) {
+                      batch.add(
+                        CustomPriceOverride(
+                          skuKey: '${grp.brand}|$targetCode|$targetThick|$col',
+                          brand: grp.brand,
+                          code: targetCode,
+                          name: grp.combinedNames,
+                          thickness: targetThick,
+                          color: col,
+                          stockM: stockM,
+                          pricePerBar: val,
+                        ),
+                      );
+                    }
+                  }
+                }
+
+                await AppDatabase.instance.upsertCustomPricesBatch(batch);
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _reloadOverrides();
+              },
+              child: const Text('บันทึกราคา'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInlineGlassRateDialog(MaterialRateItem rate) async {
+    final ctrl = TextEditingController(
+      text: rate.effectivePrice.toStringAsFixed(2),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('แก้ไขราคากระจกต่อ ตร.ม.'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              rate.name,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'ราคาต่อตารางเมตร (บาท / ตร.ม.)',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (rate.customPrice != null)
+            TextButton(
+              onPressed: () async {
+                await AppDatabase.instance
+                    .deleteCustomMaterialRate(rate.rateKey);
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _reloadOverrides();
+              },
+              child: const Text('คืนค่าเริ่มต้น'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final v = double.tryParse(ctrl.text.trim());
+              if (v == null || v < 0) return;
+              await AppDatabase.instance.upsertCustomMaterialRate(
+                CustomMaterialRateOverride(
+                  rateKey: rate.rateKey,
+                  category: 'GLASS',
+                  code: rate.code,
+                  name: rate.name,
+                  unit: 'ตร.ม.',
+                  price: v,
+                ),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              await _reloadOverrides();
+            },
+            child: const Text('บันทึก'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openInlineHardwareRateDialog(HardwareCostLine ln) async {
+    final h = ln.item;
+    final rate = ln.matchedRate;
+    final unit = rate?.unit ??
+        (h.unitOrNote.trim().isNotEmpty ? h.unitOrNote.trim() : 'ชิ้น');
+    final rKey = rate?.rateKey ??
+        (h.code.trim().isNotEmpty
+            ? 'HW|${h.code.trim()}|${h.name.trim()}'
+            : 'HW||${h.name.trim()}');
+    final ctrl = TextEditingController(
+      text: ln.unitPrice != null ? ln.unitPrice!.toStringAsFixed(2) : '',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'จำนวนที่ใช้ในงานนี้: ${h.displayQty}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: ToolkitColors.slateMuted,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'ราคาต่อหน่วย (บาท / $unit)',
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (rate?.customPrice != null)
+            TextButton(
+              onPressed: () async {
+                await AppDatabase.instance.deleteCustomMaterialRate(rKey);
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _reloadOverrides();
+              },
+              child: const Text('คืนค่าเริ่มต้น'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final v = double.tryParse(ctrl.text.trim());
+              if (v == null || v < 0) return;
+              await AppDatabase.instance.upsertCustomMaterialRate(
+                CustomMaterialRateOverride(
+                  rateKey: rKey,
+                  category: 'HARDWARE',
+                  code: h.code.trim(),
+                  name: h.name.trim(),
+                  unit: unit,
+                  price: v,
+                ),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              await _reloadOverrides();
+            },
+            child: const Text('บันทึก'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -966,16 +1331,21 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
 
     final avail = PricingEngine.computeAvailability(
       barGroups: widget.barGroups,
-      ormCatalog: SeedRepository.instance.ormPrices,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: _overrides,
       preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
     );
     final summary = _computeSummary();
+    final glassRates = _mergedGlassRates();
+    final activeGlassItem =
+        glassRates.where((r) => r.rateKey == _selectedGlassKey).firstOrNull ??
+            (glassRates.isNotEmpty ? glassRates.first : null);
+    final hasAnyEstimated = summary.lines.any((l) => l.isEstimatedPrice);
 
     return ListView(
       padding: const EdgeInsets.all(14),
       children: [
-        // Quick Action Pills (กำหนดราคาเอง / ข้อมูลร้าน / ตัวแทนจำหน่าย ORM)
+        // Quick Action Pills
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -983,11 +1353,25 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
             ActionChip(
               avatar: const Icon(Icons.price_change_outlined,
                   size: 17, color: ToolkitColors.royalBlue),
-              label: const Text('กำหนด/แก้ไขราคาเส้นเอง'),
+              label: const Text('ศูนย์จัดการ/อัปเดตราคา'),
               onPressed: () async {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const CustomPriceScreen()),
+                );
+                _reloadOverrides();
+              },
+            ),
+            ActionChip(
+              avatar: const Icon(Icons.architecture_rounded,
+                  size: 17, color: ToolkitColors.royalBlue),
+              label: const Text('เพิ่มชุดโปรไฟล์ใหม่'),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CustomSystemListScreen(),
+                  ),
                 );
                 _reloadOverrides();
               },
@@ -1000,17 +1384,6 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ShopInfoScreen()),
-                );
-              },
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.handshake_outlined,
-                  size: 17, color: ToolkitColors.royalBlue),
-              label: const Text('ตัวแทนจำหน่าย ORM'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const OrmDealersScreen()),
                 );
               },
             ),
@@ -1114,8 +1487,11 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      key: ValueKey('thick_${_selectedThickness}_${avail.availableThicknesses.join(",")}'),
-                      initialValue: avail.availableThicknesses.contains(_selectedThickness)
+                      isExpanded: true,
+                      key: ValueKey(
+                          'thick_${_selectedThickness}_${avail.availableThicknesses.join(",")}'),
+                      initialValue: avail.availableThicknesses
+                              .contains(_selectedThickness)
                           ? _selectedThickness
                           : null,
                       decoration: const InputDecoration(
@@ -1127,6 +1503,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                           .map((t) => DropdownMenuItem(
                               value: t,
                               child: Text(t,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(fontSize: 13))))
                           .toList(),
                       onChanged: avail.availableThicknesses.isEmpty
@@ -1142,10 +1519,13 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      key: ValueKey('color_${_selectedColor}_${avail.availableColors.join(",")}'),
-                      initialValue: avail.availableColors.contains(_selectedColor)
-                          ? _selectedColor
-                          : null,
+                      isExpanded: true,
+                      key: ValueKey(
+                          'color_${_selectedColor}_${avail.availableColors.join(",")}'),
+                      initialValue:
+                          avail.availableColors.contains(_selectedColor)
+                              ? _selectedColor
+                              : null,
                       decoration: const InputDecoration(
                         labelText: 'สีอลูมิเนียม',
                         border: OutlineInputBorder(),
@@ -1173,7 +1553,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   ),
                 ],
               ),
-              if (!avail.isComplete) ...[
+              if (summary.matchedCount < summary.totalCount) ...[
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -1183,8 +1563,32 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     border: Border.all(color: const Color(0xFFFDE68A)),
                   ),
                   child: const Text(
-                    'ต้นทุนยังไม่ครบ: มีหน้าตัดที่ไม่มีสีหรือราคาในแคตตาล็อก ระบบจะไม่เปลี่ยนเป็นสีอื่นหรือแทนราคาที่ขาดด้วยศูนย์',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+                    'มีบางรหัสที่รอตั้งราคา: แตะที่แถวรายการด้านล่างเพื่อกรอกราคาต่อเส้นได้ทันที ระบบจะคำนวณรวมให้สดทันที',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF92400E),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ] else if (hasAnyEstimated) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: ToolkitColors.softBlueBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: ToolkitColors.royalBlue.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: const Text(
+                    'หมายเหตุ: บางรหัสใช้ราคาอ้างอิงประมาณการ คุณสามารถแตะที่แถวหน้าตัดใดก็ได้เพื่อปรับเป็นราคาซื้อจริงของร้านคุณทันที',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ToolkitColors.deepNavy,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
@@ -1193,47 +1597,85 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
         ),
         const SizedBox(height: 12),
 
-        // Total Cost Banner
+        // Grand Total Cost Banner
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: ToolkitColors.slateDark,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'ต้นทุนเส้นอลูมิเนียมรวม',
-                    style: TextStyle(fontSize: 13.5, color: Color(0xFFCBD5E1)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (_includeGlass || _includeHardware)
+                              ? 'ต้นทุนวัสดุรวมสุทธิ'
+                              : 'ต้นทุนเส้นอลูมิเนียมรวม',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'จับคู่ราคาเส้นได้ ${summary.matchedCount}/${summary.totalCount} รายการ',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF93C5FD),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    'จับคู่ราคาได้ ${summary.matchedCount}/${summary.totalCount} รายการ',
+                    '฿${_bahtFmt.format(summary.totalCost)}',
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF93C5FD),
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '฿${_bahtFmt.format(summary.totalCost)}',
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+              if (_includeGlass || _includeHardware) ...[
+                const Divider(color: Color(0xFF334155), height: 18),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      'อลูมิเนียม: ฿${_bahtFmt.format(summary.aluminumCost)}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFFE2E8F0)),
+                    ),
+                    if (_includeGlass)
+                      Text(
+                        'กระจก (${summary.totalGlassAreaSqM.toStringAsFixed(2)} ตร.ม.): ฿${_bahtFmt.format(summary.glassCost)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFFBAE6FD)),
+                      ),
+                    if (_includeHardware)
+                      Text(
+                        'อุปกรณ์: ฿${_bahtFmt.format(summary.hardwareCost)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFFFDE68A)),
+                      ),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 12),
 
-        // Breakdown Table
+        // 1. Aluminum Breakdown Table (1-Tap Editable!)
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1244,9 +1686,26 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'รายละเอียดต้นทุนแยกรหัสหน้าตัด',
-                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+              const Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '1. รายละเอียดต้นทุนเส้นอลูมิเนียม',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'แตะแถวเพื่อแก้ราคา',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                  ),
+                ],
               ),
               const Divider(),
               ...summary.lines.map((ln) {
@@ -1258,79 +1717,353 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   name: g.combinedNames,
                   brandKey: g.brand,
                 );
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (profImg != null) ...[
-                        AluproThumbnail(
-                          assetPath: profImg,
-                          width: 48,
-                          height: 36,
-                          showZoomBadge: true,
-                          zoomTitle: '${g.code} · ${g.combinedNames}',
-                          zoomSubtitle:
-                              '${ln.matchNote} · ใช้รวม $usedM ม. (${g.totalBars} เส้น)',
+                return InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _openInlineProfilePriceDialog(ln),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (profImg != null) ...[
+                          AluproThumbnail(
+                            assetPath: profImg,
+                            width: 48,
+                            height: 36,
+                            showZoomBadge: true,
+                            zoomTitle: '${g.code} · ${g.combinedNames}',
+                            zoomSubtitle:
+                                '${ln.matchNote} · ใช้รวม $usedM ม. (${g.totalBars} เส้น)',
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${g.code} · ${g.combinedNames}',
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '${ln.matchNote} · ใช้รวม $usedM ม. (${g.totalBars} เส้น)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: ln.isMatched
+                                      ? (ln.isCustomPrice
+                                          ? ToolkitColors.vipGoldText
+                                          : ToolkitColors.slateMuted)
+                                      : const Color(0xFFDC2626),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              '${g.code} · ${g.combinedNames}',
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  ln.isMatched
+                                      ? '฿${_bahtFmt.format(ln.lineCost!)}'
+                                      : 'แตะตั้งราคา',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: ln.isMatched
+                                        ? ToolkitColors.royalBlue
+                                        : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 13,
+                                  color: ToolkitColors.slateMuted,
+                                ),
+                              ],
                             ),
-                            Text(
-                              '${ln.matchNote} · ใช้รวม $usedM ม. (${g.totalBars} เส้น)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: ln.isMatched
-                                    ? ToolkitColors.slateMuted
-                                    : const Color(0xFFDC2626),
+                            if (ln.unitPricePerBar != null)
+                              Text(
+                                '฿${_bahtFmt.format(ln.unitPricePerBar!)} / เส้น',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: ToolkitColors.slateMuted,
+                                ),
                               ),
-                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            ln.isMatched
-                                ? '฿${_bahtFmt.format(ln.lineCost!)}'
-                                : 'รอตั้งราคา',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: ln.isMatched
-                                  ? ToolkitColors.royalBlue
-                                  : ToolkitColors.slateMuted,
-                            ),
-                          ),
-                          if (ln.unitPricePerBar != null)
-                            Text(
-                              '฿${_bahtFmt.format(ln.unitPricePerBar!)} / เส้น',
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                color: ToolkitColors.slateMuted,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               }),
             ],
           ),
         ),
+
+        // 2. Glass Costing Card
+        if (widget.glasses.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ToolkitColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '2. ต้นทุนกระจกสั่งตัด',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _includeGlass
+                          ? '฿${_bahtFmt.format(summary.glassCost)}'
+                          : 'ไม่รวม',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: _includeGlass
+                            ? ToolkitColors.royalBlue
+                            : ToolkitColors.slateMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Switch(
+                      value: _includeGlass,
+                      onChanged: (v) {
+                        setState(() => _includeGlass = v);
+                        _notifyParent();
+                      },
+                    ),
+                  ],
+                ),
+                if (_includeGlass && glassRates.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          key: ValueKey('gls_$_selectedGlassKey'),
+                          initialValue: glassRates
+                                  .any((r) => r.rateKey == _selectedGlassKey)
+                              ? _selectedGlassKey
+                              : glassRates.first.rateKey,
+                          decoration: const InputDecoration(
+                            labelText: 'เลือกชนิดและความหนากระจก',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: glassRates
+                              .map(
+                                (r) => DropdownMenuItem(
+                                  value: r.rateKey,
+                                  child: Text(
+                                    '${r.name} · ฿${r.effectivePrice.toStringAsFixed(0)}/ตร.ม.',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 12.5),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() => _selectedGlassKey = v);
+                              _notifyParent();
+                            }
+                          },
+                        ),
+                      ),
+                      if (activeGlassItem != null) ...[
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              _openInlineGlassRateDialog(activeGlassItem),
+                          icon: const Icon(Icons.edit_outlined, size: 15),
+                          label: const Text('แก้ราคา'),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const Divider(height: 18),
+                  ...summary.glassLines.map(
+                    (gl) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  gl.item.name,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  gl.note,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: ToolkitColors.slateMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            gl.lineCost != null
+                                ? '฿${_bahtFmt.format(gl.lineCost!)}'
+                                : 'วัดหน้างาน',
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: ToolkitColors.slateDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+
+        // 3. Hardware Costing Card (1-Tap Editable!)
+        if (widget.hardware.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ToolkitColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '3. ต้นทุนอุปกรณ์ประกอบ',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _includeHardware
+                          ? '฿${_bahtFmt.format(summary.hardwareCost)}'
+                          : 'ไม่รวม',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: _includeHardware
+                            ? ToolkitColors.royalBlue
+                            : ToolkitColors.slateMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Switch(
+                      value: _includeHardware,
+                      onChanged: (v) {
+                        setState(() => _includeHardware = v);
+                        _notifyParent();
+                      },
+                    ),
+                  ],
+                ),
+                if (_includeHardware) ...[
+                  const Divider(height: 14),
+                  ...summary.hardwareLines.map((hl) {
+                    final h = hl.item;
+                    final title =
+                        h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => _openInlineHardwareRateDialog(hl),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 5, horizontal: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    hl.note,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: ToolkitColors.slateMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  hl.lineCost != null
+                                      ? '฿${_bahtFmt.format(hl.lineCost!)}'
+                                      : 'ตามหน้างาน',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: hl.lineCost != null
+                                        ? ToolkitColors.slateDark
+                                        : ToolkitColors.slateMuted,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 13,
+                                  color: ToolkitColors.slateMuted,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1388,82 +2121,150 @@ class PdfPreviewAndShareScreen extends StatelessWidget {
 }
 
 // =============================================================================
-// Custom Price Screen (กำหนด/แก้ไขราคาเส้นเอง — 1,139 ORM SKUs + 4 Filters)
+// 3-Tab Price Management & Bulk Update Center (ศูนย์จัดการและอัปเดตราคา)
 // =============================================================================
 class CustomPriceScreen extends StatefulWidget {
-  const CustomPriceScreen({super.key});
+  final int initialTabIndex;
+
+  const CustomPriceScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<CustomPriceScreen> createState() => _CustomPriceScreenState();
 }
 
-class _CustomPriceScreenState extends State<CustomPriceScreen> {
+class _CustomPriceScreenState extends State<CustomPriceScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabCtrl;
   final TextEditingController _searchCtrl = TextEditingController();
+  final TextEditingController _matSearchCtrl = TextEditingController();
+
   String _brandFilter = 'ทั้งหมด';
   String _thickFilter = 'ทั้งหมด';
   String _colorFilter = 'ทั้งหมด';
   String _stockFilter = 'ทั้งหมด';
+  String _matCategoryFilter = 'ทั้งหมด'; // 'ทั้งหมด' | 'GLASS' | 'HARDWARE'
+
+  // Bulk Update Controls
+  String _bulkBrand = 'ทั้งหมด';
+  String _bulkColor = 'ทั้งหมด';
+  final TextEditingController _bulkPctCtrl = TextEditingController(text: '5');
+  final TextEditingController _bulkFlatCtrl = TextEditingController(text: '0');
+
   Map<String, CustomPriceOverride> _overrides = {};
+  Map<String, CustomMaterialRateOverride> _matOverrides = {};
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 2),
+    );
     _load();
   }
 
   Future<void> _load() async {
     final ov = await AppDatabase.instance.getAllCustomPrices();
+    final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
     if (!mounted) return;
     setState(() {
       _overrides = ov;
+      _matOverrides = matOv;
       _loading = false;
     });
   }
 
   @override
   void dispose() {
+    _tabCtrl.dispose();
     _searchCtrl.dispose();
+    _matSearchCtrl.dispose();
+    _bulkPctCtrl.dispose();
+    _bulkFlatCtrl.dispose();
     super.dispose();
   }
 
-  List<OrmPriceSku> _mergedList() {
-    final map = <String, OrmPriceSku>{};
-    for (final s in SeedRepository.instance.ormPrices) {
-      final ov = _overrides[s.skuKey];
-      map[s.skuKey] = ov != null
-          ? s.withOverride(ov.pricePerBar, stock: ov.inStock)
-          : s;
-    }
-    for (final ov in _overrides.values) {
-      if (!map.containsKey(ov.skuKey)) {
-        map[ov.skuKey] = OrmPriceSku(
-          brand: ov.brand,
-          code: ov.code,
-          name: ov.name,
-          thickness: ov.thickness,
-          color: ov.color,
-          stockM: ov.stockM,
-          factoryPrice: ov.pricePerBar,
-          customPrice: ov.pricePerBar,
-          inStock: ov.inStock,
-        );
+  List<OrmPriceSku> _allMergedProfiles() {
+    return PricingEngine.mergeProfileCatalog(
+      SeedRepository.instance.allCatalogPrices,
+      _overrides,
+    ).values.toList();
+  }
+
+  List<String> _availableBrands(List<OrmPriceSku> all) {
+    final base = <String>[
+      'ALUMET',
+      'ORM',
+      'MARKET',
+      'SCHIMMER',
+      'SMART_PLUS',
+      'FUJI',
+      'UAI',
+      'ALUFRAME',
+    ];
+    for (final s in all) {
+      if (!base.contains(s.brand)) {
+        base.add(s.brand);
       }
     }
+    return ['ทั้งหมด', ...base];
+  }
 
+  List<String> _availableColors(List<OrmPriceSku> all) {
+    final cols = <String>{...PricingEngine.standardColors};
+    for (final s in all) {
+      cols.add(s.color);
+    }
+    return ['ทั้งหมด', ...cols];
+  }
+
+  List<OrmPriceSku> _filteredProfiles(List<OrmPriceSku> all) {
     final q = _searchCtrl.text.trim().toLowerCase();
-    return map.values.where((s) {
+    return all.where((s) {
       if (_brandFilter != 'ทั้งหมด' && s.brand != _brandFilter) return false;
-      if (_thickFilter != 'ทั้งหมด' && s.thickness != _thickFilter) return false;
+      if (_thickFilter != 'ทั้งหมด' && s.thickness != _thickFilter) {
+        return false;
+      }
       if (_colorFilter != 'ทั้งหมด' && s.color != _colorFilter) return false;
       if (_stockFilter == 'มีสต็อก' && !s.inStock) return false;
       if (_stockFilter == 'หมดสต็อก' && s.inStock) return false;
       if (q.isNotEmpty) {
         return s.code.toLowerCase().contains(q) ||
-            s.name.toLowerCase().contains(q);
+            s.name.toLowerCase().contains(q) ||
+            s.brand.toLowerCase().contains(q);
       }
       return true;
     }).toList();
+  }
+
+  List<MaterialRateItem> _filteredMaterials() {
+    final glasses = PricingEngine.mergeMaterialRates(
+      SeedRepository.instance.glassRates,
+      _matOverrides,
+      category: 'GLASS',
+    );
+    final hws = PricingEngine.mergeMaterialRates(
+      SeedRepository.instance.hardwareRates,
+      _matOverrides,
+      category: 'HARDWARE',
+    );
+    final combined = <MaterialRateItem>[
+      if (_matCategoryFilter == 'ทั้งหมด' || _matCategoryFilter == 'GLASS')
+        ...glasses,
+      if (_matCategoryFilter == 'ทั้งหมด' || _matCategoryFilter == 'HARDWARE')
+        ...hws,
+    ];
+    final q = _matSearchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return combined;
+    return combined
+        .where(
+          (m) =>
+              m.code.toLowerCase().contains(q) ||
+              m.name.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   Future<void> _editSkuDialog(OrmPriceSku sku) async {
@@ -1487,6 +2288,7 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: priceCtrl,
+                autofocus: true,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
@@ -1510,7 +2312,7 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                   if (ctx.mounted) Navigator.pop(ctx);
                   _load();
                 },
-                child: const Text('คืนค่าราคาโรงงาน'),
+                child: const Text('คืนค่าราคาตั้งต้น'),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -1544,19 +2346,22 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
     );
   }
 
-  Future<void> _addCustomSkuDialog() async {
-    String brand = 'ORM';
+  Future<void> _addCustomSkuDialog(List<String> brandOptions) async {
+    final cleanBrands = brandOptions.where((b) => b != 'ทั้งหมด').toList();
+    String brand = cleanBrands.contains('ALUMET') ? 'ALUMET' : cleanBrands.first;
+    final customBrandCtrl = TextEditingController();
     final codeCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
     String thick = '1.2 มม.';
-    String color = 'ตัวดิบ MILL';
+    String color = 'อบดำ (8816)';
+    final stockCtrl = TextEditingController(text: '6.4');
     final priceCtrl = TextEditingController();
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => AlertDialog(
-          title: const Text('เพิ่มราคาเส้นเอง'),
+          title: const Text('เพิ่มรหัสราคาเส้นอลูมิเนียม'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1568,20 +2373,27 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  items: const [
-                    'ORM',
-                    'SCHIMMER',
-                    'ALUMET',
-                    'SMART_PLUS',
-                    'UAI',
-                    'FUJI',
-                    'ALUFRAME',
-                    'MARKET',
-                  ]
-                      .map((b) => DropdownMenuItem(value: b, child: Text(b)))
-                      .toList(),
-                  onChanged: (v) => setModal(() => brand = v ?? 'ORM'),
+                  items: [
+                    ...cleanBrands
+                        .map((b) => DropdownMenuItem(value: b, child: Text(b))),
+                    const DropdownMenuItem(
+                      value: '__CUSTOM__',
+                      child: Text('+ พิมพ์ชื่อแบรนด์ใหม่'),
+                    ),
+                  ],
+                  onChanged: (v) => setModal(() => brand = v ?? 'ALUMET'),
                 ),
+                if (brand == '__CUSTOM__') ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: customBrandCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'รหัสแบรนด์ใหม่ (ภาษาอังกฤษ/ไทย) *',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextField(
                   controller: codeCtrl,
@@ -1615,27 +2427,52 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: color,
+                  isExpanded: true,
+                  initialValue: PricingEngine.standardColors.contains(color)
+                      ? color
+                      : PricingEngine.standardColors.first,
                   decoration: const InputDecoration(
                     labelText: 'สี / ผิว',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
                   items: PricingEngine.standardColors
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c, overflow: TextOverflow.ellipsis),
+                          ))
                       .toList(),
                   onChanged: (v) => setModal(() => color = v ?? 'ตัวดิบ MILL'),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  controller: priceCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'ราคาต่อเส้น (บาท) *',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: stockCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'ยาว (ม./เส้น)',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: priceCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'ราคา/เส้น (฿) *',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1647,21 +2484,25 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
             ),
             FilledButton(
               onPressed: () async {
+                final effBrand = brand == '__CUSTOM__'
+                    ? customBrandCtrl.text.trim().toUpperCase()
+                    : brand;
                 final cd = codeCtrl.text.trim();
                 final pr = double.tryParse(priceCtrl.text.trim());
-                if (cd.isEmpty || pr == null) return;
-                final skuKey = '$brand|$cd|$thick|$color';
+                final stM = double.tryParse(stockCtrl.text.trim()) ?? 6.4;
+                if (effBrand.isEmpty || cd.isEmpty || pr == null) return;
+                final skuKey = '$effBrand|$cd|$thick|$color';
                 await AppDatabase.instance.upsertCustomPrice(
                   CustomPriceOverride(
                     skuKey: skuKey,
-                    brand: brand,
+                    brand: effBrand,
                     code: cd,
                     name: nameCtrl.text.trim().isEmpty
                         ? cd
                         : nameCtrl.text.trim(),
                     thickness: thick,
                     color: color,
-                    stockM: 6.4,
+                    stockM: stM,
                     pricePerBar: pr,
                   ),
                 );
@@ -1676,198 +2517,934 @@ class _CustomPriceScreenState extends State<CustomPriceScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final items = _loading ? <OrmPriceSku>[] : _mergedList();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('กำหนด/แก้ไขราคาเส้นเอง'),
+  Future<void> _editMaterialRateDialog(MaterialRateItem item) async {
+    final priceCtrl =
+        TextEditingController(text: item.effectivePrice.toStringAsFixed(2));
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item.code.isNotEmpty ? '${item.code} · ${item.name}' : item.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'หมวด: ${item.category == 'GLASS' ? 'กระจก' : 'อุปกรณ์ประกอบ'} · หน่วย: ${item.unit}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: ToolkitColors.slateMuted,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceCtrl,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'ราคาต่อ ${item.unit} (บาท)',
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            tooltip: 'เพิ่มรหัสราคาเอง',
-            onPressed: _addCustomSkuDialog,
-            icon: const Icon(Icons.add_circle_outline_rounded),
+          if (item.customPrice != null)
+            TextButton(
+              onPressed: () async {
+                await AppDatabase.instance
+                    .deleteCustomMaterialRate(item.rateKey);
+                if (ctx.mounted) Navigator.pop(ctx);
+                _load();
+              },
+              child: const Text('คืนค่าเริ่มต้น'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final v = double.tryParse(priceCtrl.text.trim());
+              if (v == null || v < 0) return;
+              await AppDatabase.instance.upsertCustomMaterialRate(
+                CustomMaterialRateOverride(
+                  rateKey: item.rateKey,
+                  category: item.category,
+                  code: item.code,
+                  name: item.name,
+                  unit: item.unit,
+                  price: v,
+                ),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              _load();
+            },
+            child: const Text('บันทึก'),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+    );
+  }
+
+  Future<void> _addCustomMaterialDialog() async {
+    String cat = 'GLASS';
+    final codeCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final unitCtrl = TextEditingController(text: 'ตร.ม.');
+    final priceCtrl = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: const Text('เพิ่มราคากระจก / อุปกรณ์ใหม่'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _searchCtrl,
-                        decoration: InputDecoration(
-                          hintText: 'ค้นหารหัสหน้าตัด หรือชื่อโปรไฟล์...',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                DropdownButtonFormField<String>(
+                  initialValue: cat,
+                  decoration: const InputDecoration(
+                    labelText: 'หมวดวัสดุ',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'GLASS', child: Text('กระจก')),
+                    DropdownMenuItem(
+                        value: 'HARDWARE', child: Text('อุปกรณ์ฮาร์ดแวร์')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setModal(() {
+                        cat = v;
+                        unitCtrl.text = v == 'GLASS' ? 'ตร.ม.' : 'ชิ้น';
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: codeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'รหัสวัสดุ (ถ้ามี)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'ชื่อกระจก หรือ ชื่ออุปกรณ์ *',
+                    hintText: 'เช่น กระจกเขียวตัดแสง 10 มม.',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: unitCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'หน่วยนับ',
+                          border: OutlineInputBorder(),
                           isDense: true,
                         ),
-                        onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: priceCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'ราคาต่อหน่วย (฿) *',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('ยกเลิก'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final nm = nameCtrl.text.trim();
+                final pr = double.tryParse(priceCtrl.text.trim());
+                if (nm.isEmpty || pr == null) return;
+                final cd = codeCtrl.text.trim();
+                final un = unitCtrl.text.trim().isEmpty
+                    ? 'ชิ้น'
+                    : unitCtrl.text.trim();
+                final rKey = cat == 'GLASS'
+                    ? 'GLASS|$nm'
+                    : (cd.isNotEmpty ? 'HW|$cd|$nm' : 'HW||$nm');
+                await AppDatabase.instance.upsertCustomMaterialRate(
+                  CustomMaterialRateOverride(
+                    rateKey: rKey,
+                    category: cat,
+                    code: cd,
+                    name: nm,
+                    unit: un,
+                    price: pr,
+                  ),
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+                _load();
+              },
+              child: const Text('บันทึก'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importBackupDialog() async {
+    final ctrl = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('นำเข้าข้อมูลตารางราคา (.json)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'วางข้อมูลสำรองตารางราคา (.json) ที่คัดลอกไว้ ระบบจะอัปเดตราคาเส้นอลูมิเนียม กระจก และอุปกรณ์ทั้งหมดให้ทันที',
+              style: TextStyle(fontSize: 12.5, color: ToolkitColors.slateMuted),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                hintText: '{ "type": "akkaraphon_price_backup", ... }',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final clip = await Clipboard.getData('text/plain');
+              if (clip?.text != null) ctrl.text = clip!.text!;
+            },
+            child: const Text('วางจากคลิปบอร์ด'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                final res = await AppDatabase.instance
+                    .importPricesBackupJson(ctrl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _load();
+                if (mounted) {
+                  showToolkitSnackBar(
+                    context,
+                    'นำเข้าสำเร็จ: อลูมิเนียม ${res.profilesImported} รายการ, กระจก/อุปกรณ์ ${res.materialsImported} รายการ',
+                  );
+                }
+              } catch (_) {
+                if (mounted) {
+                  showToolkitSnackBar(context, 'รูปแบบไฟล์ JSON ไม่ถูกต้อง');
+                }
+              }
+            },
+            child: const Text('นำเข้าราคา'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allMerged = _loading ? <OrmPriceSku>[] : _allMergedProfiles();
+    final brandOptions = _availableBrands(allMerged);
+    final colorOptions = _availableColors(allMerged);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ศูนย์จัดการและอัปเดตราคา'),
+        actions: [
+          IconButton(
+            tooltip: 'เพิ่มรายการราคาใหม่',
+            onPressed: () {
+              if (_tabCtrl.index == 1) {
+                _addCustomMaterialDialog();
+              } else {
+                _addCustomSkuDialog(brandOptions);
+              }
+            },
+            icon: const Icon(Icons.add_circle_outline_rounded),
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabCtrl,
+          labelColor: ToolkitColors.royalBlue,
+          unselectedLabelColor: ToolkitColors.slateMuted,
+          indicatorColor: ToolkitColors.royalBlue,
+          labelStyle:
+              const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          tabs: const [
+            Tab(text: 'เส้นอลูมิเนียม'),
+            Tab(text: 'กระจก & อุปกรณ์'),
+            Tab(text: 'ปรับราคาทั้งชุด'),
+          ],
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabCtrl,
+              children: [
+                _buildTab1Aluminum(allMerged, brandOptions, colorOptions),
+                _buildTab2GlassAndHardware(),
+                _buildTab3BulkAndBackup(allMerged, brandOptions, colorOptions),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildTab1Aluminum(
+    List<OrmPriceSku> allMerged,
+    List<String> brandOptions,
+    List<String> colorOptions,
+  ) {
+    final items = _filteredProfiles(allMerged);
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText:
+                      'ค้นหารหัสหน้าตัด หรือชื่อโปรไฟล์ (เช่น SS-X110, 801-01)...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  isDense: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _miniFilterDropdown(
+                      label: 'ผู้ผลิต',
+                      value: brandOptions.contains(_brandFilter)
+                          ? _brandFilter
+                          : 'ทั้งหมด',
+                      options: brandOptions,
+                      onChanged: (v) => setState(() => _brandFilter = v),
+                    ),
+                    const SizedBox(width: 8),
+                    _miniFilterDropdown(
+                      label: 'ความหนา',
+                      value: _thickFilter,
+                      options: [
+                        'ทั้งหมด',
+                        ...PricingEngine.standardThicknesses,
+                      ],
+                      onChanged: (v) => setState(() => _thickFilter = v),
+                    ),
+                    const SizedBox(width: 8),
+                    _miniFilterDropdown(
+                      label: 'สี/ผิว',
+                      value: colorOptions.contains(_colorFilter)
+                          ? _colorFilter
+                          : 'ทั้งหมด',
+                      options: colorOptions,
+                      onChanged: (v) => setState(() => _colorFilter = v),
+                    ),
+                    const SizedBox(width: 8),
+                    _miniFilterDropdown(
+                      label: 'สต็อก',
+                      value: _stockFilter,
+                      options: const ['ทั้งหมด', 'มีสต็อก', 'หมดสต็อก'],
+                      onChanged: (v) => setState(() => _stockFilter = v),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(14),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (ctx, i) {
+              final s = items[i];
+              final skuImg = AluproImageRegistry.instance.resolveProfileAsset(
+                code: s.code,
+                name: s.name,
+                brandKey: s.brand,
+              );
+              final statusLabel = s.customPrice != null
+                  ? 'ราคาที่แก้เอง (ตั้งต้น ฿${_bahtFmt.format(s.factoryPrice)})'
+                  : (s.isEstimated
+                      ? 'ราคาประมาณการ — แตะเพื่อแก้ราคาจริง'
+                      : 'ราคาอ้างอิงโรงงาน');
+              final statusColor = s.customPrice != null
+                  ? ToolkitColors.vipGoldText
+                  : (s.isEstimated
+                      ? const Color(0xFFB45309)
+                      : ToolkitColors.slateMuted);
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _editSkuDialog(s),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ToolkitColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      if (skuImg != null) ...[
+                        AluproThumbnail(
+                          assetPath: skuImg,
+                          width: 48,
+                          height: 36,
+                          showZoomBadge: true,
+                          zoomTitle: '${s.brand} · ${s.code}',
+                          zoomSubtitle:
+                              '${s.name} (${s.thickness} · ${s.color})',
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _miniFilterDropdown(
-                              label: 'ผู้ผลิต',
-                              value: _brandFilter,
-                              options: const [
-                                'ทั้งหมด',
-                                'ORM',
-                                'SCHIMMER',
-                                'ALUMET',
-                                'SMART_PLUS',
-                                'UAI',
-                                'FUJI',
-                                'ALUFRAME',
-                                'MARKET',
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _brandFilter = v),
+                            Text(
+                              '${s.brand} · ${s.code}',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: ToolkitColors.royalBlue,
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            _miniFilterDropdown(
-                              label: 'ความหนา',
-                              value: _thickFilter,
-                              options: [
-                                'ทั้งหมด',
-                                ...PricingEngine.standardThicknesses,
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _thickFilter = v),
+                            Text(
+                              s.name,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            const SizedBox(width: 8),
-                            _miniFilterDropdown(
-                              label: 'สี/ผิว',
-                              value: _colorFilter,
-                              options: [
-                                'ทั้งหมด',
-                                ...PricingEngine.standardColors,
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => _colorFilter = v),
-                            ),
-                            const SizedBox(width: 8),
-                            _miniFilterDropdown(
-                              label: 'สต็อก',
-                              value: _stockFilter,
-                              options: const ['ทั้งหมด', 'มีสต็อก', 'หมดสต็อก'],
-                              onChanged: (v) =>
-                                  setState(() => _stockFilter = v),
+                            Text(
+                              '${s.thickness} · ${s.color} · ${s.stockM} ม.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: ToolkitColors.slateMuted,
+                              ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '฿${_bahtFmt.format(s.effectivePrice)} / เส้น',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: ToolkitColors.slateDark,
+                            ),
+                          ),
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: statusColor,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(14),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (ctx, i) {
-                      final s = items[i];
-                      final skuImg =
-                          AluproImageRegistry.instance.resolveProfileAsset(
-                        code: s.code,
-                        name: s.name,
-                        brandKey: s.brand,
-                      );
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _editSkuDialog(s),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: ToolkitColors.cardBorder),
-                          ),
-                          child: Row(
-                            children: [
-                              if (skuImg != null) ...[
-                                AluproThumbnail(
-                                  assetPath: skuImg,
-                                  width: 48,
-                                  height: 36,
-                                  showZoomBadge: true,
-                                  zoomTitle: '${s.brand} · ${s.code}',
-                                  zoomSubtitle:
-                                      '${s.name} (${s.thickness} · ${s.color})',
-                                ),
-                                const SizedBox(width: 10),
-                              ],
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${s.brand} · ${s.code}',
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: ToolkitColors.royalBlue,
-                                      ),
-                                    ),
-                                    Text(
-                                      s.name,
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${s.thickness} · ${s.color} · ${s.stockM} ม.',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: ToolkitColors.slateMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '฿${_bahtFmt.format(s.effectivePrice)} / เส้น',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: ToolkitColors.slateDark,
-                                    ),
-                                  ),
-                                  Text(
-                                    s.customPrice != null
-                                        ? 'ราคาที่แก้เอง (Toolkit ฿${_bahtFmt.format(s.factoryPrice)})'
-                                        : 'Toolkit ฿${_bahtFmt.format(s.factoryPrice)}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: s.customPrice != null
-                                          ? ToolkitColors.vipGoldText
-                                          : ToolkitColors.slateMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTab2GlassAndHardware() {
+    final items = _filteredMaterials();
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+          child: Column(
+            children: [
+              TextField(
+                controller: _matSearchCtrl,
+                decoration: InputDecoration(
+                  hintText:
+                      'ค้นหากระจก หรือ อุปกรณ์ประกอบ (เช่น กระจกเขียว, ล้อ, มือจับ)...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  isDense: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (final entry in const [
+                    ('ทั้งหมด', 'ทั้งหมด'),
+                    ('GLASS', 'กระจก (บาท/ตร.ม.)'),
+                    ('HARDWARE', 'อุปกรณ์ประกอบ'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(entry.$2),
+                        selected: _matCategoryFilter == entry.$1,
+                        selectedColor: ToolkitColors.softBlueBg,
+                        onSelected: (_) =>
+                            setState(() => _matCategoryFilter = entry.$1),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(14),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (_, i) {
+              final m = items[i];
+              final isGlass = m.category == 'GLASS';
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _editMaterialRateDialog(m),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ToolkitColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: isGlass
+                              ? const Color(0xFFE0F2FE)
+                              : ToolkitColors.softBlueBg,
+                          borderRadius: BorderRadius.circular(9),
                         ),
-                      );
-                    },
+                        child: Icon(
+                          isGlass
+                              ? Icons.crop_portrait_rounded
+                              : Icons.handyman_outlined,
+                          size: 20,
+                          color: ToolkitColors.royalBlue,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.code.isNotEmpty
+                                  ? '${m.code} · ${m.name}'
+                                  : m.name,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              isGlass
+                                  ? 'หมวดกระจกสั่งตัด · คิดตามพื้นที่จริง'
+                                  : 'หมวดอุปกรณ์ฮาร์ดแวร์ · หน่วย ${m.unit}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: ToolkitColors.slateMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '฿${_bahtFmt.format(m.effectivePrice)} / ${m.unit}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: ToolkitColors.slateDark,
+                            ),
+                          ),
+                          Text(
+                            m.customPrice != null
+                                ? 'ราคาที่แก้เอง'
+                                : (m.isEstimated
+                                    ? 'ราคาประมาณการ'
+                                    : 'ราคามาตรฐาน'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: m.customPrice != null
+                                  ? ToolkitColors.vipGoldText
+                                  : ToolkitColors.slateMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTab3BulkAndBackup(
+    List<OrmPriceSku> allMerged,
+    List<String> brandOptions,
+    List<String> colorOptions,
+  ) {
+    final matchCount = allMerged.where((s) {
+      if (_bulkBrand != 'ทั้งหมด' && s.brand != _bulkBrand) return false;
+      if (_bulkColor != 'ทั้งหมด' && s.color != _bulkColor) return false;
+      return true;
+    }).length;
+
+    return ListView(
+      padding: const EdgeInsets.all(15),
+      children: [
+        // Card 1: Bulk % / Flat Baht Adjustment
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: ToolkitColors.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.trending_up_rounded,
+                      color: ToolkitColors.royalBlue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'ปรับราคาเส้นอลูมิเนียมขึ้น / ลง ทั้งชุด',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ToolkitColors.slateDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'ใช้กรณีโรงงานประกาศปรับราคาอลูมิเนียมขึ้นหรือลงทั้งแบรนด์หรือเฉพาะสี ระบบจะคำนวณราคาใหม่ให้ครบทุกรหัสในคลิกเดียว',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.45,
+                  color: ToolkitColors.slateMuted,
+                ),
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                key: ValueKey('bb_$_bulkBrand'),
+                initialValue:
+                    brandOptions.contains(_bulkBrand) ? _bulkBrand : 'ทั้งหมด',
+                decoration: const InputDecoration(
+                  labelText: 'เลือกแบรนด์ที่ต้องการปรับราคา',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: brandOptions
+                    .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _bulkBrand = v);
+                },
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                key: ValueKey('bc_$_bulkColor'),
+                initialValue:
+                    colorOptions.contains(_bulkColor) ? _bulkColor : 'ทั้งหมด',
+                decoration: const InputDecoration(
+                  labelText: 'เลือกสี / ผิว',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: colorOptions
+                    .map((c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(c, overflow: TextOverflow.ellipsis),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _bulkColor = v);
+                },
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final preset in const [
+                    ('+3%', '3'),
+                    ('+5%', '5'),
+                    ('+10%', '10'),
+                    ('-3%', '-3'),
+                    ('-5%', '-5'),
+                  ])
+                    ActionChip(
+                      label: Text(preset.$1),
+                      onPressed: () =>
+                          setState(() => _bulkPctCtrl.text = preset.$2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _bulkPctCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'ปรับเป็นเปอร์เซ็นต์ (%)',
+                        suffixText: '%',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _bulkFlatCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'บวก/ลบเพิ่ม (บาท/เส้น)',
+                        suffixText: '฿',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: ToolkitColors.softBlueBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'รายการที่จะถูกปรับราคา: $matchCount รายการ (${_bulkBrand == 'ทั้งหมด' ? 'ทุกแบรนด์' : _bulkBrand})',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: ToolkitColors.deepNavy,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ToolkitColors.royalBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  onPressed: matchCount == 0
+                      ? null
+                      : () async {
+                          final pct =
+                              double.tryParse(_bulkPctCtrl.text.trim()) ?? 0.0;
+                          final flat =
+                              double.tryParse(_bulkFlatCtrl.text.trim()) ?? 0.0;
+                          final updated = await AppDatabase.instance
+                              .applyBulkPriceAdjustment(
+                            currentMergedSkus: allMerged,
+                            brandFilter: _bulkBrand,
+                            colorFilter: _bulkColor,
+                            percentDelta: pct,
+                            flatBahtDelta: flat,
+                          );
+                          await _load();
+                          if (mounted) {
+                            showToolkitSnackBar(
+                              context,
+                              'อัปเดตราคาสำเร็จ $updated รายการ',
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.bolt_rounded),
+                  label: const Text(
+                    'ยืนยันอัปเดตราคาทั้งชุด',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final removed = await AppDatabase.instance
+                        .resetBrandCustomPrices(brandFilter: _bulkBrand);
+                    await _load();
+                    if (mounted) {
+                      showToolkitSnackBar(
+                        context,
+                        'คืนค่าราคาตั้งต้นแล้ว ($removed รายการ)',
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.restore_rounded, size: 18),
+                  label: Text(
+                    _bulkBrand == 'ทั้งหมด'
+                        ? 'คืนค่าราคาตั้งต้นทุกแบรนด์'
+                        : 'คืนค่าราคาตั้งต้นเฉพาะ $_bulkBrand',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Card 2: Export / Import Backup JSON
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: ToolkitColors.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.sync_alt_rounded, color: ToolkitColors.royalBlue),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'สำรองและส่งต่อตารางราคาข้ามเครื่อง (.json)',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ToolkitColors.slateDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'คัดลอกตารางราคาที่แก้ไขไว้ส่งทาง LINE หรือบันทึกเก็บไว้ แล้วกดนำเข้าที่มือถือ/แท็บเล็ตอีกเครื่องในร้านได้ทันที',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.45,
+                  color: ToolkitColors.slateMuted,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final jsonStr = await AppDatabase.instance
+                            .exportPricesBackupJson();
+                        await Clipboard.setData(ClipboardData(text: jsonStr));
+                        if (mounted) {
+                          showToolkitSnackBar(
+                            context,
+                            'คัดลอกข้อมูลสำรองราคา (.json) ลงคลิปบอร์ดแล้ว',
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.upload_outlined, size: 18),
+                      label: const Text('ส่งออก (.json)'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: _importBackupDialog,
+                      icon: const Icon(Icons.download_outlined, size: 18),
+                      label: const Text('นำเข้า (.json)'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

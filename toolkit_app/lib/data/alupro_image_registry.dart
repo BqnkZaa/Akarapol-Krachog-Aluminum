@@ -1,3 +1,5 @@
+import '../models/app_models.dart';
+
 class AluproKeywordRule {
   final String keywordLower;
   final String file;
@@ -18,6 +20,11 @@ class AluproImageRegistry {
   final Map<String, String> _profiles = {};
   final Map<String, String> _hardwareCodes = {};
   final List<AluproKeywordRule> _hardwareKeywords = [];
+
+  // User-created custom profile system images (stored in app documents directory)
+  final Map<String, String> _userBrandImages = {};
+  final Map<String, String> _userPatternImages = {};
+  final Map<String, String> _userProfileImages = {}; // 'BRAND|CODE' -> path
 
   bool get isLoaded => _patterns.isNotEmpty || _profiles.isNotEmpty;
 
@@ -55,6 +62,30 @@ class AluproImageRegistry {
               AluproKeywordRule(keywordLower: kw, file: file),
             );
           }
+        }
+      }
+    }
+  }
+
+  void syncCustomSystems(List<CustomProfileSystem> systems) {
+    _userBrandImages.clear();
+    _userPatternImages.clear();
+    _userProfileImages.clear();
+
+    for (final s in systems) {
+      if (s.brandLogoPath != null && s.brandLogoPath!.trim().isNotEmpty) {
+        _userBrandImages[s.brandId] = s.brandLogoPath!.trim();
+      }
+      if (s.patternImagePath != null && s.patternImagePath!.trim().isNotEmpty) {
+        _userPatternImages[s.id] = s.patternImagePath!.trim();
+      }
+      final bUpper = s.priceBrandKey.trim().toUpperCase();
+      for (final e in s.profileImagePaths.entries) {
+        final cClean = e.key.trim();
+        final imgPath = e.value.trim();
+        if (cClean.isNotEmpty && imgPath.isNotEmpty) {
+          _userProfileImages['$bUpper|$cClean'] = imgPath;
+          _userProfileImages['$bUpper|${cClean.toUpperCase()}'] = imgPath;
         }
       }
     }
@@ -140,6 +171,7 @@ class AluproImageRegistry {
   String? _toAsset(String? file) {
     if (file == null || file.isEmpty) return null;
     if (file.startsWith('assets/')) return file;
+    if (file.contains('/') || file.contains('\\')) return file;
     return '$_assetPrefix$file';
   }
 
@@ -148,14 +180,14 @@ class AluproImageRegistry {
   String? resolveCategoryAsset(String categoryId) =>
       _toAsset(_categories[categoryId] ?? _defaultCategoryLogos[categoryId]);
 
-  String? resolveBrandAsset(String brandId) =>
-      _toAsset(_brands[brandId] ?? _defaultBrandLogos[brandId]);
+  String? resolveBrandAsset(String brandId) => _toAsset(
+      _userBrandImages[brandId] ?? _brands[brandId] ?? _defaultBrandLogos[brandId]);
 
   String? resolvePatternAsset(String patternId) =>
-      _toAsset(_patterns[patternId]);
+      _toAsset(_userPatternImages[patternId] ?? _patterns[patternId]);
 
-  /// Resolves ONLY exact 1:1 verified profile CAD cross-sections for the matching brand.
-  /// Never falls back across brands, prefixes, or generic role keywords.
+  /// Resolves ONLY exact 1:1 verified profile CAD cross-sections for the matching brand,
+  /// plus any user-uploaded custom profile cross-section for that brand+code.
   String? resolveProfileAsset({
     required String code,
     String name = '',
@@ -163,6 +195,14 @@ class AluproImageRegistry {
   }) {
     final clean = code.trim();
     if (clean.isEmpty) return null;
+
+    if (brandKey != null && brandKey.isNotEmpty) {
+      final bUpper = brandKey.trim().toUpperCase();
+      final userImg = _userProfileImages['$bUpper|$clean'] ??
+          _userProfileImages['$bUpper|${clean.toUpperCase()}'];
+      if (userImg != null) return _toAsset(userImg);
+    }
+
     if (!_codeMatchesBrand(clean, brandKey)) return null;
 
     final upper = clean.toUpperCase();

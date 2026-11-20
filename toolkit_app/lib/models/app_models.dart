@@ -251,6 +251,17 @@ class CutPieceSpec {
         angle: angle ?? this.angle,
         formula: formula ?? this.formula,
       );
+
+  Map<String, dynamic> toJson() => {
+        'section': section,
+        'code': code,
+        'name': name,
+        'stockMm': stockMm,
+        'qty': qty,
+        'qtyText': qtyText,
+        'angle': angle,
+        'formula': formula,
+      };
 }
 
 class GlassPieceSpec {
@@ -278,6 +289,15 @@ class GlassPieceSpec {
         wFormula: j['wFormula'] as String? ?? '',
         hFormula: j['hFormula'] as String? ?? '',
       );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'qty': qty,
+        'qtyText': qtyText,
+        'siteCut': siteCut,
+        'wFormula': wFormula,
+        'hFormula': hFormula,
+      };
 }
 
 class HardwareItemSpec {
@@ -333,6 +353,14 @@ class VerifiedFormulaTable {
             .map((e) => HardwareItemSpec.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'header': header,
+        'cuts': cuts.map((e) => e.toJson()).toList(),
+        'glasses': glasses.map((e) => e.toJson()).toList(),
+        'hardware': hardware.map((e) => e.toJson()).toList(),
+      };
 }
 
 class EvaluatedCutItem {
@@ -592,6 +620,7 @@ class OrmPriceSku {
   final double factoryPrice;
   final double? customPrice;
   final bool inStock;
+  final bool isEstimated;
 
   const OrmPriceSku({
     required this.brand,
@@ -603,6 +632,7 @@ class OrmPriceSku {
     required this.factoryPrice,
     this.customPrice,
     this.inStock = true,
+    this.isEstimated = false,
   });
 
   double get effectivePrice => customPrice ?? factoryPrice;
@@ -616,6 +646,7 @@ class OrmPriceSku {
         color: j['color'] as String,
         stockM: (j['stockM'] as num).toDouble(),
         factoryPrice: (j['price'] as num).toDouble(),
+        isEstimated: j['isEstimated'] as bool? ?? false,
       );
 
   OrmPriceSku withOverride(double? overridePrice, {bool? stock}) => OrmPriceSku(
@@ -628,6 +659,7 @@ class OrmPriceSku {
         factoryPrice: factoryPrice,
         customPrice: overridePrice,
         inStock: stock ?? inStock,
+        isEstimated: isEstimated,
       );
 }
 
@@ -937,5 +969,230 @@ class SavedQuotation {
         remarks: m['remarks'] as String? ?? '',
         revisionTag: m['revision_tag'] as String,
         createdAt: DateTime.parse(m['created_at'] as String),
+      );
+}
+
+class MaterialRateItem {
+  final String rateKey; // e.g. 'GLASS|กระจกใส 6 มม.' or 'HW|HD-414-C2'
+  final String category; // 'GLASS' | 'HARDWARE'
+  final String code;
+  final String name;
+  final String unit; // 'ตร.ม.', 'ชิ้น', 'ชุด', 'ตัว', 'คู่', 'ม้วน', 'หลอด'
+  final double factoryPrice;
+  final double? customPrice;
+  final bool isEstimated;
+
+  const MaterialRateItem({
+    required this.rateKey,
+    required this.category,
+    required this.code,
+    required this.name,
+    required this.unit,
+    required this.factoryPrice,
+    this.customPrice,
+    this.isEstimated = false,
+  });
+
+  double get effectivePrice => customPrice ?? factoryPrice;
+
+  MaterialRateItem withOverride(double? overridePrice) => MaterialRateItem(
+        rateKey: rateKey,
+        category: category,
+        code: code,
+        name: name,
+        unit: unit,
+        factoryPrice: factoryPrice,
+        customPrice: overridePrice,
+        isEstimated: isEstimated,
+      );
+
+  factory MaterialRateItem.fromJson(Map<String, dynamic> j) => MaterialRateItem(
+        rateKey: j['rateKey'] as String,
+        category: j['category'] as String,
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String,
+        unit: j['unit'] as String? ?? 'ชิ้น',
+        factoryPrice: (j['price'] as num).toDouble(),
+        isEstimated: j['isEstimated'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'rateKey': rateKey,
+        'category': category,
+        'code': code,
+        'name': name,
+        'unit': unit,
+        'price': effectivePrice,
+        'isEstimated': isEstimated,
+      };
+}
+
+class CustomProfileSystem {
+  final String id;
+  final String categoryId;
+  final String brandId;
+  final String brandTitle;
+  final String priceBrandKey;
+  final String? brandLogoPath;
+  final String systemTitle;
+  final String patternTitle;
+  final String patternSubtitle;
+  final String? patternImagePath;
+  final InputTableMode tableMode;
+  final AuxDimensionType auxType;
+  final String? auxLabel;
+  final VerifiedFormulaTable formulaTable;
+  final Map<String, String> profileImagePaths;
+  final bool enabled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const CustomProfileSystem({
+    required this.id,
+    required this.categoryId,
+    required this.brandId,
+    required this.brandTitle,
+    required this.priceBrandKey,
+    this.brandLogoPath,
+    required this.systemTitle,
+    required this.patternTitle,
+    this.patternSubtitle = '',
+    this.patternImagePath,
+    this.tableMode = InputTableMode.standardMultiRow,
+    this.auxType = AuxDimensionType.none,
+    this.auxLabel,
+    required this.formulaTable,
+    this.profileImagePaths = const {},
+    this.enabled = true,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  PatternCardDef toPatternCardDef() => PatternCardDef(
+        id: id,
+        title: patternTitle,
+        subtitle: patternSubtitle.trim().isNotEmpty
+            ? patternSubtitle.trim()
+            : 'ชุดโปรไฟล์ที่เพิ่มเอง',
+        enabled: enabled,
+        disabledBadge: enabled ? null : 'ปิดใช้งานชั่วคราว',
+        baseFormulaKey: formulaTable.key,
+        tableMode: tableMode,
+        auxType: auxType,
+        auxLabel: auxLabel,
+      );
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'category_id': categoryId,
+        'brand_id': brandId,
+        'brand_title': brandTitle,
+        'price_brand_key': priceBrandKey,
+        'brand_logo_path': brandLogoPath,
+        'system_title': systemTitle,
+        'pattern_title': patternTitle,
+        'pattern_subtitle': patternSubtitle,
+        'pattern_image_path': patternImagePath,
+        'table_mode': tableMode.name,
+        'aux_type': auxType.name,
+        'aux_label': auxLabel,
+        'formula_json': jsonEncode(formulaTable.toJson()),
+        'profile_images_json': jsonEncode(profileImagePaths),
+        'enabled': enabled ? 1 : 0,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
+  factory CustomProfileSystem.fromMap(Map<String, dynamic> m) {
+    final modeName = m['table_mode'] as String? ?? 'standardMultiRow';
+    final auxName = m['aux_type'] as String? ?? 'none';
+    final imgRaw = m['profile_images_json'] as String?;
+    return CustomProfileSystem(
+      id: m['id'] as String,
+      categoryId: m['category_id'] as String,
+      brandId: m['brand_id'] as String,
+      brandTitle: m['brand_title'] as String,
+      priceBrandKey: m['price_brand_key'] as String,
+      brandLogoPath: m['brand_logo_path'] as String?,
+      systemTitle: m['system_title'] as String,
+      patternTitle: m['pattern_title'] as String,
+      patternSubtitle: m['pattern_subtitle'] as String? ?? '',
+      patternImagePath: m['pattern_image_path'] as String?,
+      tableMode: InputTableMode.values.firstWhere(
+        (e) => e.name == modeName,
+        orElse: () => InputTableMode.standardMultiRow,
+      ),
+      auxType: AuxDimensionType.values.firstWhere(
+        (e) => e.name == auxName,
+        orElse: () => AuxDimensionType.none,
+      ),
+      auxLabel: m['aux_label'] as String?,
+      formulaTable: VerifiedFormulaTable.fromJson(
+        jsonDecode(m['formula_json'] as String) as Map<String, dynamic>,
+      ),
+      profileImagePaths: imgRaw != null && imgRaw.isNotEmpty
+          ? Map<String, String>.from(jsonDecode(imgRaw) as Map)
+          : const {},
+      enabled: (m['enabled'] as int? ?? 1) == 1,
+      createdAt: DateTime.parse(m['created_at'] as String),
+      updatedAt: DateTime.parse(m['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'categoryId': categoryId,
+        'brandId': brandId,
+        'brandTitle': brandTitle,
+        'priceBrandKey': priceBrandKey,
+        'brandLogoPath': brandLogoPath,
+        'systemTitle': systemTitle,
+        'patternTitle': patternTitle,
+        'patternSubtitle': patternSubtitle,
+        'patternImagePath': patternImagePath,
+        'tableMode': tableMode.name,
+        'auxType': auxType.name,
+        'auxLabel': auxLabel,
+        'formulaTable': formulaTable.toJson(),
+        'profileImagePaths': profileImagePaths,
+        'enabled': enabled,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory CustomProfileSystem.fromJson(Map<String, dynamic> j) =>
+      CustomProfileSystem(
+        id: j['id'] as String,
+        categoryId: j['categoryId'] as String? ?? 'cat2_pattana',
+        brandId: j['brandId'] as String? ?? 'cust_brand',
+        brandTitle: j['brandTitle'] as String? ?? 'ชุดโปรไฟล์ใหม่',
+        priceBrandKey: j['priceBrandKey'] as String? ?? 'CUSTOM',
+        brandLogoPath: j['brandLogoPath'] as String?,
+        systemTitle: j['systemTitle'] as String? ?? 'บานเลื่อน',
+        patternTitle: j['patternTitle'] as String? ?? 'รูปแบบบานใหม่',
+        patternSubtitle: j['patternSubtitle'] as String? ?? '',
+        patternImagePath: j['patternImagePath'] as String?,
+        tableMode: InputTableMode.values.firstWhere(
+          (e) => e.name == (j['tableMode'] as String? ?? 'standardMultiRow'),
+          orElse: () => InputTableMode.standardMultiRow,
+        ),
+        auxType: AuxDimensionType.values.firstWhere(
+          (e) => e.name == (j['auxType'] as String? ?? 'none'),
+          orElse: () => AuxDimensionType.none,
+        ),
+        auxLabel: j['auxLabel'] as String?,
+        formulaTable: VerifiedFormulaTable.fromJson(
+          j['formulaTable'] as Map<String, dynamic>,
+        ),
+        profileImagePaths: j['profileImagePaths'] is Map
+            ? Map<String, String>.from(j['profileImagePaths'] as Map)
+            : const {},
+        enabled: j['enabled'] as bool? ?? true,
+        createdAt: j['createdAt'] != null
+            ? DateTime.parse(j['createdAt'] as String)
+            : DateTime.now(),
+        updatedAt: j['updatedAt'] != null
+            ? DateTime.parse(j['updatedAt'] as String)
+            : DateTime.now(),
       );
 }
