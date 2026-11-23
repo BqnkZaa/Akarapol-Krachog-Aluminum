@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.7/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.8/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,9 +51,9 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.7 (VIP Offline)",
+      version: "0.1.8 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
-      sizeMb: "37.48",
+      sizeMb: "42.50",
       sha256: "-",
       updatedAt: "-",
     };
@@ -75,8 +75,8 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "คำนวณระยะตัดและถอดรายการวัสดุครบ 5 หมวดระบบ",
-      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา ชุดยูโรโปรไฟล์ และระบบบานเฟี้ยมครบ 136 ผังการจัดบาน พร้อมคำนวณขนาดสั่งตัดกระจกและรายการอุปกรณ์ประกอบอัตโนมัติ",
+      title: "คำนวณระยะตัดและถอดรายการวัสดุครบ 5 หมวดระบบ (รวม ALUMET NEX)",
+      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ชุดยูโรโปรไฟล์ และระบบบานเฟี้ยมครบ 136 ผัง พร้อมคำนวณขนาดกระจกและอุปกรณ์อัตโนมัติ",
     },
     {
       icon: Layers,
@@ -85,8 +85,8 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Calculator,
-      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,672 รายการ) พร้อมกระจกและอุปกรณ์",
-      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ คำนวณต้นทุนกระจกและอุปกรณ์ประกอบ ปรับราคาทั้งชุดตาม % หรือบาท สำรองตารางราคา (.json) และเพิ่มชุดโปรไฟล์ใหม่ได้เอง",
+      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,924 รายการ) พร้อมกระจกและอุปกรณ์",
+      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวมใบราคา ALUMET NEX 21/11/2569) ปรับราคาทั้งชุดตาม % หรือบาท สำรองตารางราคา (.json) และเพิ่มชุดโปรไฟล์ใหม่ได้เอง",
     },
     {
       icon: FileText,
@@ -237,7 +237,7 @@ export default async function DownloadLandingPage() {
                 <div className="pt-6 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-6">
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      182
+                      194
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       ตารางสูตรคำนวณมาตรฐาน
@@ -253,7 +253,7 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      3,672
+                      3,924
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       ฐานข้อมูลราคา 8 แบรนด์

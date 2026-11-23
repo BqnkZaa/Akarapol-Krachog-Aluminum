@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "generatedAt": "2026-11-20",
+  "version": "2.1.0",
+  "generatedAt": "2026-11-23",
   "profiles": [
     {
       "brand": "ORM",
@@ -16697,6 +16697,2453 @@
       "color": "ลายไม้ (15656 / 15659)",
       "stockM": 6.4,
       "price": 420.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1100.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1143.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1185.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1185.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1250.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1313.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0206",
+      "name": "เสากุญแจประตูบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1576.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 955.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 993.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1030.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1030.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1085.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1139.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0208",
+      "name": "เสาเกี่ยว เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1370.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1070.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1110.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1150.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1150.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1210.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1271.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0207",
+      "name": "ขวางบน-ล่าง ล้อตลับ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1530.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1030.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1070.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1110.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1110.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1165.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1223.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0210",
+      "name": "ขวางบน-ล่าง ล้อตลาด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1476.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1710.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1775.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1840.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1840.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1935.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 2032.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0107",
+      "name": "เฟรมบน 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2447.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1940.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 2015.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 2090.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 2090.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 2200.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 2310.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0108",
+      "name": "เฟรมล่าง 2 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2780.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1200.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1245.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1290.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1290.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1355.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1423.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0106",
+      "name": "เฟรมข้างกล่องเรียบ เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1716.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 625.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 648.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 670.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 670.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 705.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 740.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0111",
+      "name": "เสริมรับล็อกเฟรมข้าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 891.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 870.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 905.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 940.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 940.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 990.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1040.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0203",
+      "name": "กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1250.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1380.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1420.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1460.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1460.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1535.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1612.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0104",
+      "name": "เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1942.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1465.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1523.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1580.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1580.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1660.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1743.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0105",
+      "name": "เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2101.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1395.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1450.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1505.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1505.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1585.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1664.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0204",
+      "name": "กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2002.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1550.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1610.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1670.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1670.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1755.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1843.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0101",
+      "name": "กล่องเปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2221.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 485.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 498.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 510.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 520.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 535.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 562.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0102",
+      "name": "ฝาปิด เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 678.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1450.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1505.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1560.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1560.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1640.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1722.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PF-0103",
+      "name": "กล่องร่อง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2075.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 390.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 435.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 460.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 460.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 470.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 485.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A30274",
+      "name": "คิ้วช่องแสงเฟรมกระทุ้ง (A30274)",
+      "thickness": "1.5 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 600.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 140.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 160.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 170.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 170.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 175.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 180.0
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2005",
+      "name": "เส้นคาดกลางมุ้ง (2005)",
+      "thickness": "0.9 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 225.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 935.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 970.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1005.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1005.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1055.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1108.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0209",
+      "name": "เสากุญแจหน้าต่างบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1337.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1510.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1568.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1625.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1625.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1705.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1790.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0112",
+      "name": "ตบเฟรมบนบานเลื่อน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2161.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 245.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 255.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 265.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 265.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 280.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 294.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0109",
+      "name": "ฝาตบเฟรมบน เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 352.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 340.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 353.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 365.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 365.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 385.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 404.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0110",
+      "name": "ตบธรณีเฟรมล่าง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 485.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1705.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1770.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1835.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1835.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1925.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 2021.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0113",
+      "name": "เฟรมบน 3 ราง เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2441.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 2205.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 2288.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 2370.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 2370.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 2490.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 2615.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PS-0114",
+      "name": "เฟรมล่าง 3 ราง เน็กซ์",
+      "thickness": "1.3 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 3152.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 2350.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 2438.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 2525.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 2525.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 2655.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 2788.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0106",
+      "name": "ซอยเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 3358.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1300.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1350.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1400.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1400.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1470.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1544.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0107",
+      "name": "ตบเฟรม บานกระทุ้ง เน็กซ์",
+      "thickness": "1.1 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1862.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 800.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 830.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 860.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 860.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 900.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 945.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "PC-0205",
+      "name": "เสาเสริมบานเปิดคู่ เน็กซ์",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1144.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 895.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 930.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 965.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 965.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1010.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1061.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "A10261",
+      "name": "ตบร่อง หนา 1.2 มม. เน็กซ์",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1283.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 920.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 955.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 990.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 990.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1040.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1092.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4011",
+      "name": "เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1317.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 935.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 970.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1005.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1005.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1055.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1108.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4012",
+      "name": "เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 1337.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 425.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 443.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 460.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 460.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 480.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 504.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4016",
+      "name": "ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 612.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 700.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 725.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 750.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 750.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 790.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 830.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "2006",
+      "name": "กรอบมุ้ง (2006)",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 998.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 305.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 318.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 330.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 330.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 345.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 362.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "4017",
+      "name": "ชนกลางมุ้ง (4017)",
+      "thickness": "1.2 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 439.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 1635.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 1698.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 1760.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 1760.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 1845.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 1937.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "030065",
+      "name": "กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)",
+      "thickness": "1.3 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 2341.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 310.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 323.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 335.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 335.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 355.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 373.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010129",
+      "name": "คิ้วตบประตูเหลี่ยม (010129)",
+      "thickness": "1.1 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 446.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 510.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 528.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 545.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 545.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 575.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 604.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010009",
+      "name": "คิ้วลอยเทเหลี่ยม (010009)",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 725.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "ตัวดิบ MILL",
+      "stockM": 6.4,
+      "price": 305.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "ชุบขาว",
+      "stockM": 6.4,
+      "price": 318.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "อบขาว (8911)",
+      "stockM": 6.4,
+      "price": 330.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "อบดำ (8816)",
+      "stockM": 6.4,
+      "price": 330.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "เทาซาฮาร่า (8820)",
+      "stockM": 6.4,
+      "price": 345.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "ทรายซาฮาร่า (8515)",
+      "stockM": 6.4,
+      "price": 362.0,
+      "isEstimated": true
+    },
+    {
+      "brand": "ALUMET",
+      "code": "010010",
+      "name": "คิ้วตบเหลี่ยม (010010)",
+      "thickness": "1.0 มม.",
+      "color": "ลายไม้ (15656 / 15659)",
+      "stockM": 6.4,
+      "price": 439.0,
       "isEstimated": true
     },
     {
@@ -36666,6 +39113,105 @@
       "price": 450.0
     },
     {
+      "rateKey": "HW||ล้อตลับบานเลื่อน NEX",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ล้อตลับบานเลื่อน NEX",
+      "unit": "ตัว",
+      "price": 45.0
+    },
+    {
+      "rateKey": "HW||มือจับฝังล็อก ซิงเกิลล็อก",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "มือจับฝังล็อก ซิงเกิลล็อก",
+      "unit": "ชุด",
+      "price": 110.0
+    },
+    {
+      "rateKey": "HW||ฝาปิดกันบานตกราง NEX",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ฝาปิดกันบานตกราง NEX",
+      "unit": "ชิ้น",
+      "price": 10.0
+    },
+    {
+      "rateKey": "HW||ยางกันกระแทกบานเลื่อน",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ยางกันกระแทกบานเลื่อน",
+      "unit": "ตัว",
+      "price": 10.0
+    },
+    {
+      "rateKey": "HW||สักหลาดกันเสียง 2 ชั้น",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "สักหลาดกันเสียง 2 ชั้น",
+      "unit": "ม้วน",
+      "price": 550.0
+    },
+    {
+      "rateKey": "HW||มือจับกระทุ้ง มัลติพอยท์",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "มือจับกระทุ้ง มัลติพอยท์",
+      "unit": "ชุด",
+      "price": 206.0
+    },
+    {
+      "rateKey": "HW||ตลับเกียร์มัลติพอยท์",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ตลับเกียร์มัลติพอยท์",
+      "unit": "ชุด",
+      "price": 85.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||ปุ่มล็อก & แป้นรับมัลติพอยท์",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ปุ่มล็อก & แป้นรับมัลติพอยท์",
+      "unit": "ชุด",
+      "price": 30.0
+    },
+    {
+      "rateKey": "HW||บานพับบานเปิด",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "บานพับบานเปิด",
+      "unit": "คู่",
+      "price": 180.0
+    },
+    {
+      "rateKey": "HW||สกรูยึดเฟรมช่องแสง",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "สกรูยึดเฟรมช่องแสง",
+      "unit": "ตัว",
+      "price": 2.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||ยางอัดกระจกช่องแสง",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ยางอัดกระจกช่องแสง",
+      "unit": "ชุด",
+      "price": 35.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||ซิลิโคนยาแนว",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ซิลิโคนยาแนว",
+      "unit": "หลอด",
+      "price": 120.0
+    },
+    {
       "rateKey": "HW|AKL-SMBF001|บานพับล้อบนบานเฟี้ยม ALUMET",
       "category": "HARDWARE",
       "code": "AKL-SMBF001",
@@ -36760,6 +39306,42 @@
       "name": "สักหลาด 6x4 มม. (300 เมตร) ALUMET",
       "unit": "ม้วน",
       "price": 750.0
+    },
+    {
+      "rateKey": "HW||ล้อตลาดบานเลื่อน NEX",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ล้อตลาดบานเลื่อน NEX",
+      "unit": "ตัว",
+      "price": 35.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||ลูกล้อมุ้งไฟเบอร์",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "ลูกล้อมุ้งไฟเบอร์",
+      "unit": "ตัว",
+      "price": 15.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||มุมมุ้งพลาสติก",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "มุมมุ้งพลาสติก",
+      "unit": "ตัว",
+      "price": 10.0,
+      "isEstimated": true
+    },
+    {
+      "rateKey": "HW||มือจับกระทุ้งซิงเกิลล็อก",
+      "category": "HARDWARE",
+      "code": "",
+      "name": "มือจับกระทุ้งซิงเกิลล็อก",
+      "unit": "ชุด",
+      "price": 165.0,
+      "isEstimated": true
     }
   ]
 }

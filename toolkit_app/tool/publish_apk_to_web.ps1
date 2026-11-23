@@ -17,10 +17,14 @@ $hashInfo = Get-FileHash -Path $apkDest -Algorithm SHA256
 $sizeMb   = [Math]::Round($fileInfo.Length / 1048576.0, 2).ToString("0.00")
 $nowStr   = (Get-Date).ToString("dd/MM/yyyy HH:mm")
 
+$pubspecRaw = Get-Content "d:\Workshop\aluminum\toolkit_app\pubspec.yaml" -Raw
+$verMatch   = [regex]::Match($pubspecRaw, 'version:\s*([0-9]+\.[0-9]+\.[0-9]+)')
+$verShort   = if ($verMatch.Success) { $verMatch.Groups[1].Value } else { "0.1.8" }
+
 $meta = [ordered]@{
     appName   = "อัครพลกระจกอลูมิเนียม"
     packageId = "com.akkaraphon.toolkit"
-    version   = "0.1.7 (VIP Offline)"
+    version   = "$verShort (VIP Offline)"
     fileName  = "akkaraphon-toolkit.apk"
     sizeBytes = $fileInfo.Length
     sizeMb    = $sizeMb

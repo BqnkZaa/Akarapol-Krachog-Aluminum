@@ -318,6 +318,19 @@ class ParametricSystemResolver {
         cuts: cuts,
         hardware: hardware,
       );
+    } else if (pattern.id.startsWith('c2_nex_s')) {
+      _applyCat2AlumetNexSlidingModifiers(
+        patternId: pattern.id,
+        opts: selectedOptions,
+        cuts: cuts,
+        hardware: hardware,
+      );
+    } else if (pattern.id.startsWith('c2_nex_win')) {
+      _applyCat2AlumetNexCasementModifiers(
+        opts: selectedOptions,
+        cuts: cuts,
+        hardware: hardware,
+      );
     } else if (pattern.id == 'c2_sp_s2_card') {
       if (selectedOptions['sill_height'] == 'high') {
         cuts = cuts
@@ -983,6 +996,223 @@ class ParametricSystemResolver {
           formula: '(W - 40) / 2',
         ),
       ]);
+    }
+  }
+
+  static void _applyCat2AlumetNexSlidingModifiers({
+    required String patternId,
+    required Map<String, String> opts,
+    required List<CutPieceSpec> cuts,
+    required List<HardwareItemSpec> hardware,
+  }) {
+    final series = opts['nex_series'] ?? 'nex200';
+    final usage = opts['usage_type'] ?? 'door';
+    final roller = opts['roller_type'] ?? 'cartridge';
+    final mosq = opts['mosquito'] ?? 'none';
+    final hasTopTransom = patternId == 'c2_nex_s2_top_card';
+    final hVar = hasTopTransom ? 'H1' : 'H';
+
+    String adjustedRailFormula(String orig) {
+      if (series == 'nex100') {
+        if (orig == '(W - 168) / 2') return '(W - 154) / 2';
+        if (orig == '(W - 180) / 3') return '(W - 166) / 3';
+        if (orig == '(W - 280) / 4') return '(W - 256) / 4';
+      } else if (usage == 'window') {
+        // Window stile PS-0209 (40mm) is 15.5mm narrower than door stile PS-0206 (55.5mm)
+        if (orig == '(W - 168) / 2') return '(W - 137) / 2';
+        if (orig == '(W - 180) / 3') return '(W - 149) / 3';
+        if (orig == '(W - 280) / 4') return '(W - 218) / 4';
+      }
+      return orig;
+    }
+
+    final updatedCuts = <CutPieceSpec>[];
+    for (final raw in cuts) {
+      var c = raw;
+
+      if (series == 'nex100') {
+        // NEX 100 omits PS-0111 & SS-X206 and uses standard market stiles 4011 / 4012
+        if (c.code == 'PS-0111' || c.code == 'SS-X206') continue;
+        if (c.code == 'PS-0206') {
+          c = c.copyWith(code: '4011', name: 'เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)');
+        } else if (c.code == 'PS-0208') {
+          c = c.copyWith(code: '4012', name: 'เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)');
+        }
+      } else if (usage == 'window' && c.code == 'PS-0206') {
+        c = c.copyWith(
+          code: 'PS-0209',
+          name: 'เสากุญแจหน้าต่างบานเลื่อน เน็กซ์ (40 มม.)',
+        );
+      }
+
+      if (c.code == 'PS-0207') {
+        final nextFormula = adjustedRailFormula(c.formula);
+        if (roller == 'market') {
+          c = c.copyWith(
+            code: 'PS-0210',
+            name: c.name.replaceAll('ล้อตลับ', 'ล้อตลาด'),
+            formula: nextFormula,
+          );
+        } else if (nextFormula != c.formula) {
+          c = c.copyWith(formula: nextFormula);
+        }
+      }
+
+      updatedCuts.add(c);
+    }
+
+    if (series == 'nex100' && patternId == 'c2_nex_s4_card') {
+      updatedCuts.add(
+        CutPieceSpec(
+          section: 'กรอบบานเลื่อน',
+          code: '4016',
+          name: 'ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)',
+          stockMm: 6400,
+          qty: 1,
+          qtyText: '1 ชิ้น',
+          angle: '90° / 90°',
+          formula: '$hVar - 47',
+        ),
+      );
+    }
+
+    if (mosq == 'fiber') {
+      final is4Panel = patternId == 'c2_nex_s4_card';
+      final is3Panel = patternId == 'c2_nex_s3_card';
+      final mosqPanels = is4Panel ? 2 : 1;
+      final horizFormula = is3Panel
+          ? '(W - 47) / 3'
+          : (is4Panel ? '(W - 55) / 2' : '(W - 47) / 2');
+      final barFormula = is3Panel
+          ? '(W - 134) / 3'
+          : (is4Panel ? '(W - 142) / 2' : '(W - 134) / 2');
+      updatedCuts.addAll([
+        CutPieceSpec(
+          section: 'มุ้งไฟเบอร์ (รางใน)',
+          code: '2006',
+          name: 'กรอบมุ้งแนวตั้ง (2006)',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '45° / 45°',
+          formula: '$hVar - 54',
+        ),
+        CutPieceSpec(
+          section: 'มุ้งไฟเบอร์ (รางใน)',
+          code: '2006',
+          name: 'กรอบมุ้งแนวนอน (2006)',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '45° / 45°',
+          formula: horizFormula,
+        ),
+        CutPieceSpec(
+          section: 'มุ้งไฟเบอร์ (รางใน)',
+          code: '4017',
+          name: 'ชนกลางมุ้ง (4017)',
+          stockMm: 6400,
+          qty: mosqPanels,
+          qtyText: '$mosqPanels ชิ้น',
+          angle: '90° / 90°',
+          formula: '$hVar - 54',
+        ),
+        CutPieceSpec(
+          section: 'มุ้งไฟเบอร์ (รางใน)',
+          code: '2005',
+          name: 'เส้นคาดกลางมุ้ง (2005)',
+          stockMm: 6400,
+          qty: mosqPanels,
+          qtyText: '$mosqPanels ชิ้น',
+          angle: '90° / 90°',
+          formula: barFormula,
+        ),
+      ]);
+      hardware.addAll([
+        HardwareItemSpec(
+          code: '',
+          name: 'ลูกล้อมุ้งไฟเบอร์',
+          qtyText: '${4 * mosqPanels} ตัว',
+        ),
+        HardwareItemSpec(
+          code: '',
+          name: 'มุมมุ้งพลาสติก',
+          qtyText: '${4 * mosqPanels} ตัว',
+        ),
+      ]);
+    }
+
+    cuts
+      ..clear()
+      ..addAll(updatedCuts);
+
+    if (roller == 'market') {
+      for (int i = 0; i < hardware.length; i++) {
+        if (hardware[i].name.contains('ล้อตลับ')) {
+          hardware[i] = HardwareItemSpec(
+            code: '',
+            name: 'ล้อตลาดบานเลื่อน NEX',
+            qtyText: hardware[i].qtyText,
+          );
+        }
+      }
+    }
+  }
+
+  static void _applyCat2AlumetNexCasementModifiers({
+    required Map<String, String> opts,
+    required List<CutPieceSpec> cuts,
+    required List<HardwareItemSpec> hardware,
+  }) {
+    final lockSys = opts['lock_system'] ?? 'nex200';
+    final openMode = opts['open_mode'] ?? 'awning';
+
+    if (lockSys == 'nex100') {
+      for (int i = 0; i < cuts.length; i++) {
+        var c = cuts[i];
+        if (c.code == 'PC-0104' || c.code == 'PC-0105') {
+          final nextFormula = c.formula == 'W - 50' ? 'W - 50.8' : c.formula;
+          c = c.copyWith(
+            code: '030065',
+            name: c.name
+                .replaceAll('บานกระทุ้ง มัลติพอยท์ เน็กซ์', 'กล่องก้าน 1 นิ้ว เน็กซ์ 100')
+                .replaceAll('มัลติพอยท์ เน็กซ์', 'กล่องก้าน 1 นิ้ว เน็กซ์ 100'),
+            formula: nextFormula,
+          );
+        } else if (c.code == 'PC-0204') {
+          c = c.copyWith(
+            code: 'PC-0203',
+            name: c.name.replaceAll('มัลติพอยท์', 'ซิงเกิลล็อก'),
+          );
+        }
+        cuts[i] = c;
+      }
+
+      // Replace multi-point lock gear with single-lock handle
+      hardware.removeWhere(
+        (h) => h.name.contains('เกียร์') || h.name.contains('ปุ่มล็อก'),
+      );
+      for (int i = 0; i < hardware.length; i++) {
+        if (hardware[i].name.contains('มือจับ')) {
+          hardware[i] = HardwareItemSpec(
+            code: '',
+            name: 'มือจับกระทุ้งซิงเกิลล็อก',
+            qtyText: hardware[i].qtyText,
+          );
+        }
+      }
+    }
+
+    if (openMode == 'casement') {
+      for (int i = 0; i < hardware.length; i++) {
+        if (hardware[i].name.contains('บานพับกระทุ้ง')) {
+          hardware[i] = HardwareItemSpec(
+            code: '',
+            name: 'บานพับบานเปิด',
+            qtyText: hardware[i].qtyText,
+          );
+        }
+      }
     }
   }
 

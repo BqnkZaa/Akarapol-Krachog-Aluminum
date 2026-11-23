@@ -310,6 +310,75 @@ void main() {
   addAlumetOfficial(code: 'เส้นซีกรุฟ (C-Groove)', name: 'เส้นซีกรุฟ C-Groove ก้านสไลด์มัลติพอยท์ล็อก (030038)', thickness: 'ไม่ระบุความหนา', whiteBlack8911: 290, greySahara8820: 300, sandSahara8515: 315, wood15656: 360, mill: 195, anodizeNa: 215);
   addAlumetOfficial(code: 'กรอบมุ้งตลาดเล็ก', name: 'กรอบมุ้งบานเลื่อนชุดมาตรฐาน', thickness: '1.0 มม.', whiteBlack8911: 310, greySahara8820: 320, sandSahara8515: 335, wood15656: 420, mill: 220, anodizeNa: 255, isEstimated: true);
 
+  // --- ALUMET NEX (อลูเม็ท เน็กซ์ — ราคาขายปลีกทางการ Update: 21/11/2569) ---
+  void addAlumetNexOfficial({
+    required String code,
+    required String name,
+    required String thickness,
+    required double white8911,
+    required double black8816,
+    required double greySahara8820,
+    required double mill,
+    double? anodizeNa,
+    double? sandSahara8515,
+    double? wood15656,
+    bool isEstimated = false,
+  }) {
+    final effNa = anodizeNa ?? ((mill + white8911) / 2.0).roundToDouble();
+    final effSand = sandSahara8515 ?? (greySahara8820 * 1.05).roundToDouble();
+    final effWood = wood15656 ?? (white8911 * 1.33).roundToDouble();
+
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'ตัวดิบ MILL', price: mill, isEstimated: isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'ชุบขาว', price: effNa, isEstimated: anodizeNa == null || isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'อบขาว (8911)', price: white8911, isEstimated: isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'อบดำ (8816)', price: black8816, isEstimated: isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'เทาซาฮาร่า (8820)', price: greySahara8820, isEstimated: isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'ทรายซาฮาร่า (8515)', price: effSand, isEstimated: sandSahara8515 == null || isEstimated);
+    addSku(brand: 'ALUMET', code: code, name: name, thickness: thickness, color: 'ลายไม้ (15656 / 15659)', price: effWood, isEstimated: wood15656 == null || isEstimated);
+  }
+
+  // 15 Official NEX Retail SKUs (Update: 21/11/2569, 6.4 m/bar)
+  addAlumetNexOfficial(code: 'PS-0206', name: 'เสากุญแจประตูบานเลื่อน เน็กซ์', thickness: '1.2 มม.', white8911: 1185, black8816: 1185, greySahara8820: 1250, mill: 1100);
+  addAlumetNexOfficial(code: 'PS-0208', name: 'เสาเกี่ยว เน็กซ์', thickness: '1.2 มม.', white8911: 1030, black8816: 1030, greySahara8820: 1085, mill: 955);
+  addAlumetNexOfficial(code: 'PS-0207', name: 'ขวางบน-ล่าง ล้อตลับ เน็กซ์', thickness: '1.2 มม.', white8911: 1150, black8816: 1150, greySahara8820: 1210, mill: 1070);
+  addAlumetNexOfficial(code: 'PS-0210', name: 'ขวางบน-ล่าง ล้อตลาด เน็กซ์', thickness: '1.2 มม.', white8911: 1110, black8816: 1110, greySahara8820: 1165, mill: 1030);
+  addAlumetNexOfficial(code: 'PS-0107', name: 'เฟรมบน 2 ราง เน็กซ์', thickness: '1.2 มม.', white8911: 1840, black8816: 1840, greySahara8820: 1935, mill: 1710);
+  addAlumetNexOfficial(code: 'PS-0108', name: 'เฟรมล่าง 2 ราง เน็กซ์', thickness: '1.2 มม.', white8911: 2090, black8816: 2090, greySahara8820: 2200, mill: 1940);
+  addAlumetNexOfficial(code: 'PS-0106', name: 'เฟรมข้างกล่องเรียบ เน็กซ์', thickness: '1.2 มม.', white8911: 1290, black8816: 1290, greySahara8820: 1355, mill: 1200);
+  addAlumetNexOfficial(code: 'PS-0111', name: 'เสริมรับล็อกเฟรมข้าง เน็กซ์', thickness: '1.2 มม.', white8911: 670, black8816: 670, greySahara8820: 705, mill: 625);
+  addAlumetNexOfficial(code: 'PC-0203', name: 'กรอบบานกระทุ้งซิงเกิลล็อก เน็กซ์', thickness: '1.0 มม.', white8911: 940, black8816: 940, greySahara8820: 990, mill: 870);
+  addAlumetNexOfficial(code: 'PC-0104', name: 'เฟรมบน-ข้าง บานกระทุ้ง มัลติพอยท์ เน็กซ์', thickness: '1.0 มม.', white8911: 1460, black8816: 1460, greySahara8820: 1535, mill: 1380);
+  addAlumetNexOfficial(code: 'PC-0105', name: 'เฟรมล่าง บานกระทุ้ง มัลติพอยท์ เน็กซ์', thickness: '1.0 มม.', white8911: 1580, black8816: 1580, greySahara8820: 1660, mill: 1465);
+  addAlumetNexOfficial(code: 'PC-0204', name: 'กรอบบานกระทุ้ง มัลติพอยท์ เน็กซ์', thickness: '1.0 มม.', white8911: 1505, black8816: 1505, greySahara8820: 1585, mill: 1395);
+  addAlumetNexOfficial(code: 'PF-0101', name: 'กล่องเปิด เน็กซ์', thickness: '1.2 มม.', white8911: 1670, black8816: 1670, greySahara8820: 1755, mill: 1550);
+  addAlumetNexOfficial(code: 'PF-0102', name: 'ฝาปิด เน็กซ์', thickness: '1.2 มม.', white8911: 510, black8816: 520, greySahara8820: 535, mill: 485);
+  addAlumetNexOfficial(code: 'PF-0103', name: 'กล่องร่อง เน็กซ์', thickness: '1.2 มม.', white8911: 1560, black8816: 1560, greySahara8820: 1640, mill: 1450);
+
+  // Official ALUMET Hub shared codes used in NEX Catalog SP001/01-2026
+  addAlumetOfficial(code: 'A30274', name: 'คิ้วช่องแสงเฟรมกระทุ้ง (A30274)', thickness: '1.5 มม.', whiteBlack8911: 460, greySahara8820: 470, sandSahara8515: 485, wood15656: 600, mill: 390, anodizeNa: 435);
+  addAlumetOfficial(code: '2005', name: 'เส้นคาดกลางมุ้ง (2005)', thickness: '0.9 มม.', whiteBlack8911: 170, greySahara8820: 175, sandSahara8515: 180, wood15656: 225, mill: 140, anodizeNa: 160, woodEstimated: true);
+
+  // Complementary NEX Catalog SP001/01-2026 codes calibrated by exact weight table (~300 B/kg powder coat, isEstimated: true)
+  addAlumetNexOfficial(code: 'PS-0209', name: 'เสากุญแจหน้าต่างบานเลื่อน เน็กซ์', thickness: '1.2 มม.', white8911: 1005, black8816: 1005, greySahara8820: 1055, mill: 935, isEstimated: true);
+  addAlumetNexOfficial(code: 'PS-0112', name: 'ตบเฟรมบนบานเลื่อน เน็กซ์', thickness: '1.2 มม.', white8911: 1625, black8816: 1625, greySahara8820: 1705, mill: 1510, isEstimated: true);
+  addAlumetNexOfficial(code: 'PS-0109', name: 'ฝาตบเฟรมบน เน็กซ์', thickness: '1.2 มม.', white8911: 265, black8816: 265, greySahara8820: 280, mill: 245, isEstimated: true);
+  addAlumetNexOfficial(code: 'PS-0110', name: 'ตบธรณีเฟรมล่าง เน็กซ์', thickness: '1.2 มม.', white8911: 365, black8816: 365, greySahara8820: 385, mill: 340, isEstimated: true);
+  addAlumetNexOfficial(code: 'PS-0113', name: 'เฟรมบน 3 ราง เน็กซ์', thickness: '1.2 มม.', white8911: 1835, black8816: 1835, greySahara8820: 1925, mill: 1705, isEstimated: true);
+  addAlumetNexOfficial(code: 'PS-0114', name: 'เฟรมล่าง 3 ราง เน็กซ์', thickness: '1.3 มม.', white8911: 2370, black8816: 2370, greySahara8820: 2490, mill: 2205, isEstimated: true);
+  addAlumetNexOfficial(code: 'PC-0106', name: 'ซอยเฟรม บานกระทุ้ง เน็กซ์', thickness: '1.1 มม.', white8911: 2525, black8816: 2525, greySahara8820: 2655, mill: 2350, isEstimated: true);
+  addAlumetNexOfficial(code: 'PC-0107', name: 'ตบเฟรม บานกระทุ้ง เน็กซ์', thickness: '1.1 มม.', white8911: 1400, black8816: 1400, greySahara8820: 1470, mill: 1300, isEstimated: true);
+  addAlumetNexOfficial(code: 'PC-0205', name: 'เสาเสริมบานเปิดคู่ เน็กซ์', thickness: '1.0 มม.', white8911: 860, black8816: 860, greySahara8820: 900, mill: 800, isEstimated: true);
+  addAlumetNexOfficial(code: 'A10261', name: 'ตบร่อง หนา 1.2 มม. เน็กซ์', thickness: '1.2 มม.', white8911: 965, black8816: 965, greySahara8820: 1010, mill: 895, isEstimated: true);
+  addAlumetNexOfficial(code: '4011', name: 'เสากุญแจ ชุดมาตรฐาน (เน็กซ์ 100)', thickness: '1.0 มม.', white8911: 990, black8816: 990, greySahara8820: 1040, mill: 920, isEstimated: true);
+  addAlumetNexOfficial(code: '4012', name: 'เสาเกี่ยว ชุดมาตรฐาน (เน็กซ์ 100)', thickness: '1.0 มม.', white8911: 1005, black8816: 1005, greySahara8820: 1055, mill: 935, isEstimated: true);
+  addAlumetNexOfficial(code: '4016', name: 'ประกบกลาง ชุดมาตรฐาน (เน็กซ์ 100)', thickness: '1.0 มม.', white8911: 460, black8816: 460, greySahara8820: 480, mill: 425, isEstimated: true);
+  addAlumetNexOfficial(code: '2006', name: 'กรอบมุ้ง (2006)', thickness: '1.2 มม.', white8911: 750, black8816: 750, greySahara8820: 790, mill: 700, isEstimated: true);
+  addAlumetNexOfficial(code: '4017', name: 'ชนกลางมุ้ง (4017)', thickness: '1.2 มม.', white8911: 330, black8816: 330, greySahara8820: 345, mill: 305, isEstimated: true);
+  addAlumetNexOfficial(code: '030065', name: 'กล่องก้าน 1 นิ้ว กระทุ้งยูเนี่ยน (เน็กซ์ 100)', thickness: '1.3 มม.', white8911: 1760, black8816: 1760, greySahara8820: 1845, mill: 1635, isEstimated: true);
+  addAlumetNexOfficial(code: '010129', name: 'คิ้วตบประตูเหลี่ยม (010129)', thickness: '1.1 มม.', white8911: 335, black8816: 335, greySahara8820: 355, mill: 310, isEstimated: true);
+  addAlumetNexOfficial(code: '010009', name: 'คิ้วลอยเทเหลี่ยม (010009)', thickness: '1.0 มม.', white8911: 545, black8816: 545, greySahara8820: 575, mill: 510, isEstimated: true);
+  addAlumetNexOfficial(code: '010010', name: 'คิ้วตบเหลี่ยม (010010)', thickness: '1.0 มม.', white8911: 330, black8816: 330, greySahara8820: 345, mill: 305, isEstimated: true);
+
   // ---------------------------------------------------------------------------
   // 3. MARKET (ชุดตลาด) — Extracted from `aluprosmart.com` (`meterial.php` 1.2 Powder Coat)
   //    + ALUMET Box/Batten sheet (`ราคาขายปลีก_กล่อง 010867.pdf`)
@@ -798,21 +867,27 @@ void main() {
     ('AKL-MTSL030', 'ล้อบานเลื่อน 1624 (80 กก./คู่) ALUMET', 'คู่', 135),
     ('AKL-MTSL031', 'ล้อบานเลื่อน 1522 (180 กก./คู่) ALUMET', 'คู่', 220),
     ('AKL-MTSL036', 'สักหลาด 6x4 มม. (300 เมตร) ALUMET', 'ม้วน', 750),
+    ('', 'ล้อตลาดบานเลื่อน NEX', 'ตัว', 35),
+    ('', 'ลูกล้อมุ้งไฟเบอร์', 'ตัว', 15),
+    ('', 'มุมมุ้งพลาสติก', 'ตัว', 10),
+    ('', 'มือจับกระทุ้งซิงเกิลล็อก', 'ชุด', 165),
+    ('', 'บานพับบานเปิด', 'คู่', 215),
   ];
   for (final item in alumetCatalogHw) {
+    final rKey = item.$1.isNotEmpty ? 'HW|${item.$1}|${item.$2}' : 'HW||${item.$2}';
     addHwRate(
-      rateKey: 'HW|${item.$1}|${item.$2}',
+      rateKey: rKey,
       code: item.$1,
       name: item.$2,
       unit: item.$3,
       price: item.$4,
-      isEstimated: false,
+      isEstimated: item.$1.isEmpty,
     );
   }
 
   final outJson = {
-    'version': '2.0.0',
-    'generatedAt': '2026-11-20',
+    'version': '2.1.0',
+    'generatedAt': '2026-11-23',
     'profiles': profiles,
     'glassRates': glassRates,
     'hardwareRates': hardwareRates,

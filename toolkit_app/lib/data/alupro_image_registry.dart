@@ -103,6 +103,7 @@ class AluproImageRegistry {
     'c2_orm': 'assets/brands/brand_orm.png',
     'c2_schimmer': 'assets/brands/brand_schimmer.png',
     'c2_alumet': 'assets/brands/brand_alumet.png',
+    'c2_alumet_nex': 'assets/brands/brand_alumet_nex.png',
     'c2_smartplus': 'assets/brands/brand_smartplus.png',
     'c2_uai': 'assets/brands/brand_uai.png',
     'c2_aluframe_dis': 'assets/brands/brand_aluframe.png',
@@ -123,11 +124,79 @@ class AluproImageRegistry {
     'c5_rp_dis': 'assets/brands/brand_rp.png',
   };
 
+  static const Map<String, String> _customPatternOverrides = {
+    'c2_nex_s2_card': 'assets/profiles/nex_pat_s2.png',
+    'c2_nex_s2_top_card': 'assets/profiles/nex_pat_s2_top.png',
+    'c2_nex_s3_card': 'assets/profiles/nex_pat_s3.png',
+    'c2_nex_s4_card': 'assets/profiles/nex_pat_s4.png',
+    'c2_nex_win1_card': 'assets/profiles/nex_pat_win1.png',
+    'c2_nex_win1_bot_card': 'assets/profiles/nex_pat_win1_bot.png',
+    'c2_nex_win1_top_card': 'assets/profiles/nex_pat_win1_top.png',
+    'c2_nex_win2_card': 'assets/profiles/nex_pat_win2.png',
+    'c2_nex_fix1_card': 'assets/profiles/nex_pat_fix1.png',
+    'c2_nex_fix2_card': 'assets/profiles/nex_pat_fix2.png',
+    'c2_nex_fix3_card': 'assets/profiles/nex_pat_fix3.png',
+    'c2_nex_fix4_card': 'assets/profiles/nex_pat_fix4.png',
+  };
+
   static const Map<String, String> _customProfileOverrides = {
     'SS-X219': 'assets/profiles/ss_x219.png',
+    'SS-X206': 'assets/profiles/nex_ss_x206.png',
+    'PS-0106': 'assets/profiles/nex_ps_0106.png',
+    'PS-0107': 'assets/profiles/nex_ps_0107.png',
+    'PS-0108': 'assets/profiles/nex_ps_0108.png',
+    'PS-0109': 'assets/profiles/nex_ps_0109.png',
+    'PS-0110': 'assets/profiles/nex_ps_0110.png',
+    'PS-0111': 'assets/profiles/nex_ps_0111.png',
+    'PS-0112': 'assets/profiles/nex_ps_0112.png',
+    'PS-0113': 'assets/profiles/nex_ps_0113.png',
+    'PS-0114': 'assets/profiles/nex_ps_0114.png',
+    'PS-0206': 'assets/profiles/nex_ps_0206.png',
+    'PS-0207': 'assets/profiles/nex_ps_0207.png',
+    'PS-0208': 'assets/profiles/nex_ps_0208.png',
+    'PS-0209': 'assets/profiles/nex_ps_0209.png',
+    'PS-0210': 'assets/profiles/nex_ps_0210.png',
+    'PC-0104': 'assets/profiles/nex_pc_0104.png',
+    'PC-0105': 'assets/profiles/nex_pc_0105.png',
+    'PC-0106': 'assets/profiles/nex_pc_0106.png',
+    'PC-0107': 'assets/profiles/nex_pc_0107.png',
+    'PC-0203': 'assets/profiles/nex_pc_0203.png',
+    'PC-0204': 'assets/profiles/nex_pc_0204.png',
+    'PC-0205': 'assets/profiles/nex_pc_0205.png',
+    'PF-0101': 'assets/profiles/nex_pf_0101.png',
+    'PF-0102': 'assets/profiles/nex_pf_0102.png',
+    'PF-0103': 'assets/profiles/nex_pf_0103.png',
+    'A30274': 'assets/profiles/nex_a30274.png',
+    'A10261': 'assets/profiles/nex_a10261.png',
+    '4011': 'assets/profiles/nex_4011.png',
+    '4012': 'assets/profiles/nex_4012.png',
+    '4016': 'assets/profiles/nex_4016.png',
+    '2006': 'assets/profiles/nex_2006.png',
+    '4017': 'assets/profiles/nex_4017.png',
+    '2005': 'assets/profiles/nex_2005.png',
+    '030065': 'assets/profiles/nex_030065.png',
+    '010129': 'assets/profiles/nex_010129.png',
+    '010009': 'assets/profiles/nex_010009.png',
+    '010010': 'assets/profiles/nex_010010.png',
   };
 
   static final RegExp _thaiCharRegex = RegExp(r'[ก-๙]');
+
+  static const Set<String> _alumetNexSharedCodes = {
+    '030038',
+    '4011',
+    '4012',
+    '4016',
+    '2006',
+    '4017',
+    '2005',
+    '030065',
+    '010129',
+    'A30274',
+    'A10261',
+    '010009',
+    '010010',
+  };
 
   bool _codeMatchesBrand(String cleanCode, String? brandKey) {
     if (brandKey == null || brandKey.isEmpty) return true;
@@ -149,7 +218,10 @@ class AluproImageRegistry {
             upper.startsWith('IO-') ||
             upper.startsWith('IC-') ||
             upper.startsWith('IF-') ||
-            cleanCode == '030038';
+            upper.startsWith('PS-') ||
+            upper.startsWith('PC-') ||
+            upper.startsWith('PF-') ||
+            _alumetNexSharedCodes.contains(upper);
       case 'SMART_PLUS':
         return cleanCode.startsWith('151') || cleanCode.startsWith('152');
       case 'UAI':
@@ -183,8 +255,10 @@ class AluproImageRegistry {
   String? resolveBrandAsset(String brandId) => _toAsset(
       _userBrandImages[brandId] ?? _brands[brandId] ?? _defaultBrandLogos[brandId]);
 
-  String? resolvePatternAsset(String patternId) =>
-      _toAsset(_userPatternImages[patternId] ?? _patterns[patternId]);
+  String? resolvePatternAsset(String patternId) => _toAsset(
+      _userPatternImages[patternId] ??
+          _customPatternOverrides[patternId] ??
+          _patterns[patternId]);
 
   /// Resolves ONLY exact 1:1 verified profile CAD cross-sections for the matching brand,
   /// plus any user-uploaded custom profile cross-section for that brand+code.

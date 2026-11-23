@@ -49,8 +49,8 @@ void main() {
     await SeedRepository.instance.ensureLoaded(testAssetsDir: 'assets/data');
   });
 
-  test('SeedRepository loads all 182 formula tables and 1,139 ORM price SKUs', () {
-    expect(SeedRepository.instance.formulaTables.length, 182);
+  test('SeedRepository loads all 194 formula tables (182 core + 12 ALUMET NEX) and 1,139 ORM price SKUs', () {
+    expect(SeedRepository.instance.formulaTables.length, 194);
     expect(SeedRepository.instance.ormPrices.length, 1139);
   });
 
@@ -558,7 +558,7 @@ void main() {
     await tester.tap(find.text('2. ชุดพัฒนา'));
     await tester.pumpAndSettle();
     expect(find.text('เลือกแบรนด์และระบบงาน'), findsOneWidget);
-    expect(find.byType(BrandLogoPlate), findsNWidgets(6));
+    expect(find.byType(BrandLogoPlate), findsNWidgets(7));
 
     // 2. Verify phone portrait flow through ALUMET (Smart X) -> Input -> Result Tabs 1–3
     await tester.binding.setSurfaceSize(const Size(430, 932));

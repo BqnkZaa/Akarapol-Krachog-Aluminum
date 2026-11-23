@@ -465,6 +465,82 @@ class CatalogDefinitions {
     ),
   ];
 
+  static const List<OptionGroupDef> alumetNexSlidingOptions = [
+    OptionGroupDef(
+      id: 'nex_series',
+      title: 'รุ่นระบบ อลูเม็ท เน็กซ์',
+      choices: [
+        OptionChoice(
+          id: 'nex200',
+          label: 'เน็กซ์ 200 (ทั้งระบบ)',
+          subtitle: 'เสากุญแจ PS-0206 / PS-0209 · เสาเกี่ยว PS-0208 · เสริมรับล็อก PS-0111',
+        ),
+        OptionChoice(
+          id: 'nex100',
+          label: 'เน็กซ์ 100 (วงกบเน็กซ์ + เสามาตรฐาน)',
+          subtitle: 'ใช้เสากุญแจ 4011 · เสาเกี่ยว 4012 ร่วมกับวงกบเน็กซ์',
+        ),
+      ],
+      defaultValue: 'nex200',
+    ),
+    OptionGroupDef(
+      id: 'usage_type',
+      title: 'ประเภทบาน (ขนาดเสากุญแจ)',
+      choices: [
+        OptionChoice(id: 'door', label: 'ประตู (เสา 55.5 มม.)'),
+        OptionChoice(id: 'window', label: 'หน้าต่าง (เสา 40 มม.)'),
+      ],
+      defaultValue: 'door',
+    ),
+    OptionGroupDef(
+      id: 'roller_type',
+      title: 'ชนิดขวางบน-ล่างและล้อ',
+      choices: [
+        OptionChoice(id: 'cartridge', label: 'ล้อตลับ (PS-0207 · 51 มม.)'),
+        OptionChoice(id: 'market', label: 'ล้อตลาด (PS-0210 · 59.4 มม.)'),
+      ],
+      defaultValue: 'cartridge',
+    ),
+    OptionGroupDef(
+      id: 'mosquito',
+      title: 'มุ้งไฟเบอร์ (รางใน)',
+      choices: [
+        OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
+        OptionChoice(id: 'fiber', label: 'มีมุ้งไฟเบอร์ (กรอบ 2006 + ชนกลาง 4017)'),
+      ],
+      defaultValue: 'none',
+    ),
+  ];
+
+  static const List<OptionGroupDef> alumetNexCasementOptions = [
+    OptionGroupDef(
+      id: 'lock_system',
+      title: 'ระบบล็อก อลูเม็ท เน็กซ์',
+      choices: [
+        OptionChoice(
+          id: 'nex200',
+          label: 'เน็กซ์ 200 · มัลติพอยท์ล็อก',
+          subtitle: 'เฟรม PC-0104 / PC-0105 · กรอบบาน PC-0204',
+        ),
+        OptionChoice(
+          id: 'nex100',
+          label: 'เน็กซ์ 100 · ซิงเกิลล็อก',
+          subtitle: 'กล่องก้าน 030065 · กรอบบาน PC-0203',
+        ),
+      ],
+      defaultValue: 'nex200',
+    ),
+    OptionGroupDef(
+      id: 'open_mode',
+      title: 'รูปแบบการเปิด',
+      choices: [
+        OptionChoice(id: 'awning', label: 'บานกระทุ้ง'),
+        OptionChoice(id: 'casement', label: 'บานเปิด'),
+      ],
+      defaultValue: 'awning',
+    ),
+  ];
+
   static const List<OptionGroupDef> ormPanoSlidingOptions = [
     OptionGroupDef(
       id: 'sash_code',
@@ -1385,6 +1461,121 @@ class CatalogDefinitions {
                   title: 'ช่องแสงแบ่ง 3 ช่อง',
                   enabled: false,
                   disabledBadge: 'รอข้อมูลสูตร',
+                ),
+              ],
+            ),
+          ],
+        ),
+        const BrandDef(
+          id: 'c2_alumet_nex',
+          title: 'ALUMET (NEX)',
+          subtitle: 'อลูเม็ท เน็กซ์ 100 / 200 · บานเลื่อน บานเปิด-กระทุ้ง ช่องแสง',
+          priceBrandKey: 'ALUMET',
+          systems: [
+            SubSystemDef(
+              id: 'c2_nex_sliding',
+              title: 'บานเลื่อน อลูเม็ท เน็กซ์',
+              subtitle: 'รองรับ เน็กซ์ 200 & เน็กซ์ 100 · ล้อตลับ / ล้อตลาด · มุ้งไฟเบอร์',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_nex_s2_card',
+                  title: 'บานเลื่อนสลับ 2 บาน',
+                  subtitle: 'เฟรม 2 ราง PS-0107 / PS-0108 · วงกบสลิม 20 มม.',
+                  baseFormulaKey: 'c2_nex_s2',
+                  optionGroups: alumetNexSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_s2_top_card',
+                  title: 'บานเลื่อนสลับ 2 บาน + ช่องแสงบน',
+                  subtitle: 'ต่อช่องแสงบนด้วยกล่องร่องสลิม PF-0103 + PS-0112',
+                  baseFormulaKey: 'c2_nex_s2_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเลื่อน (มม.)',
+                  optionGroups: alumetNexSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_s3_card',
+                  title: 'บานเลื่อนแบ่ง 3 บาน (3 ราง)',
+                  subtitle: 'เฟรม 3 ราง PS-0113 / PS-0114 · วงกบสลิม 20 มม.',
+                  baseFormulaKey: 'c2_nex_s3',
+                  optionGroups: alumetNexSlidingOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_s4_card',
+                  title: 'บานเลื่อนแบ่ง 4 เปิดกลาง',
+                  subtitle: 'เฟรม 2 ราง PS-0107 / PS-0108 · เปิดกลาง 4 บาน',
+                  baseFormulaKey: 'c2_nex_s4',
+                  optionGroups: alumetNexSlidingOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_nex_windows',
+              title: 'บานเปิด - บานกระทุ้ง อลูเม็ท เน็กซ์',
+              subtitle: 'รองรับ เน็กซ์ 200 มัลติพอยท์ & เน็กซ์ 100 ซิงเกิลล็อก',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_nex_win1_card',
+                  title: 'หน้าต่างบานกระทุ้ง / บานเปิด เดี่ยว',
+                  subtitle: 'เฟรม PC-0104 / PC-0105 · กรอบบาน 45° PC-0204',
+                  baseFormulaKey: 'c2_nex_win1',
+                  optionGroups: alumetNexCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_win1_bot_card',
+                  title: 'หน้าต่างบานกระทุ้ง / บานเปิด เดี่ยว + ช่องแสงล่าง',
+                  subtitle: 'ต่อช่องแสงล่างด้วย ตบเฟรม PC-0107 + คิ้ว A30274',
+                  baseFormulaKey: 'c2_nex_win1_bot',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด-กระทุ้ง (มม.)',
+                  optionGroups: alumetNexCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_win1_top_card',
+                  title: 'หน้าต่างบานกระทุ้ง / บานเปิด เดี่ยว + ช่องแสงบน',
+                  subtitle: 'ต่อช่องแสงบนด้วย ซอยเฟรม PC-0106 + คิ้ว A30274',
+                  baseFormulaKey: 'c2_nex_win1_top',
+                  auxType: AuxDimensionType.refHeightH1,
+                  auxLabel: 'H1 ความสูงส่วนบานเปิด-กระทุ้ง (มม.)',
+                  optionGroups: alumetNexCasementOptions,
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_win2_card',
+                  title: 'หน้าต่างบานเปิดคู่',
+                  subtitle: 'พร้อมเสาเสริมบานเปิดคู่ PC-0205',
+                  baseFormulaKey: 'c2_nex_win2',
+                  optionGroups: alumetNexCasementOptions,
+                ),
+              ],
+            ),
+            SubSystemDef(
+              id: 'c2_nex_fixed',
+              title: 'ช่องแสง อลูเม็ท เน็กซ์ 200 (กล่องร่องสลิม 1 นิ้ว)',
+              subtitle: 'กล่องร่อง PF-0103 · กล่องเปิด PF-0101 · ฝาปิด PF-0102 · สกรูซ่อนหัว',
+              patterns: [
+                PatternCardDef(
+                  id: 'c2_nex_fix1_card',
+                  title: 'ช่องแสงเดี่ยว (1 ช่อง)',
+                  subtitle: 'กล่องร่องสลิม 25.4 มม. · ประกอบง่ายไม่ใช้ฉาก',
+                  baseFormulaKey: 'c2_nex_fix1',
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_fix2_card',
+                  title: 'ช่องแสงแบ่งซอย 2 ช่อง',
+                  subtitle: 'ซอยกลางด้วยกล่องร่อง PF-0103 + ตบร่อง A10261',
+                  baseFormulaKey: 'c2_nex_fix2',
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_fix3_card',
+                  title: 'ช่องแสงแบ่งซอย 3 ช่อง',
+                  subtitle: 'ซอย 3 ช่องด้วยกล่องร่อง PF-0103 + ตบร่อง A10261',
+                  baseFormulaKey: 'c2_nex_fix3',
+                ),
+                PatternCardDef(
+                  id: 'c2_nex_fix4_card',
+                  title: 'บานช่องแสงแบ่งซอย 4 ช่อง (2×2)',
+                  subtitle: 'แบบมาตรฐานแคตตาล็อก NEX 200 หน้า 13',
+                  baseFormulaKey: 'c2_nex_fix4',
                 ),
               ],
             ),

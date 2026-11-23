@@ -102,6 +102,15 @@ class QuotationSpecFormatter {
         return 'โปรไฟล์ SMS SCHIMMER';
 
       case 'ALUMET':
+        if (bTitle.contains('NEX') ||
+            sTitle.contains('เน็กซ์') ||
+            item.patternId.startsWith('c2_nex_')) {
+          if (opts['nex_series'] == 'nex100' ||
+              opts['lock_system'] == 'nex100') {
+            return 'โปรไฟล์ ALUMET รุ่น NEX 100';
+          }
+          return 'โปรไฟล์ ALUMET รุ่น NEX 200';
+        }
         if (bTitle.contains('Iconiq') || sTitle.contains('ICONIQ')) {
           return 'โปรไฟล์ยูโร ALUMET รุ่น ICONIQ Series';
         }
