@@ -136,6 +136,13 @@ class _ResultScreenState extends State<ResultScreen>
                 PricingWorkspaceWidget(
                   barGroups: out.barGroups,
                   glasses: out.sets.expand((s) => s.glasses).toList(),
+                  openingAreaSqM: out.sets.fold<double>(
+                    0.0,
+                    (sum, s) =>
+                        sum +
+                        ((s.sizeRow.widthMm * s.sizeRow.heightMm) / 1000000.0) *
+                            s.sizeRow.qty,
+                  ),
                   fallbackOpeningAreaSqM: out.sets.fold(
                     0.0,
                     (sum, s) =>
@@ -235,6 +242,7 @@ class _ResultScreenState extends State<ResultScreen>
   Widget _buildTab1CutLengths(CalculationOutput out) {
     final allGlasses = out.sets.expand((s) => s.glasses).toList();
     return ListView(
+      cacheExtent: 600,
       padding: const EdgeInsets.all(14),
       children: [
         ...out.sets.map((s) {
@@ -456,6 +464,7 @@ class _ResultScreenState extends State<ResultScreen>
     final allGlasses = out.sets.expand((s) => s.glasses).toList();
     final glassImg = AluproImageRegistry.instance.glassAsset;
     return ListView(
+      cacheExtent: 600,
       padding: const EdgeInsets.all(14),
       children: [
         _summarySectionCard(
@@ -631,6 +640,7 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _buildTab3BarPacking(CalculationOutput out) {
     return ListView(
+      cacheExtent: 600,
       padding: const EdgeInsets.all(14),
       children: [
         Container(
@@ -881,6 +891,7 @@ class ProfileBarGroupCard extends StatelessWidget {
 class PricingWorkspaceWidget extends StatefulWidget {
   final List<ProfileBarGroup> barGroups;
   final List<EvaluatedGlassItem> glasses;
+  final double? openingAreaSqM;
   final double fallbackOpeningAreaSqM;
   final List<AggregatedHardwareItem> hardware;
   final ValueChanged<PricingSummary>? onSummaryChanged;
@@ -889,6 +900,7 @@ class PricingWorkspaceWidget extends StatefulWidget {
     super.key,
     required this.barGroups,
     this.glasses = const [],
+    this.openingAreaSqM,
     this.fallbackOpeningAreaSqM = 0.0,
     this.hardware = const [],
     this.onSummaryChanged,
@@ -908,14 +920,32 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   String _selectedGlassKey = 'GLASS|กระจกใส 6 มม.';
   bool _includeHardware = false;
 
+  // Profit % & Labor Cost Controls
+  double _profitPct = 20.0;
+  ProfitBaseMode _profitBaseMode = ProfitBaseMode.materialOnly;
+  LaborCostMode _laborMode = LaborCostMode.perSqM;
+  double _laborRate = 0.0;
+  bool _markupLoaded = false;
+  late final TextEditingController _profitCtrl;
+  late final TextEditingController _laborCtrl;
+
   Map<String, CustomPriceOverride> _overrides = {};
   Map<String, CustomMaterialRateOverride> _materialOverrides = {};
   bool _loading = true;
+
+  static String _fmtNumInput(double v) {
+    if ((v - v.roundToDouble()).abs() < 0.005) {
+      return v.round().toString();
+    }
+    return v.toStringAsFixed(2);
+  }
 
   @override
   void initState() {
     super.initState();
     _wasteCtrl = TextEditingController(text: '20');
+    _profitCtrl = TextEditingController(text: '20');
+    _laborCtrl = TextEditingController(text: '0');
     _includeGlass = widget.glasses.isNotEmpty &&
         (widget.glasses.any((g) => !g.siteCut && (g.widthMm ?? 0) > 0) ||
             widget.fallbackOpeningAreaSqM > 0);
@@ -974,14 +1004,42 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   Future<void> _reloadOverrides() async {
     final ov = await AppDatabase.instance.getAllCustomPrices();
     final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
+    final markupDefaults = _markupLoaded
+        ? null
+        : await AppDatabase.instance.getPricingMarkupDefaults();
     if (!mounted) return;
     setState(() {
       _overrides = ov;
       _materialOverrides = matOv;
+      if (markupDefaults != null && !_markupLoaded) {
+        _profitPct = markupDefaults.profitPercent;
+        _profitBaseMode = markupDefaults.profitBaseMode;
+        _laborMode = markupDefaults.laborMode;
+        _laborRate = markupDefaults.laborRate;
+        _profitCtrl.text = _fmtNumInput(_profitPct);
+        _laborCtrl.text = _fmtNumInput(_laborRate);
+        _markupLoaded = true;
+      }
       _syncValidSelection(ov);
       _loading = false;
     });
     _notifyParent();
+  }
+
+  Future<void> _saveMarkupAsShopDefault() async {
+    await AppDatabase.instance.savePricingMarkupDefaults(
+      PricingMarkupDefaults(
+        profitPercent: _profitPct,
+        profitBaseMode: _profitBaseMode,
+        laborMode: _laborMode,
+        laborRate: _laborRate,
+      ),
+    );
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'บันทึกกำไร ${_fmtNumInput(_profitPct)}% และค่าแรงเป็นค่าตั้งต้นของร้านแล้ว',
+    );
   }
 
   void _notifyParent() {
@@ -1006,6 +1064,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: _overrides,
       glasses: widget.glasses,
+      openingAreaSqM: widget.openingAreaSqM,
       fallbackOpeningAreaSqM: widget.fallbackOpeningAreaSqM,
       hardware: widget.hardware,
       includeGlass: _includeGlass,
@@ -1014,6 +1073,10 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       includeHardware: _includeHardware,
       hardwareCatalog: SeedRepository.instance.hardwareRates,
       materialOverrides: _materialOverrides,
+      laborMode: _laborMode,
+      laborRate: _laborRate,
+      profitPercent: _profitPct,
+      profitBaseMode: _profitBaseMode,
     );
   }
 
@@ -1320,6 +1383,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   @override
   void dispose() {
     _wasteCtrl.dispose();
+    _profitCtrl.dispose();
+    _laborCtrl.dispose();
     super.dispose();
   }
 
@@ -1343,57 +1408,70 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     final hasAnyEstimated = summary.lines.any((l) => l.isEstimatedPrice);
 
     return ListView(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
       children: [
-        // Quick Action Pills
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ActionChip(
-              avatar: const Icon(Icons.price_change_outlined,
-                  size: 17, color: ToolkitColors.royalBlue),
-              label: const Text('ศูนย์จัดการ/อัปเดตราคา'),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CustomPriceScreen()),
-                );
-                _reloadOverrides();
-              },
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.architecture_rounded,
-                  size: 17, color: ToolkitColors.royalBlue),
-              label: const Text('เพิ่มชุดโปรไฟล์ใหม่'),
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CustomSystemListScreen(),
-                  ),
-                );
-                _reloadOverrides();
-              },
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.storefront_outlined,
-                  size: 17, color: ToolkitColors.royalBlue),
-              label: const Text('ข้อมูลร้านของฉัน'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ShopInfoScreen()),
-                );
-              },
-            ),
-          ],
+        // Quick Action Pills (Compact single-row horizontal bar on phone screens)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ActionChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                avatar: const Icon(Icons.price_change_outlined,
+                    size: 16, color: ToolkitColors.royalBlue),
+                label: const Text('ศูนย์จัดการ/อัปเดตราคา',
+                    style: TextStyle(fontSize: 12.5)),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CustomPriceScreen()),
+                  );
+                  _reloadOverrides();
+                },
+              ),
+              const SizedBox(width: 6),
+              ActionChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                avatar: const Icon(Icons.architecture_rounded,
+                    size: 16, color: ToolkitColors.royalBlue),
+                label: const Text('เพิ่มชุดโปรไฟล์ใหม่',
+                    style: TextStyle(fontSize: 12.5)),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CustomSystemListScreen(),
+                    ),
+                  );
+                  _reloadOverrides();
+                },
+              ),
+              const SizedBox(width: 6),
+              ActionChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                avatar: const Icon(Icons.storefront_outlined,
+                    size: 16, color: ToolkitColors.royalBlue),
+                label: const Text('ข้อมูลร้านของฉัน',
+                    style: TextStyle(fontSize: 12.5)),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ShopInfoScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         // Controls Card
         Container(
-          padding: const EdgeInsets.all(15),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -1404,10 +1482,14 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
             children: [
               const Text(
                 'วิธีคิดต้นทุนอลูมิเนียม',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               SegmentedButton<PricingMode>(
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 segments: const [
                   ButtonSegment(
                     value: PricingMode.actualLength,
@@ -1434,27 +1516,29 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   _notifyParent();
                 },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  const Expanded(
-                    flex: 4,
-                    child: Text(
-                      'เผื่อเสีย / เศษวัสดุ (%)',
-                      style: TextStyle(
-                          fontSize: 13.5, fontWeight: FontWeight.w600),
-                    ),
+                  const Text(
+                    'เผื่อเสีย (%)',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
+                  const SizedBox(width: 6),
                   SizedBox(
-                    width: 80,
+                    width: 68,
                     child: TextField(
                       controller: _wasteCtrl,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
                       textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
                       decoration: const InputDecoration(
                         suffixText: '%',
                         isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (v) {
@@ -1466,23 +1550,34 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                       },
                     ),
                   ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        overlayShape:
+                            const RoundSliderOverlayShape(overlayRadius: 12),
+                        thumbShape:
+                            const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      ),
+                      child: Slider(
+                        value: _wastePct.clamp(0.0, 50.0),
+                        min: 0,
+                        max: 50,
+                        divisions: 50,
+                        label: '${_wastePct.round()}%',
+                        onChanged: (v) {
+                          setState(() {
+                            _wastePct = v.roundToDouble();
+                            _wasteCtrl.text = _wastePct.round().toString();
+                          });
+                          _notifyParent();
+                        },
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              Slider(
-                value: _wastePct.clamp(0.0, 50.0),
-                min: 0,
-                max: 50,
-                divisions: 50,
-                label: '${_wastePct.round()}%',
-                onChanged: (v) {
-                  setState(() {
-                    _wastePct = v.roundToDouble();
-                    _wasteCtrl.text = _wastePct.round().toString();
-                  });
-                  _notifyParent();
-                },
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Expanded(
@@ -1595,11 +1690,11 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
-        // Grand Total Cost Banner
+        // Grand Total Cost & Suggested Selling Price Banner (Immediately visible on screen!)
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: ToolkitColors.slateDark,
             borderRadius: BorderRadius.circular(14),
@@ -1619,15 +1714,14 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                               ? 'ต้นทุนวัสดุรวมสุทธิ'
                               : 'ต้นทุนเส้นอลูมิเนียมรวม',
                           style: const TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 12.5,
                             color: Color(0xFFCBD5E1),
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
                           'จับคู่ราคาเส้นได้ ${summary.matchedCount}/${summary.totalCount} รายการ',
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: Color(0xFF93C5FD),
                           ),
                         ),
@@ -1637,7 +1731,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   Text(
                     '฿${_bahtFmt.format(summary.totalCost)}',
                     style: const TextStyle(
-                      fontSize: 21,
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                     ),
@@ -1645,35 +1739,410 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 ],
               ),
               if (_includeGlass || _includeHardware) ...[
-                const Divider(color: Color(0xFF334155), height: 18),
+                const Divider(color: Color(0xFF334155), height: 10),
                 Wrap(
-                  spacing: 14,
-                  runSpacing: 4,
+                  spacing: 10,
+                  runSpacing: 2,
                   children: [
                     Text(
                       'อลูมิเนียม: ฿${_bahtFmt.format(summary.aluminumCost)}',
                       style: const TextStyle(
-                          fontSize: 12, color: Color(0xFFE2E8F0)),
+                          fontSize: 11, color: Color(0xFFE2E8F0)),
                     ),
                     if (_includeGlass)
                       Text(
                         'กระจก (${summary.totalGlassAreaSqM.toStringAsFixed(2)} ตร.ม.): ฿${_bahtFmt.format(summary.glassCost)}',
                         style: const TextStyle(
-                            fontSize: 12, color: Color(0xFFBAE6FD)),
+                            fontSize: 11, color: Color(0xFFBAE6FD)),
                       ),
                     if (_includeHardware)
                       Text(
                         'อุปกรณ์: ฿${_bahtFmt.format(summary.hardwareCost)}',
                         style: const TextStyle(
-                            fontSize: 12, color: Color(0xFFFDE68A)),
+                            fontSize: 11, color: Color(0xFFFDE68A)),
                       ),
                   ],
                 ),
               ],
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF334155)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (summary.laborCost > 0 || summary.profitAmount > 0) ...[
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 2,
+                        children: [
+                          if (summary.laborCost > 0)
+                            Text(
+                              '+ ค่าแรง: ฿${_bahtFmt.format(summary.laborCost)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFFCD34D),
+                              ),
+                            ),
+                          if (summary.profitAmount > 0)
+                            Text(
+                              '+ กำไร (${_fmtNumInput(summary.profitPercent)}%): ฿${_bahtFmt.format(summary.profitAmount)}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF86EFAC),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ราคาเสนอขายแนะนำสุทธิ',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                summary.profitBaseMode ==
+                                        ProfitBaseMode.materialAndLabor
+                                    ? 'รวมต้นทุน + ค่าแรง + กำไรจากยอดรวม'
+                                    : 'รวมต้นทุน + กำไรจากวัสดุ + ค่าแรง',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '฿${_bahtFmt.format(summary.suggestedSellingPrice)}',
+                          key: const ValueKey('pricing_suggested_selling_price'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF4ADE80),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+
+        // Compact Profit % & Labor Cost Controls Card (Right underneath Summary Banner!)
+        Container(
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: ToolkitColors.cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'ปรับเปอร์เซ็นต์กำไร (%) และค่าแรงติดตั้ง',
+                      style: TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: _saveMarkupAsShopDefault,
+                    icon: const Icon(Icons.bookmark_added_outlined, size: 14),
+                    label: const Text(
+                      'จำค่าตั้งต้นร้าน',
+                      style:
+                          TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // Profit % inline TextField + Slider
+              Row(
+                children: [
+                  const Text(
+                    'กำไร',
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 68,
+                    child: TextField(
+                      key: const ValueKey('pricing_profit_pct_field'),
+                      controller: _profitCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                      decoration: const InputDecoration(
+                        suffixText: '%',
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) {
+                        final parsed = double.tryParse(v.trim());
+                        if (parsed != null) {
+                          setState(
+                              () => _profitPct = parsed.clamp(0.0, 200.0));
+                          _notifyParent();
+                        }
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        overlayShape:
+                            const RoundSliderOverlayShape(overlayRadius: 12),
+                        thumbShape:
+                            const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      ),
+                      child: Slider(
+                        key: const ValueKey('pricing_profit_pct_slider'),
+                        value: _profitPct.clamp(0.0, 100.0),
+                        min: 0,
+                        max: 100,
+                        divisions: 100,
+                        label: '${_profitPct.round()}%',
+                        onChanged: (v) {
+                          setState(() {
+                            _profitPct = v.roundToDouble();
+                            _profitCtrl.text = _profitPct.round().toString();
+                          });
+                          _notifyParent();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ...[15.0, 20.0, 25.0, 30.0, 40.0, 50.0].map((pct) {
+                      final selected = (_profitPct - pct).abs() < 0.01;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 4),
+                          label: Text('${pct.round()}%',
+                              style: const TextStyle(fontSize: 11.5)),
+                          selected: selected,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) {
+                            setState(() {
+                              _profitPct = pct;
+                              _profitCtrl.text = pct.round().toString();
+                            });
+                            _notifyParent();
+                          },
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 5),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      label: const Text(
+                        'คิดกำไรจากต้นทุนวัสดุ',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
+                      selected: _profitBaseMode == ProfitBaseMode.materialOnly,
+                      selectedColor: ToolkitColors.softBlueBg,
+                      onSelected: (_) {
+                        setState(() =>
+                            _profitBaseMode = ProfitBaseMode.materialOnly);
+                        _notifyParent();
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      label: const Text(
+                        'คิดกำไรรวมค่าแรงด้วย',
+                        style: TextStyle(fontSize: 11.5),
+                      ),
+                      selected:
+                          _profitBaseMode == ProfitBaseMode.materialAndLabor,
+                      selectedColor: ToolkitColors.softBlueBg,
+                      onSelected: (_) {
+                        setState(() =>
+                            _profitBaseMode = ProfitBaseMode.materialAndLabor);
+                        _notifyParent();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 12),
+
+              // Labor Cost Mode + Input inline
+              Row(
+                children: [
+                  const Text(
+                    'ค่าแรง',
+                    style:
+                        TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: const Text('บาท/ตร.ม.',
+                        style: TextStyle(fontSize: 11.5)),
+                    selected: _laborMode == LaborCostMode.perSqM,
+                    selectedColor: ToolkitColors.softBlueBg,
+                    onSelected: (_) {
+                      setState(() => _laborMode = LaborCostMode.perSqM);
+                      _notifyParent();
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: const Text('เหมาทั้งงาน (บาท)',
+                        style: TextStyle(fontSize: 11.5)),
+                    selected: _laborMode == LaborCostMode.flatBaht,
+                    selectedColor: ToolkitColors.softBlueBg,
+                    onSelected: (_) {
+                      setState(() => _laborMode = LaborCostMode.flatBaht);
+                      _notifyParent();
+                    },
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('pricing_labor_rate_field'),
+                      controller: _laborCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700),
+                      decoration: InputDecoration(
+                        suffixText: _laborMode == LaborCostMode.perSqM
+                            ? ' /ตร.ม.'
+                            : ' ฿',
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (v) {
+                        final parsed = double.tryParse(v.trim());
+                        if (parsed != null && parsed >= 0) {
+                          setState(() => _laborRate = parsed);
+                          _notifyParent();
+                        } else if (v.trim().isEmpty) {
+                          setState(() => _laborRate = 0.0);
+                          _notifyParent();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: (_laborMode == LaborCostMode.perSqM
+                          ? const [0.0, 300.0, 400.0, 500.0, 600.0]
+                          : const [0.0, 1000.0, 2000.0, 3000.0, 5000.0])
+                      .map((rate) {
+                    final selected = (_laborRate - rate).abs() < 0.01;
+                    final lbl = rate == 0
+                        ? 'ไม่คิด'
+                        : '฿${NumberFormat('#,##0', 'en_US').format(rate)}';
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 5),
+                      child: ChoiceChip(
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        label: Text(lbl, style: const TextStyle(fontSize: 11.5)),
+                        selected: selected,
+                        selectedColor: ToolkitColors.softBlueBg,
+                        onSelected: (_) {
+                          setState(() {
+                            _laborRate = rate;
+                            _laborCtrl.text = _fmtNumInput(rate);
+                          });
+                          _notifyParent();
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _laborMode == LaborCostMode.perSqM
+                    ? (summary.laborCost > 0
+                        ? 'พื้นที่ช่องเปิดรวม ${summary.openingAreaSqM.toStringAsFixed(2)} ตร.ม. × ฿${_fmtNumInput(_laborRate)} = ค่าแรงรวม ฿${_bahtFmt.format(summary.laborCost)}'
+                        : 'พื้นที่ช่องเปิดรวม ${summary.openingAreaSqM.toStringAsFixed(2)} ตร.ม. · ยังไม่รวมค่าแรง')
+                    : (summary.laborCost > 0
+                        ? 'ค่าแรงเหมาทั้งงานรวม ฿${_bahtFmt.format(summary.laborCost)}'
+                        : 'ยังไม่รวมค่าแรงเหมาทั้งงาน'),
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  color: ToolkitColors.slateMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
 
         // 1. Aluminum Breakdown Table (1-Tap Editable!)
         Container(

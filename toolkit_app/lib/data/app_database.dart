@@ -143,6 +143,7 @@ class AppDatabase {
   Map<String, CustomPriceOverride>? _cachedCustomPrices;
   Map<String, CustomMaterialRateOverride>? _cachedMaterialRates;
   bool? _cachedPricingNoticeSeen;
+  PricingMarkupDefaults? _cachedMarkupDefaults;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -165,6 +166,7 @@ class AppDatabase {
     _cachedCustomPrices = {};
     _cachedMaterialRates = {};
     _cachedPricingNoticeSeen = false;
+    _cachedMarkupDefaults = const PricingMarkupDefaults();
     await _ensureAllTables(testDb);
   }
 
@@ -321,6 +323,43 @@ class AppDatabase {
     await db.insert(
       'app_flags',
       {'flag_key': 'pricing_beta_ack', 'flag_value': '1'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Default Shop Profit % & Labor Cost (stored in app_flags, zero schema migration) ---
+  Future<PricingMarkupDefaults> getPricingMarkupDefaults() async {
+    if (_cachedMarkupDefaults != null) return _cachedMarkupDefaults!;
+    final db = await database;
+    final rows = await db.query(
+      'app_flags',
+      where: 'flag_key = ?',
+      whereArgs: ['default_pricing_markup'],
+    );
+    if (rows.isEmpty) {
+      _cachedMarkupDefaults = const PricingMarkupDefaults();
+      return _cachedMarkupDefaults!;
+    }
+    try {
+      final raw = rows.first['flag_value'] as String;
+      _cachedMarkupDefaults = PricingMarkupDefaults.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      _cachedMarkupDefaults = const PricingMarkupDefaults();
+    }
+    return _cachedMarkupDefaults!;
+  }
+
+  Future<void> savePricingMarkupDefaults(PricingMarkupDefaults defaults) async {
+    _cachedMarkupDefaults = defaults;
+    final db = await database;
+    await db.insert(
+      'app_flags',
+      {
+        'flag_key': 'default_pricing_markup',
+        'flag_value': jsonEncode(defaults.toJson()),
+      },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -499,12 +538,14 @@ class AppDatabase {
   Future<String> exportPricesBackupJson() async {
     final profs = await getAllCustomPrices();
     final mats = await getAllCustomMaterialRates();
+    final markup = await getPricingMarkupDefaults();
     final payload = {
       'type': 'akkaraphon_price_backup',
       'version': 2,
       'exportedAt': DateTime.now().toIso8601String(),
       'profileOverrides': profs.values.map((e) => e.toJson()).toList(),
       'materialOverrides': mats.values.map((e) => e.toJson()).toList(),
+      'markupDefaults': markup.toJson(),
     };
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
@@ -539,6 +580,13 @@ class AppDatabase {
       _cachedMaterialRates?[mItem.rateKey] = mItem;
     }
     await batch.commit(noResult: true);
+    if (decoded['markupDefaults'] is Map<String, dynamic>) {
+      await savePricingMarkupDefaults(
+        PricingMarkupDefaults.fromJson(
+          decoded['markupDefaults'] as Map<String, dynamic>,
+        ),
+      );
+    }
     return (
       profilesImported: profList.length,
       materialsImported: matList.length,

@@ -911,12 +911,11 @@ class ProjectPricingScreen extends StatefulWidget {
 }
 
 class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
-  double _estimatedCost = 0.0;
-  String _selectedThickness = '';
-  String _selectedColor = '';
+  PricingSummary? _latestSummary;
   late final List<ProfileBarGroup> _packedGroups;
   late final List<EvaluatedGlassItem> _projectGlasses;
   late final List<AggregatedHardwareItem> _projectHardware;
+  late final double _projectOpeningAreaSqM;
 
   @override
   void initState() {
@@ -926,6 +925,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
         .expand((it) => it.evaluatedSets.expand((s) => s.glasses))
         .toList();
     _projectHardware = _mergeProjectHardware(widget.project.items);
+    _projectOpeningAreaSqM = widget.project.totalOpeningAreaSqM;
   }
 
   static List<AggregatedHardwareItem> _mergeProjectHardware(
@@ -959,15 +959,21 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
       showToolkitSnackBar(context, 'กรุณาบันทึกข้อมูลร้านก่อนออกใบเสนอราคา');
       return;
     }
+    final s = _latestSummary;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => QuotationBuilderScreen(
           project: widget.project,
           shopInfo: shop,
-          estimatedAluminumCost: _estimatedCost,
-          initialAluminumThickness: _selectedThickness,
-          initialAluminumColor: _selectedColor,
+          estimatedAluminumCost: s?.totalCost ?? 0.0,
+          initialAluminumThickness: s?.selectedThickness,
+          initialAluminumColor: s?.selectedColor,
+          openingAreaSqM: _projectOpeningAreaSqM,
+          initialProfitPercent: s?.profitPercent,
+          initialProfitBaseMode: s?.profitBaseMode,
+          initialLaborMode: s?.laborMode,
+          initialLaborRate: s?.laborRate,
         ),
       ),
     );
@@ -975,6 +981,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final suggestedPrice = _latestSummary?.suggestedSellingPrice ?? 0.0;
     return Scaffold(
       appBar: AppBar(title: Text('ทำราคาโปรเจกต์ · ${widget.project.name}')),
       body: Column(
@@ -983,30 +990,26 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
             child: PricingWorkspaceWidget(
               barGroups: _packedGroups,
               glasses: _projectGlasses,
-              fallbackOpeningAreaSqM: widget.project.items.fold(
-                0.0,
-                (sum, it) =>
-                    sum +
-                    it.sizeRows.fold(
-                      0.0,
-                      (s2, r) =>
-                          s2 +
-                          ((r.widthMm * r.heightMm) / 1000000.0) * r.qty * 0.88,
-                    ),
-              ),
+              openingAreaSqM: _projectOpeningAreaSqM,
+              fallbackOpeningAreaSqM: _projectOpeningAreaSqM * 0.88,
               hardware: _projectHardware,
               onSummaryChanged: (s) {
-                final costDiff = (_estimatedCost - s.totalCost).abs() > 0.005;
-                final specDiff = _selectedThickness != s.selectedThickness ||
-                    _selectedColor != s.selectedColor;
-                if (costDiff || specDiff) {
+                final prev = _latestSummary;
+                final changed = prev == null ||
+                    (prev.totalCost - s.totalCost).abs() > 0.005 ||
+                    (prev.suggestedSellingPrice - s.suggestedSellingPrice)
+                            .abs() >
+                        0.005 ||
+                    (prev.profitPercent - s.profitPercent).abs() > 0.005 ||
+                    (prev.laborRate - s.laborRate).abs() > 0.005 ||
+                    prev.laborMode != s.laborMode ||
+                    prev.profitBaseMode != s.profitBaseMode ||
+                    prev.selectedThickness != s.selectedThickness ||
+                    prev.selectedColor != s.selectedColor;
+                if (changed) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) {
-                      setState(() {
-                        _estimatedCost = s.totalCost;
-                        _selectedThickness = s.selectedThickness;
-                        _selectedColor = s.selectedColor;
-                      });
+                      setState(() => _latestSummary = s);
                     }
                   });
                 }
@@ -1033,9 +1036,12 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
                   ),
                   onPressed: _onTapCreateQuotation,
                   icon: const Icon(Icons.description_outlined),
-                  label: const Text(
-                    'สร้างใบเสนอราคา',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  label: Text(
+                    suggestedPrice > 0
+                        ? 'สร้างใบเสนอราคา · ฿${_moneyFmt.format(suggestedPrice)}'
+                        : 'สร้างใบเสนอราคา',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1060,6 +1066,7 @@ class _EditableQtLine {
   bool confirmed;
   bool editingSpec;
   bool userCustomizedSubtitle;
+  bool userEditedPrice;
 
   _EditableQtLine({
     required this.sourceItem,
@@ -1074,7 +1081,8 @@ class _EditableQtLine {
             text: suggestedUnitPrice.toStringAsFixed(2)),
         confirmed = false,
         editingSpec = false,
-        userCustomizedSubtitle = false;
+        userCustomizedSubtitle = false,
+        userEditedPrice = false;
 
   String get label => labelCtrl.text.trim();
   String get subtitle => subtitleCtrl.text.trim();
@@ -1094,6 +1102,11 @@ class QuotationBuilderScreen extends StatefulWidget {
   final double estimatedAluminumCost;
   final String? initialAluminumThickness;
   final String? initialAluminumColor;
+  final double? openingAreaSqM;
+  final double? initialProfitPercent;
+  final ProfitBaseMode? initialProfitBaseMode;
+  final LaborCostMode? initialLaborMode;
+  final double? initialLaborRate;
 
   const QuotationBuilderScreen({
     super.key,
@@ -1102,6 +1115,11 @@ class QuotationBuilderScreen extends StatefulWidget {
     required this.estimatedAluminumCost,
     this.initialAluminumThickness,
     this.initialAluminumColor,
+    this.openingAreaSqM,
+    this.initialProfitPercent,
+    this.initialProfitBaseMode,
+    this.initialLaborMode,
+    this.initialLaborRate,
   });
 
   @override
@@ -1121,11 +1139,22 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   final TextEditingController _projLocCtrl = TextEditingController();
   late final TextEditingController _lumpSumCtrl;
   final TextEditingController _discountCtrl = TextEditingController(text: '0');
+  bool _discountIsPercent = false;
   bool _vatEnabled = false;
   final TextEditingController _payTermsCtrl = TextEditingController();
   final TextEditingController _leadTimeCtrl = TextEditingController();
   final TextEditingController _warrantyCtrl = TextEditingController();
   final TextEditingController _remarksCtrl = TextEditingController();
+
+  // Live Profit % & Labor Cost Controls
+  late final double _openingAreaSqM;
+  late double _profitPct;
+  late ProfitBaseMode _profitBaseMode;
+  late LaborCostMode _laborMode;
+  late double _laborRate;
+  late final TextEditingController _profitCtrl;
+  late final TextEditingController _laborCtrl;
+  bool _lumpSumManuallyEdited = false;
 
   // Global Quotation Material Spec Controls
   late String _globalAluThick;
@@ -1135,6 +1164,22 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   final TextEditingController _customGlassNoteCtrl = TextEditingController();
 
   final List<_EditableQtLine> _lines = [];
+
+  static String _fmtNumInput(double v) {
+    if ((v - v.roundToDouble()).abs() < 0.005) {
+      return v.round().toString();
+    }
+    return v.toStringAsFixed(2);
+  }
+
+  SellingPriceBreakdown get _breakdown => PricingEngine.computeSellingBreakdown(
+        materialCost: widget.estimatedAluminumCost,
+        openingAreaSqM: _openingAreaSqM,
+        laborMode: _laborMode,
+        laborRate: _laborRate,
+        profitPercent: _profitPct,
+        profitBaseMode: _profitBaseMode,
+      );
 
   @override
   void initState() {
@@ -1158,6 +1203,16 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _custNameCtrl = TextEditingController(text: widget.project.name);
     _projNameCtrl = TextEditingController(text: widget.project.name);
 
+    _openingAreaSqM =
+        widget.openingAreaSqM ?? widget.project.totalOpeningAreaSqM;
+    _profitPct = (widget.initialProfitPercent ?? 20.0).clamp(0.0, 200.0);
+    _profitBaseMode =
+        widget.initialProfitBaseMode ?? ProfitBaseMode.materialOnly;
+    _laborMode = widget.initialLaborMode ?? LaborCostMode.perSqM;
+    _laborRate = (widget.initialLaborRate ?? 0.0).clamp(0.0, 10000000.0);
+    _profitCtrl = TextEditingController(text: _fmtNumInput(_profitPct));
+    _laborCtrl = TextEditingController(text: _fmtNumInput(_laborRate));
+
     final initThick = widget.initialAluminumThickness?.trim() ?? '';
     _globalAluThick =
         QuotationSpecFormatter.aluminumThicknessChoices.contains(initThick)
@@ -1167,11 +1222,16 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       widget.initialAluminumColor,
     );
 
-    final totalUnits =
-        widget.project.items.fold(0, (s, i) => s + i.totalUnits);
-    final basePerUnit = totalUnits > 0 && widget.estimatedAluminumCost > 0
-        ? PricingEngine.round2((widget.estimatedAluminumCost * 1.8) / totalUnits)
-        : 3500.0;
+    final initBreakdown = _breakdown;
+    final hasCost = widget.estimatedAluminumCost > 0;
+    final unitPrices = hasCost
+        ? PricingEngine.allocateUnitSellingPrices(
+            items: widget.project.items
+                .map((it) => (areaSqM: it.totalOpeningAreaSqM, qty: it.totalUnits))
+                .toList(),
+            targetTotal: initBreakdown.suggestedSellingPrice,
+          )
+        : List<double>.filled(widget.project.items.length, 3500.0);
 
     double sumInit = 0.0;
     for (int i = 0; i < widget.project.items.length; i++) {
@@ -1188,12 +1248,40 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
         ),
         sizeText: QuotationSpecFormatter.formatQuotationSize(it),
         qty: it.totalUnits,
-        suggestedUnitPrice: basePerUnit,
+        suggestedUnitPrice: unitPrices[i],
       );
       sumInit += line.lineTotal;
       _lines.add(line);
     }
-    _lumpSumCtrl = TextEditingController(text: sumInit.toStringAsFixed(2));
+    final initLump =
+        hasCost ? initBreakdown.suggestedSellingPrice : PricingEngine.round2(sumInit);
+    _lumpSumCtrl = TextEditingController(text: initLump.toStringAsFixed(2));
+  }
+
+  void _applyMarkupToSellingPrices({bool forceAll = false}) {
+    if (widget.estimatedAluminumCost <= 0) return;
+    final target = _breakdown.suggestedSellingPrice;
+    final unitPrices = PricingEngine.allocateUnitSellingPrices(
+      items: _lines
+          .map((l) => (areaSqM: l.sourceItem.totalOpeningAreaSqM, qty: l.qty))
+          .toList(),
+      targetTotal: target,
+    );
+    for (int i = 0; i < _lines.length; i++) {
+      final ln = _lines[i];
+      if (forceAll || !ln.userEditedPrice) {
+        final nextText = unitPrices[i].toStringAsFixed(2);
+        if (ln.unitPriceCtrl.text != nextText) {
+          ln.unitPriceCtrl.text = nextText;
+          ln.confirmed = false;
+        }
+        if (forceAll) ln.userEditedPrice = false;
+      }
+    }
+    if (forceAll || !_lumpSumManuallyEdited) {
+      _lumpSumCtrl.text = target.toStringAsFixed(2);
+      if (forceAll) _lumpSumManuallyEdited = false;
+    }
   }
 
   void _syncSubtitlesFromSpec({bool forceResetAll = false}) {
@@ -1232,6 +1320,8 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _warrantyCtrl.dispose();
     _remarksCtrl.dispose();
     _customGlassNoteCtrl.dispose();
+    _profitCtrl.dispose();
+    _laborCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1247,8 +1337,15 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     );
   }
 
-  double get _discount =>
-      (double.tryParse(_discountCtrl.text.trim()) ?? 0.0).clamp(0.0, _subtotal);
+  double get _discount {
+    final raw = double.tryParse(_discountCtrl.text.trim()) ?? 0.0;
+    if (raw <= 0) return 0.0;
+    if (_discountIsPercent) {
+      final pct = raw.clamp(0.0, 100.0);
+      return PricingEngine.round2(_subtotal * (pct / 100.0));
+    }
+    return raw.clamp(0.0, _subtotal);
+  }
 
   double get _afterDiscount =>
       PricingEngine.round2((_subtotal - _discount).clamp(0.0, double.infinity));
@@ -1425,34 +1522,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   _card(
                     title: '3. กำหนดราคาขายแยกรายการ (ยืนยันทุกบรรทัด)',
                     children: [
-                      // Live Reconciliation Card
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: ToolkitColors.softBlueBg,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: [
-                            Text(
-                              'ต้นทุนเส้นประเมิน: ฿${_moneyFmt.format(widget.estimatedAluminumCost)}',
-                              style: const TextStyle(fontSize: 12.5),
-                            ),
-                            Text(
-                              'รวมราคาขาย: ฿${_moneyFmt.format(_subtotal)}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: ToolkitColors.royalBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildProfitLaborAdjusterPanel(),
                       ...List.generate(_lines.length, (i) {
                         final ln = _lines[i];
                         return Container(
@@ -1485,7 +1555,9 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                                         border: OutlineInputBorder(),
                                         isDense: true,
                                       ),
-                                      onChanged: (_) => setState(() {}),
+                                      onChanged: (_) => setState(() {
+                                        ln.userEditedPrice = true;
+                                      }),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -1519,6 +1591,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   _card(
                     title: '3. กำหนดราคาเหมารวมทั้งโครงการ',
                     children: [
+                      _buildProfitLaborAdjusterPanel(),
                       TextField(
                         controller: _lumpSumCtrl,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -1528,7 +1601,9 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                           border: OutlineInputBorder(),
                           isDense: true,
                         ),
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (_) => setState(() {
+                          _lumpSumManuallyEdited = true;
+                        }),
                       ),
                       const SizedBox(height: 12),
                       const Text(
@@ -1562,16 +1637,45 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                 _card(
                   title: '4. ส่วนลดและภาษีมูลค่าเพิ่ม',
                   children: [
-                    TextField(
-                      controller: _discountCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'ส่วนลด (บาท)',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      onChanged: (_) => setState(() {}),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            key: const ValueKey('qt_discount_field'),
+                            controller: _discountCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            decoration: InputDecoration(
+                              labelText: _discountIsPercent
+                                  ? 'ส่วนลด (%)'
+                                  : 'ส่วนลด (บาท)',
+                              suffixText: _discountIsPercent ? '%' : 'บาท',
+                              border: const OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('บาท'),
+                          selected: !_discountIsPercent,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) =>
+                              setState(() => _discountIsPercent = false),
+                        ),
+                        const SizedBox(width: 4),
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text('%'),
+                          selected: _discountIsPercent,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) =>
+                              setState(() => _discountIsPercent = true),
+                        ),
+                      ],
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
@@ -1713,6 +1817,253 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
               color: bold ? ToolkitColors.royalBlue : ToolkitColors.slateDark,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfitLaborAdjusterPanel() {
+    final bd = _breakdown;
+    final totalCostPlusLabor = bd.totalCostWithLabor;
+    final actualNetProfit = PricingEngine.round2(_afterDiscount - totalCostPlusLabor);
+    final profitBaseForPct =
+        _profitBaseMode == ProfitBaseMode.materialAndLabor
+            ? totalCostPlusLabor
+            : bd.materialCost;
+    final actualProfitPct = profitBaseForPct > 0
+        ? PricingEngine.round2((actualNetProfit / profitBaseForPct) * 100.0)
+        : 0.0;
+    final anyManualEdit =
+        _lumpSumManuallyEdited || _lines.any((l) => l.userEditedPrice);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: ToolkitColors.softBlueBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: ToolkitColors.royalBlue.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              Text(
+                'ต้นทุนวัสดุ: ฿${_moneyFmt.format(bd.materialCost)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ToolkitColors.slateDark,
+                ),
+              ),
+              if (bd.laborCost > 0)
+                Text(
+                  'ค่าแรง: ฿${_moneyFmt.format(bd.laborCost)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              Text(
+                'ราคาขายรวม: ฿${_moneyFmt.format(_subtotal)}',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: ToolkitColors.royalBlue,
+                ),
+              ),
+            ],
+          ),
+          if (bd.materialCost > 0) ...[
+            const SizedBox(height: 3),
+            Text(
+              actualNetProfit >= 0
+                  ? 'กำไรสุทธิจริง (หลังหักส่วนลด): ฿${_moneyFmt.format(actualNetProfit)} (${actualProfitPct.toStringAsFixed(1)}%) · ใช้ภายในร้าน ไม่แสดงบน PDF'
+                  : 'คำเตือน: ราคาขายต่ำกว่าต้นทุน+ค่าแรง ฿${_moneyFmt.format(actualNetProfit.abs())}',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: actualNetProfit >= 0
+                    ? ToolkitColors.successGreen
+                    : const Color(0xFFDC2626),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text(
+                'กำไร',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 68,
+                child: TextField(
+                  key: const ValueKey('qt_profit_pct_field'),
+                  controller: _profitCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700),
+                  decoration: const InputDecoration(
+                    suffixText: '%',
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) {
+                    final parsed = double.tryParse(v.trim());
+                    if (parsed != null) {
+                      setState(() {
+                        _profitPct = parsed.clamp(0.0, 200.0);
+                        _applyMarkupToSellingPrices();
+                      });
+                    }
+                  },
+                ),
+              ),
+              Expanded(
+                child: Slider(
+                  key: const ValueKey('qt_profit_pct_slider'),
+                  value: _profitPct.clamp(0.0, 100.0),
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  label: '${_profitPct.round()}%',
+                  onChanged: (v) {
+                    setState(() {
+                      _profitPct = v.roundToDouble();
+                      _profitCtrl.text = _profitPct.round().toString();
+                      _applyMarkupToSellingPrices();
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 5,
+            runSpacing: 4,
+            children: [15.0, 20.0, 30.0, 40.0, 50.0].map((pct) {
+              final sel = (_profitPct - pct).abs() < 0.01;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                label: Text('${pct.round()}%',
+                    style: const TextStyle(fontSize: 11.5)),
+                selected: sel,
+                selectedColor: Colors.white,
+                onSelected: (_) {
+                  setState(() {
+                    _profitPct = pct;
+                    _profitCtrl.text = pct.round().toString();
+                    _applyMarkupToSellingPrices();
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text(
+                'ค่าแรง',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 6),
+              ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                label:
+                    const Text('บ./ตร.ม.', style: TextStyle(fontSize: 11.5)),
+                selected: _laborMode == LaborCostMode.perSqM,
+                selectedColor: Colors.white,
+                onSelected: (_) {
+                  setState(() {
+                    _laborMode = LaborCostMode.perSqM;
+                    _applyMarkupToSellingPrices();
+                  });
+                },
+              ),
+              const SizedBox(width: 4),
+              ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                label: const Text('เหมา', style: TextStyle(fontSize: 11.5)),
+                selected: _laborMode == LaborCostMode.flatBaht,
+                selectedColor: Colors.white,
+                onSelected: (_) {
+                  setState(() {
+                    _laborMode = LaborCostMode.flatBaht;
+                    _applyMarkupToSellingPrices();
+                  });
+                },
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('qt_labor_rate_field'),
+                  controller: _laborCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700),
+                  decoration: InputDecoration(
+                    suffixText:
+                        _laborMode == LaborCostMode.perSqM ? ' บ./ตร.ม.' : ' ฿',
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 7),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (v) {
+                    final parsed = double.tryParse(v.trim());
+                    setState(() {
+                      _laborRate =
+                          (parsed != null && parsed >= 0) ? parsed : 0.0;
+                      _applyMarkupToSellingPrices();
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          if (anyManualEdit && bd.materialCost > 0) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () {
+                  setState(() => _applyMarkupToSellingPrices(forceAll: true));
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 15),
+                label: const Text(
+                  'คำนวณราคาทุกรายการใหม่ตามกำไร/ค่าแรง',
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

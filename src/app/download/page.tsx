@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.8/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.9/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,7 +51,7 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.8 (VIP Offline)",
+      version: "0.1.9 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
       sizeMb: "42.50",
       sha256: "-",
@@ -85,13 +85,13 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Calculator,
-      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,924 รายการ) พร้อมกระจกและอุปกรณ์",
-      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวมใบราคา ALUMET NEX 21/11/2569) ปรับราคาทั้งชุดตาม % หรือบาท สำรองตารางราคา (.json) และเพิ่มชุดโปรไฟล์ใหม่ได้เอง",
+      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,924 รายการ) ปรับ % กำไรและค่าแรงสด",
+      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวม ALUMET NEX 21/11/2569) ปรับลด–เพิ่มเปอร์เซ็นต์กำไร (%) และค่าแรงติดตั้ง (บาท/ตร.ม. หรือเหมา) พร้อมบันทึกค่าตั้งต้นของร้านและสำรองตารางราคา (.json)",
     },
     {
       icon: FileText,
       title: "จัดการแฟ้มโครงการและออกเอกสาร PDF มาตรฐาน A4",
-      desc: "บันทึกงานแยกตามโครงการ ออกใบสั่งตัดเดี่ยว เอกสารสรุปโครงการพร้อมผังจัดเส้นแนวนอน และใบเสนอราคาทั้งแบบแยกรายการและเหมาทั้งโครงการ",
+      desc: "บันทึกงานแยกตามโครงการ ออกใบสั่งตัดเดี่ยว เอกสารสรุปโครงการพร้อมผังจัดเส้นแนวนอน และใบเสนอราคาทั้งแบบแยกรายการและเหมาทั้งโครงการ ปรับ % กำไร/ค่าแรงและส่วนลด (บาท หรือ %) ได้สดก่อนออก PDF",
     },
   ];
 

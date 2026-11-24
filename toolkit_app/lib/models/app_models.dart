@@ -748,6 +748,11 @@ class SavedProjectItem {
 
   int get totalUnits => sizeRows.fold(0, (s, r) => s + r.qty);
 
+  double get totalOpeningAreaSqM => sizeRows.fold(
+        0.0,
+        (s, r) => s + ((r.widthMm * r.heightMm) / 1000000.0) * r.qty,
+      );
+
   String get sizeSummaryText => sizeRows
       .map((r) => '${r.widthMm.toStringAsFixed(1)} × ${r.heightMm.toStringAsFixed(1)} (${r.qty})')
       .join(', ');
@@ -814,6 +819,9 @@ class SavedProject {
     required this.updatedAt,
     this.items = const [],
   });
+
+  double get totalOpeningAreaSqM =>
+      items.fold(0.0, (sum, it) => sum + it.totalOpeningAreaSqM);
 }
 
 class QuotationLineEntry {
@@ -1194,5 +1202,65 @@ class CustomProfileSystem {
         updatedAt: j['updatedAt'] != null
             ? DateTime.parse(j['updatedAt'] as String)
             : DateTime.now(),
+      );
+}
+
+enum LaborCostMode {
+  perSqM, // คิดตามพื้นที่ช่องเปิด (บาท/ตร.ม.)
+  flatBaht, // เหมาทั้งงาน (บาท)
+}
+
+enum ProfitBaseMode {
+  materialOnly, // กำไรคิดจากต้นทุนวัสดุ + บวกค่าแรง (ตรงกับเวอร์ชันเว็บ)
+  materialAndLabor, // กำไรคิดจาก (ต้นทุนวัสดุ + ค่าแรง)
+}
+
+class PricingMarkupDefaults {
+  final double profitPercent;
+  final ProfitBaseMode profitBaseMode;
+  final LaborCostMode laborMode;
+  final double laborRate;
+
+  const PricingMarkupDefaults({
+    this.profitPercent = 20.0,
+    this.profitBaseMode = ProfitBaseMode.materialOnly,
+    this.laborMode = LaborCostMode.perSqM,
+    this.laborRate = 0.0,
+  });
+
+  PricingMarkupDefaults copyWith({
+    double? profitPercent,
+    ProfitBaseMode? profitBaseMode,
+    LaborCostMode? laborMode,
+    double? laborRate,
+  }) =>
+      PricingMarkupDefaults(
+        profitPercent: profitPercent ?? this.profitPercent,
+        profitBaseMode: profitBaseMode ?? this.profitBaseMode,
+        laborMode: laborMode ?? this.laborMode,
+        laborRate: laborRate ?? this.laborRate,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'profitPercent': profitPercent,
+        'profitBaseMode': profitBaseMode.name,
+        'laborMode': laborMode.name,
+        'laborRate': laborRate,
+      };
+
+  factory PricingMarkupDefaults.fromJson(Map<String, dynamic> j) =>
+      PricingMarkupDefaults(
+        profitPercent:
+            ((j['profitPercent'] as num?)?.toDouble() ?? 20.0).clamp(0.0, 200.0),
+        profitBaseMode: ProfitBaseMode.values.firstWhere(
+          (e) => e.name == (j['profitBaseMode'] as String? ?? 'materialOnly'),
+          orElse: () => ProfitBaseMode.materialOnly,
+        ),
+        laborMode: LaborCostMode.values.firstWhere(
+          (e) => e.name == (j['laborMode'] as String? ?? 'perSqM'),
+          orElse: () => LaborCostMode.perSqM,
+        ),
+        laborRate: ((j['laborRate'] as num?)?.toDouble() ?? 0.0)
+            .clamp(0.0, 10000000.0),
       );
 }

@@ -66,6 +66,32 @@ class HardwareCostLine {
   bool get isPriced => lineCost != null;
 }
 
+class SellingPriceBreakdown {
+  final double materialCost;
+  final double openingAreaSqM;
+  final LaborCostMode laborMode;
+  final double laborRate;
+  final double laborCost;
+  final double profitPercent;
+  final ProfitBaseMode profitBaseMode;
+  final double profitAmount;
+  final double suggestedSellingPrice;
+
+  const SellingPriceBreakdown({
+    required this.materialCost,
+    required this.openingAreaSqM,
+    required this.laborMode,
+    required this.laborRate,
+    required this.laborCost,
+    required this.profitPercent,
+    required this.profitBaseMode,
+    required this.profitAmount,
+    required this.suggestedSellingPrice,
+  });
+
+  double get totalCostWithLabor => PricingEngine.round2(materialCost + laborCost);
+}
+
 class PricingSummary {
   final PricingMode mode;
   final double wastePercent;
@@ -90,6 +116,15 @@ class PricingSummary {
   /// Grand total material cost based on active toggles (`aluminumCost + glass + hardware`).
   final double totalCost;
 
+  final double openingAreaSqM;
+  final LaborCostMode laborMode;
+  final double laborRate;
+  final double laborCost;
+  final double profitPercent;
+  final ProfitBaseMode profitBaseMode;
+  final double profitAmount;
+  final double suggestedSellingPrice;
+
   const PricingSummary({
     required this.mode,
     required this.wastePercent,
@@ -109,7 +144,16 @@ class PricingSummary {
     this.hardwareLines = const [],
     this.hardwareCost = 0.0,
     required this.totalCost,
-  });
+    this.openingAreaSqM = 0.0,
+    this.laborMode = LaborCostMode.perSqM,
+    this.laborRate = 0.0,
+    this.laborCost = 0.0,
+    this.profitPercent = 0.0,
+    this.profitBaseMode = ProfitBaseMode.materialOnly,
+    this.profitAmount = 0.0,
+    double? suggestedSellingPrice,
+  }) : suggestedSellingPrice =
+            suggestedSellingPrice ?? (totalCost + laborCost + profitAmount);
 }
 
 class PricingCatalogAvailability {
@@ -181,6 +225,77 @@ class PricingEngine {
   ];
 
   static double round2(double v) => (v * 100.0).round() / 100.0;
+
+  static SellingPriceBreakdown computeSellingBreakdown({
+    required double materialCost,
+    double openingAreaSqM = 0.0,
+    LaborCostMode laborMode = LaborCostMode.perSqM,
+    double laborRate = 0.0,
+    double profitPercent = 20.0,
+    ProfitBaseMode profitBaseMode = ProfitBaseMode.materialOnly,
+  }) {
+    final safeMat = materialCost < 0 ? 0.0 : materialCost;
+    final safeArea = openingAreaSqM < 0 ? 0.0 : openingAreaSqM;
+    final safeLaborRate = laborRate < 0 ? 0.0 : laborRate;
+    final safeProfitPct = profitPercent.clamp(0.0, 200.0);
+
+    final laborCost = laborMode == LaborCostMode.perSqM
+        ? round2(safeArea * safeLaborRate)
+        : round2(safeLaborRate);
+
+    final profitBase = profitBaseMode == ProfitBaseMode.materialAndLabor
+        ? (safeMat + laborCost)
+        : safeMat;
+    final profitAmount = round2(profitBase * (safeProfitPct / 100.0));
+    final suggestedSellingPrice = round2(safeMat + laborCost + profitAmount);
+
+    return SellingPriceBreakdown(
+      materialCost: round2(safeMat),
+      openingAreaSqM: round2(safeArea),
+      laborMode: laborMode,
+      laborRate: safeLaborRate,
+      laborCost: laborCost,
+      profitPercent: safeProfitPct,
+      profitBaseMode: profitBaseMode,
+      profitAmount: profitAmount,
+      suggestedSellingPrice: suggestedSellingPrice,
+    );
+  }
+
+  /// Allocates a target selling total across project items proportionally by
+  /// opening area (falling back to unit count when any item lacks area),
+  /// returning per-unit selling prices aligned with [items].
+  static List<double> allocateUnitSellingPrices({
+    required List<({double areaSqM, int qty})> items,
+    required double targetTotal,
+  }) {
+    if (items.isEmpty) return const [];
+    if (targetTotal <= 0) return List<double>.filled(items.length, 0.0);
+
+    final allHaveArea = items.every((e) => e.areaSqM > 0);
+    final weights = items
+        .map((e) => allHaveArea ? e.areaSqM : (e.qty > 0 ? e.qty.toDouble() : 1.0))
+        .toList();
+    final totalWeight = weights.fold(0.0, (s, w) => s + w);
+    if (totalWeight <= 0) return List<double>.filled(items.length, 0.0);
+
+    final result = <double>[];
+    double allocatedSum = 0.0;
+    for (int i = 0; i < items.length; i++) {
+      final qty = items[i].qty > 0 ? items[i].qty : 1;
+      if (i == items.length - 1 && qty == 1) {
+        final rem = round2((targetTotal - allocatedSum).clamp(0.0, double.infinity));
+        result.add(rem);
+        allocatedSum = round2(allocatedSum + rem);
+      } else {
+        final share = targetTotal * (weights[i] / totalWeight);
+        final unitPrice = round2(share / qty);
+        result.add(unitPrice);
+        allocatedSum = round2(allocatedSum + (unitPrice * qty));
+      }
+    }
+    return result;
+  }
 
   static String colorFamily(String rawColor) {
     final c = rawColor.trim().toLowerCase();
@@ -527,6 +642,7 @@ class PricingEngine {
     required Map<String, CustomPriceOverride> customOverrides,
     List<EvaluatedGlassItem> glasses = const [],
     double fallbackOpeningAreaSqM = 0.0,
+    double? openingAreaSqM,
     List<AggregatedHardwareItem> hardware = const [],
     bool includeGlass = false,
     String selectedGlassKey = '',
@@ -534,6 +650,10 @@ class PricingEngine {
     bool includeHardware = false,
     List<MaterialRateItem> hardwareCatalog = const [],
     Map<String, CustomMaterialRateOverride> materialOverrides = const {},
+    LaborCostMode laborMode = LaborCostMode.perSqM,
+    double laborRate = 0.0,
+    double profitPercent = 0.0,
+    ProfitBaseMode profitBaseMode = ProfitBaseMode.materialOnly,
   }) {
     final lines = <ProfileCostLine>[];
     int matched = 0;
@@ -706,6 +826,16 @@ class PricingEngine {
           (includeGlass ? glassSum : 0.0) +
           (includeHardware ? hwSum : 0.0),
     );
+    final effectiveOpeningSqM = openingAreaSqM ??
+        (fallbackOpeningAreaSqM > 0 ? round2(fallbackOpeningAreaSqM / 0.88) : 0.0);
+    final selling = computeSellingBreakdown(
+      materialCost: grandTotal,
+      openingAreaSqM: effectiveOpeningSqM,
+      laborMode: laborMode,
+      laborRate: laborRate,
+      profitPercent: profitPercent,
+      profitBaseMode: profitBaseMode,
+    );
 
     return PricingSummary(
       mode: mode,
@@ -726,6 +856,14 @@ class PricingEngine {
       hardwareLines: hwLines,
       hardwareCost: hwSum,
       totalCost: grandTotal,
+      openingAreaSqM: selling.openingAreaSqM,
+      laborMode: selling.laborMode,
+      laborRate: selling.laborRate,
+      laborCost: selling.laborCost,
+      profitPercent: selling.profitPercent,
+      profitBaseMode: selling.profitBaseMode,
+      profitAmount: selling.profitAmount,
+      suggestedSellingPrice: selling.suggestedSellingPrice,
     );
   }
 }
