@@ -208,6 +208,7 @@ class CutPieceSpec {
   final String qtyText;
   final String angle;
   final String formula;
+  final String? brandOverride;
 
   const CutPieceSpec({
     required this.section,
@@ -218,6 +219,7 @@ class CutPieceSpec {
     required this.qtyText,
     required this.angle,
     required this.formula,
+    this.brandOverride,
   });
 
   factory CutPieceSpec.fromJson(Map<String, dynamic> j) => CutPieceSpec(
@@ -229,6 +231,7 @@ class CutPieceSpec {
         qtyText: j['qtyText'] as String? ?? '1 ชิ้น',
         angle: j['angle'] as String? ?? '90° / 90°',
         formula: j['formula'] as String? ?? 'วัดตามจริง',
+        brandOverride: j['brandOverride'] as String?,
       );
 
   CutPieceSpec copyWith({
@@ -240,6 +243,7 @@ class CutPieceSpec {
     String? qtyText,
     String? angle,
     String? formula,
+    String? brandOverride,
   }) =>
       CutPieceSpec(
         section: section ?? this.section,
@@ -250,6 +254,7 @@ class CutPieceSpec {
         qtyText: qtyText ?? this.qtyText,
         angle: angle ?? this.angle,
         formula: formula ?? this.formula,
+        brandOverride: brandOverride ?? this.brandOverride,
       );
 
   Map<String, dynamic> toJson() => {
@@ -261,6 +266,8 @@ class CutPieceSpec {
         'qtyText': qtyText,
         'angle': angle,
         'formula': formula,
+        if (brandOverride != null && brandOverride!.trim().isNotEmpty)
+          'brandOverride': brandOverride!.trim(),
       };
 }
 
@@ -559,36 +566,48 @@ class AggregatedHardwareItem {
   final String code;
   final String name;
   final int? numericQty;
+  final double? decimalQty;
   final String unitOrNote;
 
   const AggregatedHardwareItem({
     required this.code,
     required this.name,
     this.numericQty,
+    this.decimalQty,
     required this.unitOrNote,
   });
+
+  double? get effectiveQty => decimalQty ?? numericQty?.toDouble();
 
   AggregatedHardwareItem copyWith({
     String? code,
     String? name,
     int? numericQty,
     bool clearNumericQty = false,
+    double? decimalQty,
+    bool clearDecimalQty = false,
     String? unitOrNote,
   }) =>
       AggregatedHardwareItem(
         code: code ?? this.code,
         name: name ?? this.name,
         numericQty: clearNumericQty ? null : (numericQty ?? this.numericQty),
+        decimalQty: clearDecimalQty ? null : (decimalQty ?? this.decimalQty),
         unitOrNote: unitOrNote ?? this.unitOrNote,
       );
 
-  String get displayQty =>
-      numericQty != null ? '$numericQty $unitOrNote' : unitOrNote;
+  String get displayQty {
+    if (decimalQty != null) {
+      return '${decimalQty!.toStringAsFixed(2)} $unitOrNote';
+    }
+    return numericQty != null ? '$numericQty $unitOrNote' : unitOrNote;
+  }
 
   Map<String, dynamic> toJson() => {
         'code': code,
         'name': name,
         'numericQty': numericQty,
+        if (decimalQty != null) 'decimalQty': decimalQty,
         'unitOrNote': unitOrNote,
       };
 
@@ -597,6 +616,7 @@ class AggregatedHardwareItem {
         code: j['code'] as String,
         name: j['name'] as String,
         numericQty: (j['numericQty'] as num?)?.toInt(),
+        decimalQty: (j['decimalQty'] as num?)?.toDouble(),
         unitOrNote: j['unitOrNote'] as String,
       );
 }
@@ -863,6 +883,39 @@ class SavedProjectItem {
   String get sizeSummaryText => sizeRows
       .map((r) => '${r.widthMm.toStringAsFixed(1)} × ${r.heightMm.toStringAsFixed(1)} (${r.qty})')
       .join(', ');
+
+  SavedProjectItem copyWith({
+    int? id,
+    int? projectId,
+    int? sortIndex,
+    String? refCode,
+    String? installLocation,
+    String? brandTitle,
+    String? priceBrandKey,
+    String? systemTitle,
+    String? patternId,
+    String? patternTitle,
+    Map<String, String>? selectedOptions,
+    List<SizeRowInput>? sizeRows,
+    List<EvaluatedSetResult>? evaluatedSets,
+    List<AggregatedHardwareItem>? hardware,
+  }) =>
+      SavedProjectItem(
+        id: id ?? this.id,
+        projectId: projectId ?? this.projectId,
+        sortIndex: sortIndex ?? this.sortIndex,
+        refCode: refCode ?? this.refCode,
+        installLocation: installLocation ?? this.installLocation,
+        brandTitle: brandTitle ?? this.brandTitle,
+        priceBrandKey: priceBrandKey ?? this.priceBrandKey,
+        systemTitle: systemTitle ?? this.systemTitle,
+        patternId: patternId ?? this.patternId,
+        patternTitle: patternTitle ?? this.patternTitle,
+        selectedOptions: selectedOptions ?? this.selectedOptions,
+        sizeRows: sizeRows ?? this.sizeRows,
+        evaluatedSets: evaluatedSets ?? this.evaluatedSets,
+        hardware: hardware ?? this.hardware,
+      );
 
   Map<String, dynamic> toMap() => {
         if (id != null) 'id': id,
@@ -1315,6 +1368,7 @@ class CustomProfileSystem {
 enum LaborCostMode {
   perSqM, // คิดตามพื้นที่ช่องเปิด (บาท/ตร.ม.)
   flatBaht, // เหมาทั้งงาน (บาท)
+  percentOfMaterial, // คิดเป็น % จากต้นทุนวัสดุ
 }
 
 enum ProfitBaseMode {

@@ -773,6 +773,43 @@ class AppDatabase {
     );
   }
 
+  /// Updates an existing project item in-place (brand/system/pattern/options/sizes/
+  /// cuts/glasses/hardware) while preserving its row ID, sort order, refCode,
+  /// and installLocation.
+  Future<void> updateProjectItemFull(SavedProjectItem item) async {
+    if (item.id == null) {
+      throw ArgumentError('SavedProjectItem.id is required for in-place update');
+    }
+    final db = await database;
+    await db.update(
+      'project_items',
+      {
+        'ref_code': item.refCode,
+        'install_location': item.installLocation,
+        'brand_title': item.brandTitle,
+        'price_brand_key': item.priceBrandKey,
+        'system_title': item.systemTitle,
+        'pattern_id': item.patternId,
+        'pattern_title': item.patternTitle,
+        'selected_options_json': jsonEncode(item.selectedOptions),
+        'size_rows_json':
+            jsonEncode(item.sizeRows.map((e) => e.toJson()).toList()),
+        'evaluated_sets_json':
+            jsonEncode(item.evaluatedSets.map((e) => e.toJson()).toList()),
+        'hardware_json':
+            jsonEncode(item.hardware.map((e) => e.toJson()).toList()),
+      },
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+    await db.update(
+      'projects',
+      {'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [item.projectId],
+    );
+  }
+
   Future<void> deleteProjectItem(int itemId, int projectId) async {
     final db = await database;
     await db.delete('project_items', where: 'id = ?', whereArgs: [itemId]);
@@ -785,20 +822,44 @@ class AppDatabase {
   }
 
   // --- Quotations ---
-  Future<bool> isQuotationNumberUsed(String qtNumber) async {
+  Future<bool> isQuotationNumberUsed(
+    String qtNumber, {
+    int? excludeQuotationId,
+  }) async {
     final db = await database;
-    final rows = await db.query(
-      'quotations',
-      columns: ['id'],
-      where: 'qt_number = ?',
-      whereArgs: [qtNumber.trim()],
-    );
+    final rows = excludeQuotationId != null
+        ? await db.query(
+            'quotations',
+            columns: ['id'],
+            where: 'qt_number = ? AND id != ?',
+            whereArgs: [qtNumber.trim(), excludeQuotationId],
+          )
+        : await db.query(
+            'quotations',
+            columns: ['id'],
+            where: 'qt_number = ?',
+            whereArgs: [qtNumber.trim()],
+          );
     return rows.isNotEmpty;
   }
 
   Future<int> saveQuotation(SavedQuotation qt) async {
     final db = await database;
     return db.insert('quotations', qt.toMap());
+  }
+
+  Future<void> updateQuotation(SavedQuotation qt) async {
+    if (qt.id == null) {
+      throw ArgumentError('SavedQuotation.id is required for update');
+    }
+    final db = await database;
+    final map = qt.toMap()..remove('id');
+    await db.update(
+      'quotations',
+      map,
+      where: 'id = ?',
+      whereArgs: [qt.id],
+    );
   }
 
   Future<List<SavedQuotation>> listQuotationsForProject(int projectId) async {

@@ -260,14 +260,21 @@ class _ResultScreenState extends State<ResultScreen>
   Future<void> _saveEditedProjectItem() async {
     final it = widget.editingProjectItem;
     if (it == null || it.id == null) return;
-    await AppDatabase.instance.updateProjectItemMaterials(
-      itemId: it.id!,
-      projectId: it.projectId,
-      evaluatedSets: _workingOut.sets,
-      hardware: _workingOut.hardware,
+    await AppDatabase.instance.updateProjectItemFull(
+      it.copyWith(
+        brandTitle: _workingOut.brandTitle,
+        priceBrandKey: _workingOut.priceBrandKey,
+        systemTitle: _workingOut.systemTitle,
+        patternId: _workingOut.patternId,
+        patternTitle: _workingOut.patternTitle,
+        selectedOptions: _workingOut.selectedOptions,
+        sizeRows: widget.sizeRows,
+        evaluatedSets: _workingOut.sets,
+        hardware: _workingOut.hardware,
+      ),
     );
     if (!mounted) return;
-    showToolkitSnackBar(context, 'บันทึกการแก้ไขชิ้นส่วนวัสดุลงโปรเจกต์แล้ว');
+    showToolkitSnackBar(context, 'บันทึกการแก้ไขงานลงโปรเจกต์แล้ว');
     Navigator.pop(context, true);
   }
 
@@ -1425,7 +1432,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     _includeGlass = widget.glasses.isNotEmpty &&
         (widget.glasses.any((g) => !g.siteCut && (g.widthMm ?? 0) > 0) ||
             widget.fallbackOpeningAreaSqM > 0);
-    _includeHardware = widget.hardware.any((h) => (h.numericQty ?? 0) > 0);
+    _includeHardware = widget.hardware.any((h) => (h.effectiveQty ?? 0) > 0);
     _reloadOverrides();
   }
 
@@ -1434,12 +1441,13 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.barGroups != widget.barGroups ||
         oldWidget.glasses != widget.glasses ||
-        oldWidget.hardware != widget.hardware) {
+        oldWidget.hardware != widget.hardware ||
+        oldWidget.openingAreaSqM != widget.openingAreaSqM) {
       if (oldWidget.glasses.isEmpty && widget.glasses.isNotEmpty) {
         _includeGlass = true;
       }
       if (oldWidget.hardware.isEmpty &&
-          widget.hardware.any((h) => (h.numericQty ?? 0) > 0)) {
+          widget.hardware.any((h) => (h.effectiveQty ?? 0) > 0)) {
         _includeHardware = true;
       }
       if (!_loading) {
@@ -2523,7 +2531,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
 
               const Divider(height: 12),
 
-              // Labor Cost Mode + Input inline
+              // Labor Cost Mode: Row 1 = all 3 modes 100% visible on phone; Row 2 = input + quick presets
               Row(
                 children: [
                   const Text(
@@ -2532,33 +2540,74 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                         TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 6),
-                  ChoiceChip(
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    label: const Text('บาท/ตร.ม.',
-                        style: TextStyle(fontSize: 11.5)),
-                    selected: _laborMode == LaborCostMode.perSqM,
-                    selectedColor: ToolkitColors.softBlueBg,
-                    onSelected: (_) {
-                      setState(() => _laborMode = LaborCostMode.perSqM);
-                      _notifyParent();
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  ChoiceChip(
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    label: const Text('เหมาทั้งงาน (บาท)',
-                        style: TextStyle(fontSize: 11.5)),
-                    selected: _laborMode == LaborCostMode.flatBaht,
-                    selectedColor: ToolkitColors.softBlueBg,
-                    onSelected: (_) {
-                      setState(() => _laborMode = LaborCostMode.flatBaht);
-                      _notifyParent();
-                    },
-                  ),
-                  const SizedBox(width: 6),
                   Expanded(
+                    child: Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 5),
+                          label: const Text('บาท/ตร.ม.',
+                              style: TextStyle(fontSize: 11.5)),
+                          selected: _laborMode == LaborCostMode.perSqM,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) {
+                            setState(() => _laborMode = LaborCostMode.perSqM);
+                            _notifyParent();
+                          },
+                        ),
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 5),
+                          label: const Text('เหมาทั้งงาน (บาท)',
+                              style: TextStyle(fontSize: 11.5)),
+                          selected: _laborMode == LaborCostMode.flatBaht,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) {
+                            setState(() => _laborMode = LaborCostMode.flatBaht);
+                            _notifyParent();
+                          },
+                        ),
+                        ChoiceChip(
+                          key: const ValueKey('pricing_labor_pct_chip'),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelPadding:
+                              const EdgeInsets.symmetric(horizontal: 5),
+                          label: const Text('% ค่าของ',
+                              style: TextStyle(fontSize: 11.5)),
+                          selected:
+                              _laborMode == LaborCostMode.percentOfMaterial,
+                          selectedColor: ToolkitColors.softBlueBg,
+                          onSelected: (_) {
+                            setState(() {
+                              _laborMode = LaborCostMode.percentOfMaterial;
+                              if (_laborRate > 200.0) {
+                                _laborRate = 20.0;
+                                _laborCtrl.text = '20';
+                              }
+                            });
+                            _notifyParent();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 108,
                     child: TextField(
                       key: const ValueKey('pricing_labor_rate_field'),
                       controller: _laborCtrl,
@@ -2570,7 +2619,9 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                       decoration: InputDecoration(
                         suffixText: _laborMode == LaborCostMode.perSqM
                             ? ' /ตร.ม.'
-                            : ' ฿',
+                            : (_laborMode == LaborCostMode.percentOfMaterial
+                                ? ' %'
+                                : ' ฿'),
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 6),
@@ -2579,7 +2630,12 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                       onChanged: (v) {
                         final parsed = double.tryParse(v.trim());
                         if (parsed != null && parsed >= 0) {
-                          setState(() => _laborRate = parsed);
+                          setState(() {
+                            _laborRate =
+                                _laborMode == LaborCostMode.percentOfMaterial
+                                    ? parsed.clamp(0.0, 200.0)
+                                    : parsed;
+                          });
                           _notifyParent();
                         } else if (v.trim().isEmpty) {
                           setState(() => _laborRate = 0.0);
@@ -2588,40 +2644,53 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                       },
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: (_laborMode == LaborCostMode.perSqM
-                          ? const [0.0, 300.0, 400.0, 500.0, 600.0]
-                          : const [0.0, 1000.0, 2000.0, 3000.0, 5000.0])
-                      .map((rate) {
-                    final selected = (_laborRate - rate).abs() < 0.01;
-                    final lbl = rate == 0
-                        ? 'ไม่คิด'
-                        : '฿${NumberFormat('#,##0', 'en_US').format(rate)}';
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 5),
-                      child: ChoiceChip(
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        label: Text(lbl, style: const TextStyle(fontSize: 11.5)),
-                        selected: selected,
-                        selectedColor: ToolkitColors.softBlueBg,
-                        onSelected: (_) {
-                          setState(() {
-                            _laborRate = rate;
-                            _laborCtrl.text = _fmtNumInput(rate);
-                          });
-                          _notifyParent();
-                        },
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: (_laborMode == LaborCostMode.perSqM
+                                ? const [0.0, 300.0, 400.0, 500.0, 600.0]
+                                : (_laborMode == LaborCostMode.percentOfMaterial
+                                    ? const [0.0, 10.0, 15.0, 20.0, 25.0, 30.0]
+                                    : const [
+                                        0.0,
+                                        1000.0,
+                                        2000.0,
+                                        3000.0,
+                                        5000.0,
+                                      ]))
+                            .map((rate) {
+                          final selected = (_laborRate - rate).abs() < 0.01;
+                          final lbl = rate == 0
+                              ? 'ไม่คิด'
+                              : (_laborMode == LaborCostMode.percentOfMaterial
+                                  ? '${rate.round()}%'
+                                  : '฿${NumberFormat('#,##0', 'en_US').format(rate)}');
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 5),
+                            child: ChoiceChip(
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              label: Text(lbl,
+                                  style: const TextStyle(fontSize: 11.5)),
+                              selected: selected,
+                              selectedColor: ToolkitColors.softBlueBg,
+                              onSelected: (_) {
+                                setState(() {
+                                  _laborRate = rate;
+                                  _laborCtrl.text = _fmtNumInput(rate);
+                                });
+                                _notifyParent();
+                              },
+                            ),
+                          );
+                        }).toList(),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
@@ -2629,9 +2698,13 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     ? (summary.laborCost > 0
                         ? 'พื้นที่ช่องเปิดรวม ${summary.openingAreaSqM.toStringAsFixed(2)} ตร.ม. × ฿${_fmtNumInput(_laborRate)} = ค่าแรงรวม ฿${_bahtFmt.format(summary.laborCost)}'
                         : 'พื้นที่ช่องเปิดรวม ${summary.openingAreaSqM.toStringAsFixed(2)} ตร.ม. · ยังไม่รวมค่าแรง')
-                    : (summary.laborCost > 0
-                        ? 'ค่าแรงเหมาทั้งงานรวม ฿${_bahtFmt.format(summary.laborCost)}'
-                        : 'ยังไม่รวมค่าแรงเหมาทั้งงาน'),
+                    : (_laborMode == LaborCostMode.percentOfMaterial
+                        ? (summary.laborCost > 0
+                            ? 'ต้นทุนวัสดุ ฿${_bahtFmt.format(summary.totalCost)} × ${_fmtNumInput(_laborRate)}% = ค่าแรงรวม ฿${_bahtFmt.format(summary.laborCost)}'
+                            : 'คิดค่าแรงเป็น % ของต้นทุนวัสดุ · ยังไม่รวมค่าแรง')
+                        : (summary.laborCost > 0
+                            ? 'ค่าแรงเหมาทั้งงานรวม ฿${_bahtFmt.format(summary.laborCost)}'
+                            : 'ยังไม่รวมค่าแรงเหมาทั้งงาน')),
                 style: const TextStyle(
                   fontSize: 11.5,
                   color: ToolkitColors.slateMuted,

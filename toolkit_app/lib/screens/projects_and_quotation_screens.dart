@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
+import '../data/catalog_definitions.dart';
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
 import '../engine/material_mutation_helper.dart';
@@ -512,6 +513,71 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     );
   }
 
+  Future<void> _openEditPatternAndSpecs(SavedProjectItem item) async {
+    final found = CatalogDefinitions.findPatternById(item.patternId);
+    if (found != null) {
+      final updated = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SizeAndSpecInputScreen(
+            brandTitle: item.brandTitle,
+            priceBrandKey: item.priceBrandKey,
+            systemTitle: item.systemTitle,
+            pattern: found.pattern,
+            targetProjectId: item.projectId,
+            editingProjectItem: item,
+          ),
+        ),
+      );
+      if (updated == true) _reload();
+      return;
+    }
+
+    // Fallback if pattern came from a deleted custom system: let user pick replacement pattern while keeping sizes
+    final picked = await Navigator.push<PickedPatternSelection>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CategorySelectScreen(pickMode: true),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SizeAndSpecInputScreen(
+          brandTitle: picked.brandTitle,
+          priceBrandKey: picked.priceBrandKey,
+          systemTitle: picked.systemTitle,
+          pattern: picked.pattern,
+          targetProjectId: item.projectId,
+          editingProjectItem: item,
+        ),
+      ),
+    );
+    if (updated == true) _reload();
+  }
+
+  Future<void> _applyItemQuantityUpdate(
+    SavedProjectItem item,
+    List<int> nextRowQtys,
+  ) async {
+    if (item.id == null) return;
+    final updated =
+        MaterialMutationHelper.updateProjectItemQuantities(item, nextRowQtys);
+    await AppDatabase.instance.updateProjectItemFull(updated);
+    if (!mounted) return;
+    await _reload();
+  }
+
+  Future<void> _openItemQtyDialog(SavedProjectItem item) async {
+    final result = await showDialog<List<int>>(
+      context: context,
+      builder: (_) => _ProjectItemQtyDialog(item: item),
+    );
+    if (result == null || !mounted) return;
+    await _applyItemQuantityUpdate(item, result);
+  }
+
   Future<void> _showExportPdfDialog() async {
     final proj = _project;
     if (proj == null) return;
@@ -720,7 +786,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                     ),
                                   ),
                                   Text(
-                                    'ขนาด: ${it.sizeSummaryText} · รวม ${it.totalUnits} ชุด',
+                                    'ขนาด: ${it.sizeSummaryText}',
                                     style: const TextStyle(
                                       fontSize: 12.5,
                                       color: ToolkitColors.slateBody,
@@ -735,53 +801,136 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                       ),
                                     ),
                                   const SizedBox(height: 6),
-                                  OutlinedButton.icon(
-                                    key: ValueKey('proj_edit_mat_${it.id ?? idx}'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 4),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      foregroundColor: ToolkitColors.royalBlue,
-                                      side: BorderSide(
-                                        color: ToolkitColors.royalBlue
-                                            .withValues(alpha: 0.35),
+                                  // Inline Quantity Stepper (กำหนดจำนวนชุดก่อนทำใบเสนอราคา)
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'จำนวน:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: ToolkitColors.slateMuted,
+                                        ),
                                       ),
-                                    ),
-                                    onPressed: () async {
-                                      final updated =
-                                          await Navigator.push<bool>(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ResultScreen(
-                                            output: MaterialMutationHelper
-                                                .fromSavedProjectItem(it),
-                                            sizeRows: it.sizeRows,
-                                            editingProjectItem: it,
+                                      const SizedBox(width: 6),
+                                      _CompactQtyStepper(
+                                        minusKey: ValueKey(
+                                            'proj_qty_minus_${it.id ?? idx}'),
+                                        valueKey: ValueKey(
+                                            'proj_qty_val_${it.id ?? idx}'),
+                                        plusKey: ValueKey(
+                                            'proj_qty_plus_${it.id ?? idx}'),
+                                        qty: it.totalUnits,
+                                        onMinus: it.sizeRows.length == 1 &&
+                                                it.totalUnits > 1
+                                            ? () => _applyItemQuantityUpdate(
+                                                  it,
+                                                  [it.sizeRows.first.qty - 1],
+                                                )
+                                            : (it.sizeRows.length > 1
+                                                ? () => _openItemQtyDialog(it)
+                                                : null),
+                                        onPlus: it.sizeRows.length == 1
+                                            ? () => _applyItemQuantityUpdate(
+                                                  it,
+                                                  [it.sizeRows.first.qty + 1],
+                                                )
+                                            : () => _openItemQtyDialog(it),
+                                        onTapNumber: () =>
+                                            _openItemQtyDialog(it),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 7),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        key: ValueKey(
+                                            'proj_edit_pattern_${it.id ?? idx}'),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 9, vertical: 4),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          foregroundColor:
+                                              ToolkitColors.deepNavy,
+                                          side: BorderSide(
+                                            color: ToolkitColors.deepNavy
+                                                .withValues(alpha: 0.35),
                                           ),
                                         ),
-                                      );
-                                      if (updated == true) _reload();
-                                    },
-                                    icon: const Icon(
-                                      Icons.swap_horiz_rounded,
-                                      size: 15,
-                                    ),
-                                    label: const Text(
-                                      'แก้ไข / เปลี่ยนวัสดุ',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
+                                        onPressed: () =>
+                                            _openEditPatternAndSpecs(it),
+                                        icon: const Icon(
+                                          Icons.tune_rounded,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'แก้ไขแบบ / ขนาด',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      OutlinedButton.icon(
+                                        key: ValueKey(
+                                            'proj_edit_mat_${it.id ?? idx}'),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 9, vertical: 4),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          foregroundColor:
+                                              ToolkitColors.royalBlue,
+                                          side: BorderSide(
+                                            color: ToolkitColors.royalBlue
+                                                .withValues(alpha: 0.35),
+                                          ),
+                                        ),
+                                        onPressed: () async {
+                                          final updated =
+                                              await Navigator.push<bool>(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ResultScreen(
+                                                output: MaterialMutationHelper
+                                                    .fromSavedProjectItem(it),
+                                                sizeRows: it.sizeRows,
+                                                editingProjectItem: it,
+                                              ),
+                                            ),
+                                          );
+                                          if (updated == true) _reload();
+                                        },
+                                        icon: const Icon(
+                                          Icons.swap_horiz_rounded,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'แก้ไข / เปลี่ยนวัสดุ',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
                             PopupMenuButton<String>(
                               onSelected: (action) async {
-                                if (action == 'materials') {
+                                if (action == 'pattern') {
+                                  await _openEditPatternAndSpecs(it);
+                                } else if (action == 'qty') {
+                                  await _openItemQtyDialog(it);
+                                } else if (action == 'materials') {
                                   final updated = await Navigator.push<bool>(
                                     context,
                                     MaterialPageRoute(
@@ -803,6 +952,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                 }
                               },
                               itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'pattern',
+                                  child: Text('แก้ไขแบบ / ขนาด / เปลี่ยนโปรไฟล์'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'qty',
+                                  child: Text('ปรับจำนวนชุด'),
+                                ),
                                 PopupMenuItem(
                                   value: 'materials',
                                   child: Text('แก้ไข / เปลี่ยนชิ้นส่วนวัสดุ'),
@@ -971,21 +1128,53 @@ class ProjectPricingScreen extends StatefulWidget {
 }
 
 class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
+  late SavedProject _workingProject;
   PricingSummary? _latestSummary;
-  late final List<ProfileBarGroup> _packedGroups;
-  late final List<EvaluatedGlassItem> _projectGlasses;
-  late final List<AggregatedHardwareItem> _projectHardware;
-  late final double _projectOpeningAreaSqM;
+  late List<ProfileBarGroup> _packedGroups;
+  late List<EvaluatedGlassItem> _projectGlasses;
+  late List<AggregatedHardwareItem> _projectHardware;
+  late double _projectOpeningAreaSqM;
+  bool _showQtyPanel = false;
 
   @override
   void initState() {
     super.initState();
-    _packedGroups = BinPacker.packProjectItems(widget.project.items);
-    _projectGlasses = widget.project.items
+    _workingProject = widget.project;
+    _recomputeProjectAggregates();
+  }
+
+  void _recomputeProjectAggregates() {
+    _packedGroups = BinPacker.packProjectItems(_workingProject.items);
+    _projectGlasses = _workingProject.items
         .expand((it) => it.evaluatedSets.expand((s) => s.glasses))
         .toList();
-    _projectHardware = _mergeProjectHardware(widget.project.items);
-    _projectOpeningAreaSqM = widget.project.totalOpeningAreaSqM;
+    _projectHardware = _mergeProjectHardware(_workingProject.items);
+    _projectOpeningAreaSqM = _workingProject.totalOpeningAreaSqM;
+  }
+
+  Future<void> _updatePricingItemQty(int idx, List<int> nextRowQtys) async {
+    final oldItem = _workingProject.items[idx];
+    final updatedItem = MaterialMutationHelper.updateProjectItemQuantities(
+      oldItem,
+      nextRowQtys,
+    );
+    if (updatedItem.id != null) {
+      await AppDatabase.instance.updateProjectItemFull(updatedItem);
+    }
+    if (!mounted) return;
+    final nextItems = List<SavedProjectItem>.from(_workingProject.items);
+    nextItems[idx] = updatedItem;
+    setState(() {
+      _workingProject = SavedProject(
+        id: _workingProject.id,
+        name: _workingProject.name,
+        note: _workingProject.note,
+        createdAt: _workingProject.createdAt,
+        updatedAt: DateTime.now(),
+        items: nextItems,
+      );
+      _recomputeProjectAggregates();
+    });
   }
 
   static List<AggregatedHardwareItem> _mergeProjectHardware(
@@ -998,6 +1187,13 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
         final ex = map[key];
         if (ex == null) {
           map[key] = h;
+        } else if (ex.decimalQty != null && h.decimalQty != null) {
+          map[key] = AggregatedHardwareItem(
+            code: ex.code,
+            name: ex.name,
+            decimalQty: PricingEngine.round2(ex.decimalQty! + h.decimalQty!),
+            unitOrNote: ex.unitOrNote,
+          );
         } else if (ex.numericQty != null && h.numericQty != null) {
           map[key] = AggregatedHardwareItem(
             code: ex.code,
@@ -1024,7 +1220,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => QuotationBuilderScreen(
-          project: widget.project,
+          project: _workingProject,
           shopInfo: shop,
           estimatedAluminumCost: s?.totalCost ?? 0.0,
           initialAluminumThickness: s?.selectedThickness,
@@ -1042,10 +1238,142 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
   @override
   Widget build(BuildContext context) {
     final suggestedPrice = _latestSummary?.suggestedSellingPrice ?? 0.0;
+    final totalSets =
+        _workingProject.items.fold<int>(0, (s, it) => s + it.totalUnits);
     return Scaffold(
-      appBar: AppBar(title: Text('ทำราคาโปรเจกต์ · ${widget.project.name}')),
+      appBar: AppBar(title: Text('ทำราคาโปรเจกต์ · ${_workingProject.name}')),
       body: Column(
         children: [
+          // Quick Quantity Adjuster Bar before Quotation
+          if (_workingProject.items.isNotEmpty)
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border:
+                    Border(bottom: BorderSide(color: ToolkitColors.cardBorder)),
+              ),
+              child: Column(
+                children: [
+                  InkWell(
+                    key: const ValueKey('proj_pricing_qty_toggle'),
+                    onTap: () => setState(() => _showQtyPanel = !_showQtyPanel),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 9),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.layers_outlined,
+                              size: 17, color: ToolkitColors.royalBlue),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'รายการบาน ${_workingProject.items.length} รายการ · รวม $totalSets ชุด (แตะปรับจำนวนชุดก่อนทำใบเสนอราคา)',
+                              style: const TextStyle(
+                                fontSize: 12.2,
+                                fontWeight: FontWeight.w700,
+                                color: ToolkitColors.deepNavy,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            _showQtyPanel
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                            size: 20,
+                            color: ToolkitColors.royalBlue,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_showQtyPanel)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      color: ToolkitColors.bgScaffold,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                        itemCount: _workingProject.items.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 6),
+                        itemBuilder: (_, idx) {
+                          final it = _workingProject.items[idx];
+                          final tag = it.displayOrderTag(idx + 1);
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '[$tag] ${it.patternTitle} (${it.brandTitle})',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _CompactQtyStepper(
+                                minusKey: ValueKey('pp_qty_minus_$idx'),
+                                valueKey: ValueKey('pp_qty_val_$idx'),
+                                plusKey: ValueKey('pp_qty_plus_$idx'),
+                                qty: it.totalUnits,
+                                onMinus: it.sizeRows.length == 1 &&
+                                        it.totalUnits > 1
+                                    ? () => _updatePricingItemQty(
+                                          idx,
+                                          [it.sizeRows.first.qty - 1],
+                                        )
+                                    : (it.sizeRows.length > 1
+                                        ? () async {
+                                            final res = await showDialog<
+                                                List<int>>(
+                                              context: context,
+                                              builder: (_) =>
+                                                  _ProjectItemQtyDialog(
+                                                      item: it),
+                                            );
+                                            if (res != null) {
+                                              await _updatePricingItemQty(
+                                                  idx, res);
+                                            }
+                                          }
+                                        : null),
+                                onPlus: it.sizeRows.length == 1
+                                    ? () => _updatePricingItemQty(
+                                          idx,
+                                          [it.sizeRows.first.qty + 1],
+                                        )
+                                    : () async {
+                                        final res =
+                                            await showDialog<List<int>>(
+                                          context: context,
+                                          builder: (_) =>
+                                              _ProjectItemQtyDialog(item: it),
+                                        );
+                                        if (res != null) {
+                                          await _updatePricingItemQty(idx, res);
+                                        }
+                                      },
+                                onTapNumber: () async {
+                                  final res = await showDialog<List<int>>(
+                                    context: context,
+                                    builder: (_) =>
+                                        _ProjectItemQtyDialog(item: it),
+                                  );
+                                  if (res != null) {
+                                    await _updatePricingItemQty(idx, res);
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
           Expanded(
             child: PricingWorkspaceWidget(
               barGroups: _packedGroups,
@@ -1117,11 +1445,11 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
 // Quotation Builder Screen (All Verbatim Validations + Itemized & Lump Sum)
 // =============================================================================
 class _EditableQtLine {
-  final SavedProjectItem sourceItem;
+  final SavedProjectItem? sourceItem;
   final TextEditingController labelCtrl;
   final TextEditingController subtitleCtrl;
   final String sizeText;
-  final int qty;
+  final TextEditingController qtyCtrl;
   final TextEditingController unitPriceCtrl;
   bool confirmed;
   bool editingSpec;
@@ -1129,29 +1457,39 @@ class _EditableQtLine {
   bool userEditedPrice;
 
   _EditableQtLine({
-    required this.sourceItem,
+    this.sourceItem,
     required String label,
     required String subtitle,
     required this.sizeText,
-    required this.qty,
+    required int qty,
     required double suggestedUnitPrice,
+    bool initialConfirmed = false,
+    bool initialCustomizedSubtitle = false,
+    bool initialEditedPrice = false,
   })  : labelCtrl = TextEditingController(text: label),
         subtitleCtrl = TextEditingController(text: subtitle),
+        qtyCtrl = TextEditingController(text: qty.clamp(1, 9999).toString()),
         unitPriceCtrl = TextEditingController(
             text: suggestedUnitPrice.toStringAsFixed(2)),
-        confirmed = false,
+        confirmed = initialConfirmed,
         editingSpec = false,
-        userCustomizedSubtitle = false,
-        userEditedPrice = false;
+        userCustomizedSubtitle = initialCustomizedSubtitle,
+        userEditedPrice = initialEditedPrice;
 
   String get label => labelCtrl.text.trim();
   String get subtitle => subtitleCtrl.text.trim();
+  int get qty => (int.tryParse(qtyCtrl.text.trim()) ?? 1).clamp(1, 9999);
   double get unitPrice => double.tryParse(unitPriceCtrl.text.trim()) ?? 0.0;
-  double get lineTotal => unitPrice * qty;
+  double get lineTotal => PricingEngine.round2(unitPrice * qty);
+
+  void setQty(int next) {
+    qtyCtrl.text = next.clamp(1, 9999).toString();
+  }
 
   void dispose() {
     labelCtrl.dispose();
     subtitleCtrl.dispose();
+    qtyCtrl.dispose();
     unitPriceCtrl.dispose();
   }
 }
@@ -1167,6 +1505,7 @@ class QuotationBuilderScreen extends StatefulWidget {
   final ProfitBaseMode? initialProfitBaseMode;
   final LaborCostMode? initialLaborMode;
   final double? initialLaborRate;
+  final SavedQuotation? editingQuotation;
 
   const QuotationBuilderScreen({
     super.key,
@@ -1180,6 +1519,7 @@ class QuotationBuilderScreen extends StatefulWidget {
     this.initialProfitBaseMode,
     this.initialLaborMode,
     this.initialLaborRate,
+    this.editingQuotation,
   });
 
   @override
@@ -1187,27 +1527,28 @@ class QuotationBuilderScreen extends StatefulWidget {
 }
 
 class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
-  String? _mode; // Starts unselected! ('ITEMIZED' | 'LUMP_SUM')
+  late SavedProject _workingProject;
+  String? _mode; // Starts unselected unless editingQuotation != null
   late final TextEditingController _docTitleCtrl;
   late final TextEditingController _qtNumCtrl;
   late final TextEditingController _issueDateCtrl;
   late final TextEditingController _validUntilCtrl;
   late final TextEditingController _custNameCtrl;
-  final TextEditingController _custAddrCtrl = TextEditingController();
-  final TextEditingController _custContactCtrl = TextEditingController();
+  late final TextEditingController _custAddrCtrl;
+  late final TextEditingController _custContactCtrl;
   late final TextEditingController _projNameCtrl;
-  final TextEditingController _projLocCtrl = TextEditingController();
+  late final TextEditingController _projLocCtrl;
   late final TextEditingController _lumpSumCtrl;
-  final TextEditingController _discountCtrl = TextEditingController(text: '0');
+  late final TextEditingController _discountCtrl;
   bool _discountIsPercent = false;
   bool _vatEnabled = false;
-  final TextEditingController _payTermsCtrl = TextEditingController();
-  final TextEditingController _leadTimeCtrl = TextEditingController();
-  final TextEditingController _warrantyCtrl = TextEditingController();
-  final TextEditingController _remarksCtrl = TextEditingController();
+  late final TextEditingController _payTermsCtrl;
+  late final TextEditingController _leadTimeCtrl;
+  late final TextEditingController _warrantyCtrl;
+  late final TextEditingController _remarksCtrl;
 
   // Live Profit % & Labor Cost Controls
-  late final double _openingAreaSqM;
+  late double _openingAreaSqM;
   late double _profitPct;
   late ProfitBaseMode _profitBaseMode;
   late LaborCostMode _laborMode;
@@ -1244,27 +1585,53 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   @override
   void initState() {
     super.initState();
+    _workingProject = widget.project;
+    final edit = widget.editingQuotation;
     final now = DateTime.now();
     final rand6 = (100000 + Random().nextInt(900000)).toString();
+
+    _mode = edit?.mode;
     _docTitleCtrl = TextEditingController(
-      text: widget.shopInfo.defaultDocTitle.isEmpty
-          ? 'ใบเสนอราคา'
-          : widget.shopInfo.defaultDocTitle,
+      text: edit != null
+          ? edit.docTitle
+          : (widget.shopInfo.defaultDocTitle.isEmpty
+              ? 'ใบเสนอราคา'
+              : widget.shopInfo.defaultDocTitle),
     );
     _qtNumCtrl = TextEditingController(
-      text: 'QT-${DateFormat('yyyyMMdd').format(now)}-$rand6',
+      text: edit != null
+          ? edit.qtNumber
+          : 'QT-${DateFormat('yyyyMMdd').format(now)}-$rand6',
     );
-    _issueDateCtrl =
-        TextEditingController(text: DateFormat('dd/MM/yyyy').format(now));
+    _issueDateCtrl = TextEditingController(
+      text: edit != null
+          ? edit.issueDate
+          : DateFormat('dd/MM/yyyy').format(now),
+    );
     _validUntilCtrl = TextEditingController(
-      text: DateFormat('dd/MM/yyyy')
-          .format(now.add(const Duration(days: 30))),
+      text: edit != null
+          ? edit.validUntil
+          : DateFormat('dd/MM/yyyy')
+              .format(now.add(const Duration(days: 30))),
     );
-    _custNameCtrl = TextEditingController(text: widget.project.name);
-    _projNameCtrl = TextEditingController(text: widget.project.name);
+    _custNameCtrl =
+        TextEditingController(text: edit?.customerName ?? _workingProject.name);
+    _custAddrCtrl = TextEditingController(text: edit?.customerAddress ?? '');
+    _custContactCtrl = TextEditingController(text: edit?.customerContact ?? '');
+    _projNameCtrl =
+        TextEditingController(text: edit?.projectName ?? _workingProject.name);
+    _projLocCtrl = TextEditingController(text: edit?.projectLocation ?? '');
+    _discountCtrl = TextEditingController(
+      text: edit != null ? _fmtNumInput(edit.discount) : '0',
+    );
+    _vatEnabled = edit?.vatEnabled ?? false;
+    _payTermsCtrl = TextEditingController(text: edit?.paymentTerms ?? '');
+    _leadTimeCtrl = TextEditingController(text: edit?.leadTime ?? '');
+    _warrantyCtrl = TextEditingController(text: edit?.warranty ?? '');
+    _remarksCtrl = TextEditingController(text: edit?.remarks ?? '');
 
     _openingAreaSqM =
-        widget.openingAreaSqM ?? widget.project.totalOpeningAreaSqM;
+        widget.openingAreaSqM ?? _workingProject.totalOpeningAreaSqM;
     _profitPct = (widget.initialProfitPercent ?? 20.0).clamp(0.0, 200.0);
     _profitBaseMode =
         widget.initialProfitBaseMode ?? ProfitBaseMode.materialOnly;
@@ -1282,20 +1649,62 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       widget.initialAluminumColor,
     );
 
+    if (edit != null) {
+      for (int i = 0; i < edit.lines.length; i++) {
+        final e = edit.lines[i];
+        final matchedSrc =
+            i < _workingProject.items.length ? _workingProject.items[i] : null;
+        _lines.add(
+          _EditableQtLine(
+            sourceItem: matchedSrc,
+            label: e.label,
+            subtitle: e.subtitle,
+            sizeText: e.sizeText,
+            qty: e.qty,
+            suggestedUnitPrice: e.unitPrice,
+            initialConfirmed: true,
+            initialCustomizedSubtitle: true,
+            initialEditedPrice: true,
+          ),
+        );
+      }
+      _lumpSumCtrl =
+          TextEditingController(text: edit.lumpSumPrice.toStringAsFixed(2));
+      _lumpSumManuallyEdited = true;
+      return;
+    }
+
+    _populateLinesFromProject(_workingProject, isInit: true);
+  }
+
+  void _populateLinesFromProject(
+    SavedProject proj, {
+    bool isInit = false,
+  }) {
+    if (!isInit) {
+      for (final l in _lines) {
+        l.dispose();
+      }
+      _lines.clear();
+    }
+    _openingAreaSqM = isInit
+        ? (widget.openingAreaSqM ?? proj.totalOpeningAreaSqM)
+        : proj.totalOpeningAreaSqM;
+
     final initBreakdown = _breakdown;
     final hasCost = widget.estimatedAluminumCost > 0;
     final unitPrices = hasCost
         ? PricingEngine.allocateUnitSellingPrices(
-            items: widget.project.items
+            items: proj.items
                 .map((it) => (areaSqM: it.totalOpeningAreaSqM, qty: it.totalUnits))
                 .toList(),
             targetTotal: initBreakdown.suggestedSellingPrice,
           )
-        : List<double>.filled(widget.project.items.length, 3500.0);
+        : List<double>.filled(proj.items.length, 3500.0);
 
     double sumInit = 0.0;
-    for (int i = 0; i < widget.project.items.length; i++) {
-      final it = widget.project.items[i];
+    for (int i = 0; i < proj.items.length; i++) {
+      final it = proj.items[i];
       final line = _EditableQtLine(
         sourceItem: it,
         label: QuotationSpecFormatter.formatLineTitle(it, i + 1),
@@ -1315,7 +1724,39 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     }
     final initLump =
         hasCost ? initBreakdown.suggestedSellingPrice : PricingEngine.round2(sumInit);
-    _lumpSumCtrl = TextEditingController(text: initLump.toStringAsFixed(2));
+    if (isInit) {
+      _lumpSumCtrl = TextEditingController(text: initLump.toStringAsFixed(2));
+    } else {
+      _lumpSumCtrl.text = initLump.toStringAsFixed(2);
+      _lumpSumManuallyEdited = false;
+    }
+  }
+
+  Future<void> _openEditProjectPatterns() async {
+    final pid = _workingProject.id;
+    if (pid == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProjectDetailScreen(projectId: pid)),
+    );
+    await _syncLatestFromProject(showSnack: true);
+  }
+
+  Future<void> _syncLatestFromProject({bool showSnack = true}) async {
+    final pid = _workingProject.id;
+    if (pid == null) return;
+    final latest = await AppDatabase.instance.getProject(pid);
+    if (latest == null || !mounted) return;
+    setState(() {
+      _workingProject = latest;
+      _populateLinesFromProject(latest, isInit: false);
+    });
+    if (showSnack) {
+      showToolkitSnackBar(
+        context,
+        'อัปเดตรายการบานและจำนวนชุดล่าสุดจากโปรเจกต์แล้ว (${latest.items.length} รายการ)',
+      );
+    }
   }
 
   void _applyMarkupToSellingPrices({bool forceAll = false}) {
@@ -1323,7 +1764,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     final target = _breakdown.suggestedSellingPrice;
     final unitPrices = PricingEngine.allocateUnitSellingPrices(
       items: _lines
-          .map((l) => (areaSqM: l.sourceItem.totalOpeningAreaSqM, qty: l.qty))
+          .map((l) => (
+                areaSqM: l.sourceItem?.totalOpeningAreaSqM ?? 0.0,
+                qty: l.qty,
+              ))
           .toList(),
       targetTotal: target,
     );
@@ -1346,12 +1790,13 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
 
   void _syncSubtitlesFromSpec({bool forceResetAll = false}) {
     for (final ln in _lines) {
+      if (ln.sourceItem == null) continue;
       if (forceResetAll) {
         ln.userCustomizedSubtitle = false;
       }
       if (!ln.userCustomizedSubtitle) {
         ln.subtitleCtrl.text = QuotationSpecFormatter.buildItemSpecSubtitle(
-          item: ln.sourceItem,
+          item: ln.sourceItem!,
           globalAluThickness: _globalAluThick,
           globalAluColor: _globalAluColor,
           globalGlassType: _globalGlassType,
@@ -1434,8 +1879,11 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       return;
     }
 
-    // Validation #5: Duplicate quotation number check!
-    final used = await AppDatabase.instance.isQuotationNumberUsed(qtNo);
+    // Validation #5: Duplicate quotation number check (allows keeping own qt_number when editing!)
+    final used = await AppDatabase.instance.isQuotationNumberUsed(
+      qtNo,
+      excludeQuotationId: widget.editingQuotation?.id,
+    );
     if (!mounted) return;
     if (used) {
       showToolkitSnackBar(
@@ -1446,7 +1894,8 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     }
 
     final draft = SavedQuotation(
-      projectId: widget.project.id!,
+      id: widget.editingQuotation?.id,
+      projectId: _workingProject.id!,
       qtNumber: qtNo,
       docTitle: _docTitleCtrl.text.trim().isEmpty
           ? 'ใบเสนอราคา'
@@ -1485,28 +1934,112 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       createdAt: DateTime.now(),
     );
 
-    Navigator.push(
+    final updated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => QuotationPreviewScreen(
           quotation: draft,
           shopInfo: widget.shopInfo,
           isAlreadySaved: false,
+          editingQuotationId: widget.editingQuotation?.id,
         ),
       ),
     );
+    if (widget.editingQuotation != null && updated == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditingQt = widget.editingQuotation != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('สร้างใบเสนอราคา')),
+      appBar: AppBar(
+        title: Text(
+          isEditingQt
+              ? 'แก้ไขใบเสนอราคา · ${widget.editingQuotation!.qtNumber}'
+              : 'สร้างใบเสนอราคา',
+        ),
+        actions: [
+          if (_workingProject.id != null)
+            IconButton(
+              tooltip: 'แก้ไขแบบบานในโปรเจกต์',
+              onPressed: _openEditProjectPatterns,
+              icon: const Icon(Icons.tune_rounded),
+            ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(15),
               children: [
+                if (isEditingQt && _workingProject.id != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: ToolkitColors.softBlueBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: ToolkitColors.royalBlue.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'กำลังแก้ไขใบเสนอราคาเดิม — ปรับจำนวน ราคา สเปก หรือกลับไปแก้แบบบานโดยไม่ต้องลบได้ทันที',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ToolkitColors.deepNavy,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            OutlinedButton.icon(
+                              key: const ValueKey(
+                                  'qt_btn_edit_project_patterns'),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: ToolkitColors.deepNavy,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: _openEditProjectPatterns,
+                              icon: const Icon(Icons.tune_rounded, size: 15),
+                              label: const Text(
+                                'แก้ไขแบบ / ขนาดในโปรเจกต์',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              key: const ValueKey('qt_btn_sync_project_items'),
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: ToolkitColors.royalBlue,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: () =>
+                                  _syncLatestFromProject(showSnack: true),
+                              icon: const Icon(Icons.sync_rounded, size: 15),
+                              label: const Text(
+                                'ดึงรายการบานล่าสุดจากโปรเจกต์',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 // 1. ประเภทใบเสนอราคา (Unselected initially!)
                 _card(
                   title: '1. เลือกประเภทใบเสนอราคา *',
@@ -1600,7 +2133,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLineSpecPreviewAndEditor(ln),
+                              _buildLineSpecPreviewAndEditor(ln, i),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -1685,7 +2218,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                             borderRadius: BorderRadius.circular(11),
                             border: Border.all(color: ToolkitColors.cardBorder),
                           ),
-                          child: _buildLineSpecPreviewAndEditor(ln),
+                          child: _buildLineSpecPreviewAndEditor(ln, i),
                         );
                       }),
                     ],
@@ -2035,18 +2568,20 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
             }).toList(),
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 5,
+            runSpacing: 6,
             children: [
               const Text(
                 'ค่าแรง',
                 style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
               ),
-              const SizedBox(width: 6),
               ChoiceChip(
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                label:
-                    const Text('บ./ตร.ม.', style: TextStyle(fontSize: 11.5)),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 5),
+                label: const Text('บ./ตร.ม.', style: TextStyle(fontSize: 11.5)),
                 selected: _laborMode == LaborCostMode.perSqM,
                 selectedColor: Colors.white,
                 onSelected: (_) {
@@ -2056,10 +2591,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   });
                 },
               ),
-              const SizedBox(width: 4),
               ChoiceChip(
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 5),
                 label: const Text('เหมา', style: TextStyle(fontSize: 11.5)),
                 selected: _laborMode == LaborCostMode.flatBaht,
                 selectedColor: Colors.white,
@@ -2070,8 +2605,27 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   });
                 },
               ),
-              const SizedBox(width: 6),
-              Expanded(
+              ChoiceChip(
+                key: const ValueKey('qt_labor_pct_chip'),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 5),
+                label: const Text('% ค่าของ', style: TextStyle(fontSize: 11.5)),
+                selected: _laborMode == LaborCostMode.percentOfMaterial,
+                selectedColor: Colors.white,
+                onSelected: (_) {
+                  setState(() {
+                    _laborMode = LaborCostMode.percentOfMaterial;
+                    if (_laborRate > 200.0) {
+                      _laborRate = 20.0;
+                      _laborCtrl.text = '20';
+                    }
+                    _applyMarkupToSellingPrices();
+                  });
+                },
+              ),
+              SizedBox(
+                width: 96,
                 child: TextField(
                   key: const ValueKey('qt_labor_rate_field'),
                   controller: _laborCtrl,
@@ -2081,8 +2635,11 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700),
                   decoration: InputDecoration(
-                    suffixText:
-                        _laborMode == LaborCostMode.perSqM ? ' บ./ตร.ม.' : ' ฿',
+                    suffixText: _laborMode == LaborCostMode.perSqM
+                        ? ' /ตร.ม.'
+                        : (_laborMode == LaborCostMode.percentOfMaterial
+                            ? ' %'
+                            : ' ฿'),
                     isDense: true,
                     filled: true,
                     fillColor: Colors.white,
@@ -2093,8 +2650,12 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                   onChanged: (v) {
                     final parsed = double.tryParse(v.trim());
                     setState(() {
-                      _laborRate =
+                      final rawVal =
                           (parsed != null && parsed >= 0) ? parsed : 0.0;
+                      _laborRate =
+                          _laborMode == LaborCostMode.percentOfMaterial
+                              ? rawVal.clamp(0.0, 200.0)
+                              : rawVal;
                       _applyMarkupToSellingPrices();
                     });
                   },
@@ -2243,7 +2804,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     );
   }
 
-  Widget _buildLineSpecPreviewAndEditor(_EditableQtLine ln) {
+  Widget _buildLineSpecPreviewAndEditor(_EditableQtLine ln, int lineIdx) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2273,13 +2834,44 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 2),
-                  Text(
-                    'ขนาด: ${ln.sizeText.replaceAll('\n', ', ')} · จำนวน ${ln.qty} ชุด',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: ToolkitColors.slateMuted,
-                    ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        'ขนาด: ${ln.sizeText.replaceAll('\n', ', ')}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: ToolkitColors.slateMuted,
+                        ),
+                      ),
+                      _CompactQtyStepper(
+                        minusKey: ValueKey('qt_line_qty_minus_$lineIdx'),
+                        valueKey: ValueKey('qt_line_qty_val_$lineIdx'),
+                        plusKey: ValueKey('qt_line_qty_plus_$lineIdx'),
+                        qty: ln.qty,
+                        onMinus: ln.qty > 1
+                            ? () => setState(() => ln.setQty(ln.qty - 1))
+                            : null,
+                        onPlus: () => setState(() => ln.setQty(ln.qty + 1)),
+                        onTapNumber: () async {
+                          final picked = await showDialog<int>(
+                            context: context,
+                            builder: (_) => _SingleIntQtyDialog(
+                              title: ln.label.isEmpty
+                                  ? 'กำหนดจำนวนชุด'
+                                  : ln.label,
+                              initialQty: ln.qty,
+                            ),
+                          );
+                          if (picked != null && mounted) {
+                            setState(() => ln.setQty(picked));
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2339,12 +2931,14 @@ class QuotationPreviewScreen extends StatefulWidget {
   final SavedQuotation quotation;
   final ShopInfo shopInfo;
   final bool isAlreadySaved;
+  final int? editingQuotationId;
 
   const QuotationPreviewScreen({
     super.key,
     required this.quotation,
     required this.shopInfo,
     required this.isAlreadySaved,
+    this.editingQuotationId,
   });
 
   @override
@@ -2373,16 +2967,27 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
     setState(() => _pdfBytes = bytes);
   }
 
-  Future<void> _saveQuotationNow() async {
+  Future<void> _saveQuotationNow({bool asNewRevision = false}) async {
     if (_isSaved) return;
     final existing = await AppDatabase.instance
         .listQuotationsForProject(_qt.projectId);
-    final revTag =
-        'R${existing.length + 1}-${DateTime.now().millisecondsSinceEpoch}';
+    final editId = widget.editingQuotationId;
+    final updateExisting = editId != null && !asNewRevision;
+
+    final revTag = updateExisting
+        ? 'แก้ไขล่าสุด ${DateFormat('dd/MM HH:mm').format(DateTime.now())}'
+        : 'R${existing.length + 1}-${DateTime.now().millisecondsSinceEpoch}';
+
+    String finalQtNumber = _qt.qtNumber;
+    if (asNewRevision && editId != null) {
+      final baseNo = _qt.qtNumber.replaceAll(RegExp(r'-R\d+$'), '');
+      finalQtNumber = '$baseNo-R${existing.length + 1}';
+    }
 
     final toSave = SavedQuotation(
+      id: updateExisting ? editId : null,
       projectId: _qt.projectId,
-      qtNumber: _qt.qtNumber,
+      qtNumber: finalQtNumber,
       docTitle: _qt.docTitle,
       mode: _qt.mode,
       issueDate: _qt.issueDate,
@@ -2407,35 +3012,110 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
       createdAt: DateTime.now(),
     );
 
-    await AppDatabase.instance.saveQuotation(toSave);
+    SavedQuotation persisted;
+    if (updateExisting) {
+      await AppDatabase.instance.updateQuotation(toSave);
+      persisted = toSave;
+    } else {
+      final newId = await AppDatabase.instance.saveQuotation(toSave);
+      persisted = SavedQuotation(
+        id: newId,
+        projectId: toSave.projectId,
+        qtNumber: toSave.qtNumber,
+        docTitle: toSave.docTitle,
+        mode: toSave.mode,
+        issueDate: toSave.issueDate,
+        validUntil: toSave.validUntil,
+        customerName: toSave.customerName,
+        customerAddress: toSave.customerAddress,
+        customerContact: toSave.customerContact,
+        projectName: toSave.projectName,
+        projectLocation: toSave.projectLocation,
+        lines: toSave.lines,
+        lumpSumPrice: toSave.lumpSumPrice,
+        discount: toSave.discount,
+        vatEnabled: toSave.vatEnabled,
+        subtotal: toSave.subtotal,
+        vatAmount: toSave.vatAmount,
+        netTotal: toSave.netTotal,
+        paymentTerms: toSave.paymentTerms,
+        leadTime: toSave.leadTime,
+        warranty: toSave.warranty,
+        remarks: toSave.remarks,
+        revisionTag: toSave.revisionTag,
+        createdAt: toSave.createdAt,
+      );
+    }
+
     final bytes = await QuotationPdfGenerator.generate(
-      quotation: toSave,
+      quotation: persisted,
       shopInfo: widget.shopInfo,
     );
     if (!mounted) return;
     setState(() {
-      _qt = toSave;
+      _qt = persisted;
       _isSaved = true;
       _pdfBytes = bytes;
     });
-    showToolkitSnackBar(context, 'บันทึกใบเสนอราคา ${_qt.qtNumber} แล้ว');
+    showToolkitSnackBar(
+      context,
+      updateExisting
+          ? 'อัปเดตใบเสนอราคา ${_qt.qtNumber} แล้ว'
+          : 'บันทึกใบเสนอราคา ${_qt.qtNumber} แล้ว',
+    );
+  }
+
+  Future<void> _openEditSavedQuotation() async {
+    final proj = await AppDatabase.instance.getProject(_qt.projectId);
+    if (!mounted) return;
+    final targetProj = proj ??
+        SavedProject(
+          id: _qt.projectId,
+          name: _qt.projectName,
+          createdAt: _qt.createdAt,
+          updatedAt: _qt.createdAt,
+        );
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuotationBuilderScreen(
+          project: targetProj,
+          shopInfo: widget.shopInfo,
+          estimatedAluminumCost: 0.0,
+          editingQuotation: _qt,
+        ),
+      ),
+    );
+    if (updated == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final fileName = '${_qt.qtNumber}.pdf';
+    final isUpdatingExisting = widget.editingQuotationId != null;
     return Scaffold(
       appBar: AppBar(
         title: Text(_qt.qtNumber),
         actions: [
           if (!_isSaved)
             IconButton(
-              tooltip: 'บันทึกใบเสนอราคา',
-              onPressed: _saveQuotationNow,
+              tooltip: isUpdatingExisting
+                  ? 'บันทึกทับฉบับเดิม'
+                  : 'บันทึกใบเสนอราคา',
+              onPressed: () => _saveQuotationNow(asNewRevision: false),
               icon: const Icon(
                 Icons.check_circle_rounded,
                 color: ToolkitColors.successGreen,
               ),
+            )
+          else
+            IconButton(
+              key: const ValueKey('qt_preview_edit_btn'),
+              tooltip: 'แก้ไขใบเสนอราคา',
+              onPressed: _openEditSavedQuotation,
+              icon: const Icon(Icons.edit_note_rounded),
             ),
           IconButton(
             tooltip: 'แชร์ PDF',
@@ -2464,32 +3144,63 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               color: const Color(0xFFFEF3C7),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.info_outline_rounded,
-                    color: ToolkitColors.vipGoldText,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'กำลังดูตัวอย่าง กรุณาตรวจเอกสารแล้วกดบันทึกก่อนแชร์ บันทึก PDF หรือพิมพ์',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
                         color: ToolkitColors.vipGoldText,
+                        size: 20,
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isUpdatingExisting
+                              ? 'กำลังดูตัวอย่างฉบับแก้ไข กดบันทึกเพื่ออัปเดตเอกสารก่อนแชร์หรือพิมพ์'
+                              : 'กำลังดูตัวอย่าง กรุณาตรวจเอกสารแล้วกดบันทึกก่อนแชร์ บันทึก PDF หรือพิมพ์',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: ToolkitColors.vipGoldText,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ToolkitColors.successGreen,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    onPressed: _saveQuotationNow,
-                    child: const Text('บันทึกใบเสนอราคา'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilledButton(
+                        key: const ValueKey('qt_preview_save_btn'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ToolkitColors.successGreen,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () =>
+                            _saveQuotationNow(asNewRevision: false),
+                        child: Text(
+                          isUpdatingExisting
+                              ? 'บันทึกทับฉบับเดิม'
+                              : 'บันทึกใบเสนอราคา',
+                        ),
+                      ),
+                      if (isUpdatingExisting)
+                        OutlinedButton(
+                          key: const ValueKey('qt_preview_save_rev_btn'),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: ToolkitColors.deepNavy,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () =>
+                              _saveQuotationNow(asNewRevision: true),
+                          child: const Text('บันทึกเป็นฉบับใหม่ (Rev)'),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -2512,7 +3223,7 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
           // State 2 Unlocked Bottom Navy Bar
           if (_isSaved && _pdfBytes != null)
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: ToolkitColors.cardBorder)),
@@ -2521,6 +3232,18 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
                 top: false,
                 child: Row(
                   children: [
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ToolkitColors.deepNavy,
+                        side: const BorderSide(color: ToolkitColors.cardBorder),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 13),
+                      ),
+                      onPressed: _openEditSavedQuotation,
+                      icon: const Icon(Icons.edit_note_rounded, size: 18),
+                      label: const Text('แก้ไข'),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
@@ -2532,10 +3255,10 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
                               bytes: _pdfBytes!, filename: fileName);
                         },
                         icon: const Icon(Icons.share_outlined, size: 18),
-                        label: const Text('แชร์ใบเสนอราคา PDF'),
+                        label: const Text('แชร์ PDF'),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
@@ -2563,7 +3286,7 @@ class _QuotationPreviewScreenState extends State<QuotationPreviewScreen> {
 }
 
 // =============================================================================
-// Quotation History Screen (ประวัติใบเสนอราคา — R1-... Cards)
+// Quotation History Screen (ประวัติใบเสนอราคา — R1-... Cards + Edit Button)
 // =============================================================================
 class QuotationHistoryScreen extends StatefulWidget {
   final int projectId;
@@ -2597,6 +3320,30 @@ class _QuotationHistoryScreenState extends State<QuotationHistoryScreen> {
     });
   }
 
+  Future<void> _editQuotation(SavedQuotation q) async {
+    final proj = await AppDatabase.instance.getProject(widget.projectId);
+    if (!mounted) return;
+    final targetProj = proj ??
+        SavedProject(
+          id: widget.projectId,
+          name: q.projectName,
+          createdAt: q.createdAt,
+          updatedAt: q.createdAt,
+        );
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuotationBuilderScreen(
+          project: targetProj,
+          shopInfo: _shop,
+          estimatedAluminumCost: 0.0,
+          editingQuotation: q,
+        ),
+      ),
+    );
+    if (updated == true) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2611,8 +3358,8 @@ class _QuotationHistoryScreenState extends State<QuotationHistoryScreen> {
                 final q = _list[i];
                 return InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    final changed = await Navigator.push<bool>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => QuotationPreviewScreen(
@@ -2622,6 +3369,7 @@ class _QuotationHistoryScreenState extends State<QuotationHistoryScreen> {
                         ),
                       ),
                     );
+                    if (changed == true) _load();
                   },
                   child: Container(
                     padding: const EdgeInsets.all(15),
@@ -2662,13 +3410,44 @@ class _QuotationHistoryScreenState extends State<QuotationHistoryScreen> {
                             ],
                           ),
                         ),
-                        Text(
-                          '฿${_moneyFmt.format(q.netTotal)}',
-                          style: const TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w800,
-                            color: ToolkitColors.slateDark,
-                          ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '฿${_moneyFmt.format(q.netTotal)}',
+                              style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                color: ToolkitColors.slateDark,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            OutlinedButton.icon(
+                              key: ValueKey('qt_hist_edit_$i'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 3),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: ToolkitColors.royalBlue,
+                                side: BorderSide(
+                                  color: ToolkitColors.royalBlue
+                                      .withValues(alpha: 0.4),
+                                ),
+                              ),
+                              onPressed: () => _editQuotation(q),
+                              icon: const Icon(Icons.edit_note_rounded,
+                                  size: 15),
+                              label: const Text(
+                                'แก้ไข',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -2676,6 +3455,254 @@ class _QuotationHistoryScreenState extends State<QuotationHistoryScreen> {
                 );
               },
             ),
+    );
+  }
+}
+
+// =============================================================================
+// Reusable Compact Quantity Stepper & Multi-Row Qty Editor Dialog
+// =============================================================================
+class _CompactQtyStepper extends StatelessWidget {
+  final Key? minusKey;
+  final Key? valueKey;
+  final Key? plusKey;
+  final int qty;
+  final VoidCallback? onMinus;
+  final VoidCallback? onPlus;
+  final VoidCallback? onTapNumber;
+
+  const _CompactQtyStepper({
+    this.minusKey,
+    this.valueKey,
+    this.plusKey,
+    required this.qty,
+    this.onMinus,
+    this.onPlus,
+    this.onTapNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: ToolkitColors.cardBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            key: minusKey,
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+            onTap: onMinus,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              child: Icon(
+                Icons.remove_rounded,
+                size: 16,
+                color: onMinus != null
+                    ? ToolkitColors.deepNavy
+                    : ToolkitColors.cardBorder,
+              ),
+            ),
+          ),
+          InkWell(
+            key: valueKey,
+            onTap: onTapNumber,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: const BoxDecoration(
+                border: Border.symmetric(
+                  vertical: BorderSide(color: ToolkitColors.cardBorder),
+                ),
+              ),
+              child: Text(
+                '$qty ชุด',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: ToolkitColors.royalBlue,
+                ),
+              ),
+            ),
+          ),
+          InkWell(
+            key: plusKey,
+            borderRadius:
+                const BorderRadius.horizontal(right: Radius.circular(7)),
+            onTap: onPlus,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+              child: Icon(
+                Icons.add_rounded,
+                size: 16,
+                color: ToolkitColors.royalBlue,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectItemQtyDialog extends StatefulWidget {
+  final SavedProjectItem item;
+
+  const _ProjectItemQtyDialog({required this.item});
+
+  @override
+  State<_ProjectItemQtyDialog> createState() => _ProjectItemQtyDialogState();
+}
+
+class _ProjectItemQtyDialogState extends State<_ProjectItemQtyDialog> {
+  late final List<TextEditingController> _ctrls;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrls = widget.item.sizeRows
+        .map((r) => TextEditingController(text: r.qty.toString()))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('กำหนดจำนวนชุด · ${widget.item.patternTitle}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'ปรับจำนวนชุดได้ทันที ระบบจะคำนวณระยะตัด จัดเส้น และต้นทุนใหม่ให้อัตโนมัติ',
+              style: TextStyle(fontSize: 12.5, color: ToolkitColors.slateMuted),
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(widget.item.sizeRows.length, (i) {
+              final r = widget.item.sizeRows[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'ขนาด #${i + 1}: ${FormulaEvaluator.formatMm(r.widthMm)} × ${FormulaEvaluator.formatMm(r.heightMm)} มม.',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 82,
+                      child: TextField(
+                        key: ValueKey('qty_dialog_input_$i'),
+                        controller: _ctrls[i],
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          labelText: 'ชุด',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('ยกเลิก'),
+        ),
+        FilledButton(
+          key: const ValueKey('qty_dialog_save_btn'),
+          onPressed: () {
+            final qtys = _ctrls
+                .map((c) => (int.tryParse(c.text.trim()) ?? 1).clamp(1, 9999))
+                .toList();
+            Navigator.pop(context, qtys);
+          },
+          child: const Text('บันทึกจำนวนชุด'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SingleIntQtyDialog extends StatefulWidget {
+  final String title;
+  final int initialQty;
+
+  const _SingleIntQtyDialog({
+    required this.title,
+    required this.initialQty,
+  });
+
+  @override
+  State<_SingleIntQtyDialog> createState() => _SingleIntQtyDialogState();
+}
+
+class _SingleIntQtyDialogState extends State<_SingleIntQtyDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialQty.toString());
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        decoration: const InputDecoration(
+          labelText: 'จำนวนชุด *',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('ยกเลิก'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final v = (int.tryParse(_ctrl.text.trim()) ?? widget.initialQty)
+                .clamp(1, 9999);
+            Navigator.pop(context, v);
+          },
+          child: const Text('ตกลง'),
+        ),
+      ],
     );
   }
 }

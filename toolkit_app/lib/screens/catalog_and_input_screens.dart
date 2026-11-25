@@ -9,10 +9,29 @@ import 'custom_system_studio_screens.dart';
 import 'result_and_pricing_screens.dart';
 import 'theme_tokens.dart';
 
+class PickedPatternSelection {
+  final String brandTitle;
+  final String priceBrandKey;
+  final String systemTitle;
+  final PatternCardDef pattern;
+
+  const PickedPatternSelection({
+    required this.brandTitle,
+    required this.priceBrandKey,
+    required this.systemTitle,
+    required this.pattern,
+  });
+}
+
 class CategorySelectScreen extends StatefulWidget {
   final int? targetProjectId;
+  final bool pickMode;
 
-  const CategorySelectScreen({super.key, this.targetProjectId});
+  const CategorySelectScreen({
+    super.key,
+    this.targetProjectId,
+    this.pickMode = false,
+  });
 
   @override
   State<CategorySelectScreen> createState() => _CategorySelectScreenState();
@@ -33,13 +52,18 @@ class _CategorySelectScreenState extends State<CategorySelectScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('เลือกหมวดระบบอลูมิเนียม'),
+        title: Text(
+          widget.pickMode
+              ? 'เลือกแบบบาน / โปรไฟล์ใหม่'
+              : 'เลือกหมวดระบบอลูมิเนียม',
+        ),
         actions: [
-          IconButton(
-            tooltip: 'เพิ่ม / จัดการชุดโปรไฟล์ใหม่',
-            onPressed: _openStudio,
-            icon: const Icon(Icons.add_box_outlined),
-          ),
+          if (!widget.pickMode)
+            IconButton(
+              tooltip: 'เพิ่ม / จัดการชุดโปรไฟล์ใหม่',
+              onPressed: _openStudio,
+              icon: const Icon(Icons.add_box_outlined),
+            ),
         ],
       ),
       body: LayoutBuilder(
@@ -92,7 +116,8 @@ class _CategorySelectScreenState extends State<CategorySelectScreen> {
                       disabledBadge: cat.disabledBadge,
                       onTap: () async {
                         if (cat.directSystems.isNotEmpty) {
-                          await Navigator.push(
+                          final picked =
+                              await Navigator.push<PickedPatternSelection>(
                             context,
                             MaterialPageRoute(
                               builder: (_) => SubSystemSelectScreen(
@@ -100,19 +125,34 @@ class _CategorySelectScreenState extends State<CategorySelectScreen> {
                                 priceBrandKey: 'MARKET',
                                 systems: cat.directSystems,
                                 targetProjectId: widget.targetProjectId,
+                                pickMode: widget.pickMode,
                               ),
                             ),
                           );
+                          if (widget.pickMode &&
+                              picked != null &&
+                              context.mounted) {
+                            Navigator.pop(context, picked);
+                            return;
+                          }
                         } else {
-                          await Navigator.push(
+                          final picked =
+                              await Navigator.push<PickedPatternSelection>(
                             context,
                             MaterialPageRoute(
                               builder: (_) => BrandSelectScreen(
                                 category: cat,
                                 targetProjectId: widget.targetProjectId,
+                                pickMode: widget.pickMode,
                               ),
                             ),
                           );
+                          if (widget.pickMode &&
+                              picked != null &&
+                              context.mounted) {
+                            Navigator.pop(context, picked);
+                            return;
+                          }
                         }
                         if (mounted) setState(() {});
                       },
@@ -148,11 +188,13 @@ class _CategorySelectScreenState extends State<CategorySelectScreen> {
 class BrandSelectScreen extends StatefulWidget {
   final CategoryDef category;
   final int? targetProjectId;
+  final bool pickMode;
 
   const BrandSelectScreen({
     super.key,
     required this.category,
     this.targetProjectId,
+    this.pickMode = false,
   });
 
   @override
@@ -220,10 +262,11 @@ class _BrandSelectScreenState extends State<BrandSelectScreen> {
               brand: category.brands[i],
               logoAsset: AluproImageRegistry.instance
                   .resolveBrandAsset(category.brands[i].id),
-              onTap: () {
+              onTap: () async {
                 final brand = category.brands[i];
                 if (brand.directPatterns.isNotEmpty) {
-                  Navigator.push(
+                  final picked =
+                      await Navigator.push<PickedPatternSelection>(
                     context,
                     MaterialPageRoute(
                       builder: (_) => PatternSelectScreen(
@@ -232,11 +275,16 @@ class _BrandSelectScreenState extends State<BrandSelectScreen> {
                         systemTitle: brand.subtitle,
                         patterns: brand.directPatterns,
                         targetProjectId: widget.targetProjectId,
+                        pickMode: widget.pickMode,
                       ),
                     ),
                   );
+                  if (widget.pickMode && picked != null && context.mounted) {
+                    Navigator.pop(context, picked);
+                  }
                 } else {
-                  Navigator.push(
+                  final picked =
+                      await Navigator.push<PickedPatternSelection>(
                     context,
                     MaterialPageRoute(
                       builder: (_) => SubSystemSelectScreen(
@@ -244,9 +292,13 @@ class _BrandSelectScreenState extends State<BrandSelectScreen> {
                         priceBrandKey: brand.priceBrandKey,
                         systems: brand.systems,
                         targetProjectId: widget.targetProjectId,
+                        pickMode: widget.pickMode,
                       ),
                     ),
                   );
+                  if (widget.pickMode && picked != null && context.mounted) {
+                    Navigator.pop(context, picked);
+                  }
                 }
               },
             ),
@@ -358,6 +410,7 @@ class SubSystemSelectScreen extends StatelessWidget {
   final String priceBrandKey;
   final List<SubSystemDef> systems;
   final int? targetProjectId;
+  final bool pickMode;
 
   const SubSystemSelectScreen({
     super.key,
@@ -365,6 +418,7 @@ class SubSystemSelectScreen extends StatelessWidget {
     required this.priceBrandKey,
     required this.systems,
     this.targetProjectId,
+    this.pickMode = false,
   });
 
   ({IconData icon, Color fg, Color bg}) _systemBadgeStyle(SubSystemDef sys) {
@@ -436,9 +490,9 @@ class SubSystemSelectScreen extends StatelessWidget {
             ),
             enabled: sys.enabled,
             disabledBadge: sys.disabledBadge,
-            onTap: () {
+            onTap: () async {
               if (sys.emptyMessage != null) {
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => _EmptySystemScreen(
@@ -448,7 +502,8 @@ class SubSystemSelectScreen extends StatelessWidget {
                   ),
                 );
               } else if (sys.subTabs.isNotEmpty) {
-                Navigator.push(
+                final picked =
+                    await Navigator.push<PickedPatternSelection>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => SubTabbedPatternSelectScreen(
@@ -457,11 +512,16 @@ class SubSystemSelectScreen extends StatelessWidget {
                       systemTitle: sys.title,
                       subTabs: sys.subTabs,
                       targetProjectId: targetProjectId,
+                      pickMode: pickMode,
                     ),
                   ),
                 );
+                if (pickMode && picked != null && context.mounted) {
+                  Navigator.pop(context, picked);
+                }
               } else {
-                Navigator.push(
+                final picked =
+                    await Navigator.push<PickedPatternSelection>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => PatternSelectScreen(
@@ -470,9 +530,13 @@ class SubSystemSelectScreen extends StatelessWidget {
                       systemTitle: sys.title,
                       patterns: sys.patterns,
                       targetProjectId: targetProjectId,
+                      pickMode: pickMode,
                     ),
                   ),
                 );
+                if (pickMode && picked != null && context.mounted) {
+                  Navigator.pop(context, picked);
+                }
               }
             },
           );
@@ -515,6 +579,7 @@ class SubTabbedPatternSelectScreen extends StatefulWidget {
   final String systemTitle;
   final List<SubSystemDef> subTabs;
   final int? targetProjectId;
+  final bool pickMode;
 
   const SubTabbedPatternSelectScreen({
     super.key,
@@ -523,6 +588,7 @@ class SubTabbedPatternSelectScreen extends StatefulWidget {
     required this.systemTitle,
     required this.subTabs,
     this.targetProjectId,
+    this.pickMode = false,
   });
 
   @override
@@ -583,18 +649,32 @@ class _SubTabbedPatternSelectScreenState
           ),
           _NextStickyBar(
             enabled: _selected != null,
+            label: widget.pickMode ? 'ใช้แบบบานนี้' : 'ถัดไป (กรอกขนาดงาน)',
             onPressed: _selected == null
                 ? null
                 : () {
                     final curTab = widget.subTabs[_tabController.index];
+                    final resolvedSys =
+                        '${widget.systemTitle} (${curTab.title})';
+                    if (widget.pickMode) {
+                      Navigator.pop(
+                        context,
+                        PickedPatternSelection(
+                          brandTitle: widget.brandTitle,
+                          priceBrandKey: widget.priceBrandKey,
+                          systemTitle: resolvedSys,
+                          pattern: _selected!,
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => SizeAndSpecInputScreen(
                           brandTitle: widget.brandTitle,
                           priceBrandKey: widget.priceBrandKey,
-                          systemTitle:
-                              '${widget.systemTitle} (${curTab.title})',
+                          systemTitle: resolvedSys,
                           pattern: _selected!,
                           targetProjectId: widget.targetProjectId,
                         ),
@@ -617,6 +697,7 @@ class PatternSelectScreen extends StatefulWidget {
   final String systemTitle;
   final List<PatternCardDef> patterns;
   final int? targetProjectId;
+  final bool pickMode;
 
   const PatternSelectScreen({
     super.key,
@@ -625,6 +706,7 @@ class PatternSelectScreen extends StatefulWidget {
     required this.systemTitle,
     required this.patterns,
     this.targetProjectId,
+    this.pickMode = false,
   });
 
   @override
@@ -649,9 +731,22 @@ class _PatternSelectScreenState extends State<PatternSelectScreen> {
           ),
           _NextStickyBar(
             enabled: _selected != null,
+            label: widget.pickMode ? 'ใช้แบบบานนี้' : 'ถัดไป (กรอกขนาดงาน)',
             onPressed: _selected == null
                 ? null
                 : () {
+                    if (widget.pickMode) {
+                      Navigator.pop(
+                        context,
+                        PickedPatternSelection(
+                          brandTitle: widget.brandTitle,
+                          priceBrandKey: widget.priceBrandKey,
+                          systemTitle: widget.systemTitle,
+                          pattern: _selected!,
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -818,8 +913,13 @@ class _PatternListBody extends StatelessWidget {
 class _NextStickyBar extends StatelessWidget {
   final bool enabled;
   final VoidCallback? onPressed;
+  final String label;
 
-  const _NextStickyBar({required this.enabled, required this.onPressed});
+  const _NextStickyBar({
+    required this.enabled,
+    required this.onPressed,
+    this.label = 'ถัดไป (กรอกขนาดงาน)',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -843,9 +943,9 @@ class _NextStickyBar extends StatelessWidget {
               ),
             ),
             onPressed: enabled ? onPressed : null,
-            child: const Text(
-              'ถัดไป (กรอกขนาดงาน)',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -980,6 +1080,7 @@ class SizeAndSpecInputScreen extends StatefulWidget {
   final String systemTitle;
   final PatternCardDef pattern;
   final int? targetProjectId;
+  final SavedProjectItem? editingProjectItem;
 
   const SizeAndSpecInputScreen({
     super.key,
@@ -988,6 +1089,7 @@ class SizeAndSpecInputScreen extends StatefulWidget {
     required this.systemTitle,
     required this.pattern,
     this.targetProjectId,
+    this.editingProjectItem,
   });
 
   @override
@@ -995,21 +1097,120 @@ class SizeAndSpecInputScreen extends StatefulWidget {
 }
 
 class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
+  late String _brandTitle;
+  late String _priceBrandKey;
+  late String _systemTitle;
+  late PatternCardDef _pattern;
   final Map<String, String> _selectedOpts = {};
   final List<_MutableSizeRow> _rows = [];
   final TextEditingController _dripLenCtrl = TextEditingController();
 
+  List<OptionGroupDef> get _effectiveOptionGroups =>
+      CatalogDefinitions.effectiveOptionGroupsFor(_pattern);
+
+  static String _fmtDim(double v) {
+    if ((v - v.roundToDouble()).abs() < 0.005) {
+      return v.round().toString();
+    }
+    return v.toStringAsFixed(1);
+  }
+
+  void _initOptionsForPattern(
+    PatternCardDef pat, {
+    Map<String, String>? carryOver,
+  }) {
+    _selectedOpts.clear();
+    final groups = CatalogDefinitions.effectiveOptionGroupsFor(pat);
+    for (final g in groups) {
+      String val = g.defaultValue;
+      final prev = carryOver?[g.id];
+      if (prev != null && prev.isNotEmpty) {
+        if (g.choices.any((c) => c.id == prev && c.enabled)) {
+          val = prev;
+        } else if (g.id == 'mosquito') {
+          if (prev == 'false') {
+            val = 'none';
+          } else if (prev == 'fiber' || prev == 'small_mkt' || prev == 'true') {
+            final fiberChoice = g.choices.where(
+              (c) =>
+                  c.enabled &&
+                  (c.id == 'fiber' || c.id == 'small_mkt' || c.id == 'true'),
+            );
+            if (fiberChoice.isNotEmpty) val = fiberChoice.first.id;
+          }
+        }
+      }
+      _selectedOpts[g.id] = val;
+    }
+    // Preserve optional quotation spec metadata
+    if (carryOver != null) {
+      for (final k in const [
+        'spec_alu_thick',
+        'spec_alu_color',
+        'spec_glass_type',
+        'spec_glass_thick',
+      ]) {
+        if (carryOver.containsKey(k)) {
+          _selectedOpts[k] = carryOver[k]!;
+        }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    for (final g in widget.pattern.optionGroups) {
-      _selectedOpts[g.id] = g.defaultValue;
+    _brandTitle = widget.brandTitle;
+    _priceBrandKey = widget.priceBrandKey;
+    _systemTitle = widget.systemTitle;
+    _pattern = widget.pattern;
+
+    final edit = widget.editingProjectItem;
+    _initOptionsForPattern(_pattern, carryOver: edit?.selectedOptions);
+
+    if (edit != null && edit.sizeRows.isNotEmpty) {
+      for (final r in edit.sizeRows) {
+        _rows.add(
+          _MutableSizeRow(
+            w: _fmtDim(r.widthMm),
+            h: _fmtDim(r.heightMm),
+            aux: r.auxMm != null ? _fmtDim(r.auxMm!) : '',
+            qty: r.qty.toString(),
+          ),
+        );
+      }
+    } else {
+      final initialCount =
+          _pattern.tableMode == InputTableMode.fujiFourRow ? 4 : 1;
+      for (int i = 0; i < initialCount; i++) {
+        _rows.add(_MutableSizeRow());
+      }
     }
-    final initialCount =
-        widget.pattern.tableMode == InputTableMode.fujiFourRow ? 4 : 1;
-    for (int i = 0; i < initialCount; i++) {
-      _rows.add(_MutableSizeRow());
-    }
+  }
+
+  Future<void> _onPickAnotherPattern() async {
+    final picked = await Navigator.push<PickedPatternSelection>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CategorySelectScreen(pickMode: true),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final prevOpts = Map<String, String>.from(_selectedOpts);
+    setState(() {
+      _brandTitle = picked.brandTitle;
+      _priceBrandKey = picked.priceBrandKey;
+      _systemTitle = picked.systemTitle;
+      _pattern = picked.pattern;
+      _initOptionsForPattern(_pattern, carryOver: prevOpts);
+      if (_rows.isEmpty) {
+        _rows.add(_MutableSizeRow());
+      }
+    });
+    showToolkitSnackBar(
+      context,
+      'เปลี่ยนแบบเป็น $_brandTitle · ${_pattern.title} แล้ว (คงขนาดเดิมไว้ครบ)',
+    );
   }
 
   @override
@@ -1022,15 +1223,15 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
   }
 
   bool get _needsAuxField =>
-      widget.pattern.tableMode == InputTableMode.smartPlus90FourCol ||
-      widget.pattern.tableMode == InputTableMode.cornerW1W2 ||
-      widget.pattern.auxType != AuxDimensionType.none;
+      _pattern.tableMode == InputTableMode.smartPlus90FourCol ||
+      _pattern.tableMode == InputTableMode.cornerW1W2 ||
+      _pattern.auxType != AuxDimensionType.none;
 
   bool get _showsDripTrayLength =>
-      widget.pattern.id.startsWith('c2_sch_260_') &&
+      _pattern.id.startsWith('c2_sch_260_') &&
       (_selectedOpts['drip_tray'] ?? 'none') != 'none';
 
-  void _onCalculate() {
+  Future<void> _onCalculate() async {
     final validRows = <SizeRowInput>[];
 
     for (int i = 0; i < _rows.length; i++) {
@@ -1064,14 +1265,14 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
       if (_needsAuxField) {
         auxVal = double.tryParse(auxTxt);
         if (auxVal == null || auxVal <= 0) {
-          final lbl = widget.pattern.tableMode == InputTableMode.cornerW1W2
+          final lbl = _pattern.tableMode == InputTableMode.cornerW1W2
               ? 'ความกว้างฝั่งขวา W2'
-              : (widget.pattern.auxLabel ?? 'ค่า H1');
+              : (_pattern.auxLabel ?? 'ค่า H1');
           showToolkitSnackBar(context, 'กรุณากรอก $lbl ให้ถูกต้อง');
           return;
         }
-        if ((widget.pattern.auxType == AuxDimensionType.refHeightH1 ||
-                widget.pattern.id.contains('_top_')) &&
+        if ((_pattern.auxType == AuxDimensionType.refHeightH1 ||
+                _pattern.id.contains('_top_')) &&
             auxVal >= h) {
           showToolkitSnackBar(
             context,
@@ -1102,33 +1303,43 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
     }
 
     final output = ParametricSystemResolver.calculate(
-      brandTitle: widget.brandTitle,
-      priceBrandKey: widget.priceBrandKey,
-      systemTitle: widget.systemTitle,
-      pattern: widget.pattern,
+      brandTitle: _brandTitle,
+      priceBrandKey: _priceBrandKey,
+      systemTitle: _systemTitle,
+      pattern: _pattern,
       selectedOptions: _selectedOpts,
       sizeRows: validRows,
       dripTrayLengthMm: dripLen,
     );
 
-    Navigator.push(
+    final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => ResultScreen(
           output: output,
           sizeRows: validRows,
           targetProjectId: widget.targetProjectId,
+          editingProjectItem: widget.editingProjectItem,
         ),
       ),
     );
+    if (widget.editingProjectItem != null && saved == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pat = widget.pattern;
+    final pat = _pattern;
+    final optionGroups = _effectiveOptionGroups;
+    final isEditing = widget.editingProjectItem != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.brandTitle} · ${pat.title}'),
+        title: Text(
+          isEditing
+              ? 'แก้ไขแบบ · $_brandTitle · ${pat.title}'
+              : '$_brandTitle · ${pat.title}',
+        ),
       ),
       body: Column(
         children: [
@@ -1136,7 +1347,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Header Summary Banner with Pattern Diagram Preview
+                // Header Summary Banner with Pattern Diagram Preview + Switch Pattern button
                 Builder(
                   builder: (ctx) {
                     final patAsset = AluproImageRegistry.instance
@@ -1148,54 +1359,85 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: ToolkitColors.cardBorder),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (patAsset != null) ...[
-                            AluproThumbnail(
-                              assetPath: patAsset,
-                              width: 108,
-                              height: 76,
-                              borderRadius: 10,
-                              padding: const EdgeInsets.all(4),
-                              showZoomBadge: true,
-                              zoomTitle: pat.title,
-                              zoomSubtitle:
-                                  '${widget.brandTitle} · ${widget.systemTitle}',
-                            ),
-                            const SizedBox(width: 14),
-                          ],
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  pat.title,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: ToolkitColors.slateDark,
-                                  ),
+                          Row(
+                            children: [
+                              if (patAsset != null) ...[
+                                AluproThumbnail(
+                                  assetPath: patAsset,
+                                  width: 108,
+                                  height: 76,
+                                  borderRadius: 10,
+                                  padding: const EdgeInsets.all(4),
+                                  showZoomBadge: true,
+                                  zoomTitle: pat.title,
+                                  zoomSubtitle: '$_brandTitle · $_systemTitle',
                                 ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '${widget.brandTitle} · ${widget.systemTitle} · หน่วยมิลลิเมตร (มม.)',
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: ToolkitColors.slateMuted,
-                                  ),
-                                ),
-                                if (patAsset != null) ...[
-                                  const SizedBox(height: 5),
-                                  const Text(
-                                    'แตะรูปเพื่อขยายดูผังบาน',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: ToolkitColors.royalBlue,
-                                    ),
-                                  ),
-                                ],
+                                const SizedBox(width: 14),
                               ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      pat.title,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: ToolkitColors.slateDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '$_brandTitle · $_systemTitle · หน่วยมิลลิเมตร (มม.)',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: ToolkitColors.slateMuted,
+                                      ),
+                                    ),
+                                    if (patAsset != null) ...[
+                                      const SizedBox(height: 5),
+                                      const Text(
+                                        'แตะรูปเพื่อขยายดูผังบาน',
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: ToolkitColors.royalBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              key: const ValueKey('btn_change_pattern'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: ToolkitColors.royalBlue,
+                                side: BorderSide(
+                                  color: ToolkitColors.royalBlue
+                                      .withValues(alpha: 0.4),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: _onPickAnotherPattern,
+                              icon:
+                                  const Icon(Icons.swap_horiz_rounded, size: 17),
+                              label: const Text(
+                                'เปลี่ยนแบบบาน / เปลี่ยนโปรไฟล์ (เก็บขนาดเดิมไว้)',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1205,8 +1447,8 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Option Groups (Chips / Dropdown / Checkbox / Switch)
-                if (pat.optionGroups.isNotEmpty) ...[
+                // Option Groups (Chips / Dropdown / Checkbox / Switch) + Universal 3 Mosquito Screens
+                if (optionGroups.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(15),
                     decoration: BoxDecoration(
@@ -1226,7 +1468,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ...pat.optionGroups.map(_buildOptionControl),
+                        ...optionGroups.map(_buildOptionControl),
                         if (_showsDripTrayLength) ...[
                           const SizedBox(height: 6),
                           TextField(
@@ -1282,17 +1524,27 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: ToolkitColors.royalBlue,
+                    backgroundColor: isEditing
+                        ? ToolkitColors.successGreen
+                        : ToolkitColors.royalBlue,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   onPressed: _onCalculate,
-                  icon: const Icon(Icons.calculate_rounded, size: 20),
-                  label: const Text(
-                    'คำนวณระยะตัดและถอดของ',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  icon: Icon(
+                    isEditing
+                        ? Icons.update_rounded
+                        : Icons.calculate_rounded,
+                    size: 20,
+                  ),
+                  label: Text(
+                    isEditing
+                        ? 'คำนวณและอัปเดตงานเดิม'
+                        : 'คำนวณระยะตัดและถอดของ',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -1435,7 +1687,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
   }
 
   Widget _buildSizeInputSection() {
-    final mode = widget.pattern.tableMode;
+    final mode = _pattern.tableMode;
 
     if (mode == InputTableMode.cornerW1W2 || mode == InputTableMode.singleSet) {
       final row = _rows.first;
@@ -1466,7 +1718,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               decoration: InputDecoration(
                 labelText: isCorner
                     ? 'ความกว้างฝั่งซ้าย W1 (มม.) *'
-                    : (widget.pattern.auxType == AuxDimensionType.secondWidthW2
+                    : (_pattern.auxType == AuxDimensionType.secondWidthW2
                         ? 'ความกว้างบานที่ 1 W1 (มม.) *'
                         : 'ความกว้าง W (มม.) *'),
                 border: const OutlineInputBorder(),
@@ -1474,7 +1726,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            if (isCorner || widget.pattern.auxType != AuxDimensionType.none) ...[
+            if (isCorner || _pattern.auxType != AuxDimensionType.none) ...[
               TextField(
                 controller: row.auxCtrl,
                 keyboardType:
@@ -1482,7 +1734,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 decoration: InputDecoration(
                   labelText: isCorner
                       ? 'ความกว้างฝั่งขวา W2 (มม.) *'
-                      : '${widget.pattern.auxLabel ?? "ระยะเสริม (มม.)"} *',
+                      : '${_pattern.auxLabel ?? "ระยะเสริม (มม.)"} *',
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -1516,7 +1768,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
 
     // Multi-Row Table (standardMultiRow, fujiFourRow, smartPlus90FourCol)
     final hasAuxCol = mode == InputTableMode.smartPlus90FourCol ||
-        widget.pattern.auxType != AuxDimensionType.none;
+        _pattern.auxType != AuxDimensionType.none;
     final auxHeader = mode == InputTableMode.smartPlus90FourCol
         ? 'สูง H1'
         : 'H1 (มม.)';
@@ -1551,10 +1803,10 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               ),
             ],
           ),
-          if (widget.pattern.auxLabel != null) ...[
+          if (_pattern.auxLabel != null) ...[
             const SizedBox(height: 4),
             Text(
-              'หมายเหตุ: ${widget.pattern.auxLabel}',
+              'หมายเหตุ: ${_pattern.auxLabel}',
               style: const TextStyle(
                 fontSize: 12,
                 color: ToolkitColors.royalBlue,
@@ -1675,7 +1927,7 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
   }
 
   Widget _buildQuotationSpecCard() {
-    final pat = widget.pattern;
+    final pat = _pattern;
     final hasOwnThickness = pat.optionGroups.any((g) => g.id == 'thickness');
     final hasOwnGlassThick = pat.optionGroups.any((g) => g.id == 'glass_thick');
 

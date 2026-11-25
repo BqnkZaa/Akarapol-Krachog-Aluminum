@@ -258,8 +258,11 @@ class QuotationSpecFormatter {
   /// Detects mosquito screen note from calculation options if selected.
   static String? detectMosquitoNote(SavedProjectItem item) {
     final mosq = item.selectedOptions['mosquito']?.trim() ?? '';
-    if (mosq == 'small_mkt') return 'พร้อมชุดมุ้งบานเลื่อน';
-    if (mosq == 'true' || mosq == 'pleated') return 'พร้อมมุ้งลวด';
+    if (mosq == 'pleated') return 'เสริมมุ้งจีบ';
+    if (mosq == 'security') return 'เสริมมุ้งนิรภัย (ตาข่ายสแตนเลส)';
+    if (mosq == 'fiber' || mosq == 'small_mkt' || mosq == 'true') {
+      return 'เสริมมุ้งไฟเบอร์';
+    }
     return null;
   }
 

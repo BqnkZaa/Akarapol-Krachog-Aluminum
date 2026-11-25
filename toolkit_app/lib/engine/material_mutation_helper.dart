@@ -364,4 +364,102 @@ class MaterialMutationHelper {
       ..removeAt(index);
     return output.copyWith(hardware: next);
   }
+
+  // --- Project Item Quantity Scaling (Preserves Custom Material Edits!) ---
+
+  /// Updates the set quantities for each [SizeRowInput] of a [SavedProjectItem],
+  /// scaling every evaluated cut piece, glass panel, and hardware item cleanly
+  /// while preserving any user-customized material swaps/additions from v0.1.10.
+  static SavedProjectItem updateProjectItemQuantities(
+    SavedProjectItem item,
+    List<int> newRowQtys,
+  ) {
+    if (item.sizeRows.isEmpty) return item;
+
+    final nextRows = <SizeRowInput>[];
+    for (int i = 0; i < item.sizeRows.length; i++) {
+      final oldRow = item.sizeRows[i];
+      final requested = i < newRowQtys.length ? newRowQtys[i] : oldRow.qty;
+      final clamped = requested.clamp(1, 9999);
+      nextRows.add(
+        SizeRowInput(
+          widthMm: oldRow.widthMm,
+          heightMm: oldRow.heightMm,
+          auxMm: oldRow.auxMm,
+          qty: clamped,
+        ),
+      );
+    }
+
+    final oldTotalUnits = item.totalUnits > 0 ? item.totalUnits : 1;
+    final newTotalUnits = nextRows.fold<int>(0, (s, r) => s + r.qty);
+    final oldArea = item.totalOpeningAreaSqM;
+    final newArea = nextRows.fold<double>(
+      0.0,
+      (s, r) => s + ((r.widthMm * r.heightMm) / 1000000.0) * r.qty,
+    );
+
+    final nextSets = <EvaluatedSetResult>[];
+    for (int i = 0; i < item.evaluatedSets.length; i++) {
+      final s = item.evaluatedSets[i];
+      final oldQty = s.sizeRow.qty > 0 ? s.sizeRow.qty : 1;
+      final nextRow = i < nextRows.length
+          ? nextRows[i]
+          : SizeRowInput(
+              widthMm: s.sizeRow.widthMm,
+              heightMm: s.sizeRow.heightMm,
+              auxMm: s.sizeRow.auxMm,
+              qty: oldQty,
+            );
+      final newQty = nextRow.qty;
+
+      final nextCuts = s.cuts.map((c) {
+        final scaledTotalQty = c.qtyPerSet > 0
+            ? c.qtyPerSet * newQty
+            : ((c.totalQty / oldQty) * newQty).round().clamp(1, 999999);
+        final scaledEstMm = c.estimatedTotalMm != null
+            ? (c.estimatedTotalMm! / oldQty) * newQty
+            : null;
+        return c.copyWith(
+          totalQty: scaledTotalQty,
+          estimatedTotalMm: scaledEstMm,
+        );
+      }).toList();
+
+      final nextGlasses = s.glasses.map((g) {
+        final scaledPanels =
+            ((g.totalPanels / oldQty) * newQty).round().clamp(1, 999999);
+        return g.copyWith(totalPanels: scaledPanels);
+      }).toList();
+
+      nextSets.add(
+        s.copyWith(
+          sizeRow: nextRow,
+          cuts: nextCuts,
+          glasses: nextGlasses,
+        ),
+      );
+    }
+
+    final nextHw = item.hardware.map((h) {
+      if (h.decimalQty != null) {
+        final ratio =
+            oldArea > 0 ? (newArea / oldArea) : (newTotalUnits / oldTotalUnits);
+        final nextDec = ((h.decimalQty! * ratio) * 100.0).round() / 100.0;
+        return h.copyWith(decimalQty: nextDec > 0 ? nextDec : 0.01);
+      }
+      if (h.numericQty != null) {
+        final scaled =
+            ((h.numericQty! / oldTotalUnits) * newTotalUnits).round();
+        return h.copyWith(numericQty: scaled < 1 ? 1 : scaled);
+      }
+      return h;
+    }).toList();
+
+    return item.copyWith(
+      sizeRows: nextRows,
+      evaluatedSets: nextSets,
+      hardware: nextHw,
+    );
+  }
 }

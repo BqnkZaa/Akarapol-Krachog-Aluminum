@@ -1,3 +1,4 @@
+import '../data/catalog_definitions.dart';
 import '../data/seed_repository.dart';
 import '../models/app_models.dart';
 import 'bin_packer.dart';
@@ -58,6 +59,7 @@ class ParametricSystemResolver {
             qtyPerSet: c.qty,
             totalQty: c.qty * row.qty,
             angle: c.angle,
+            brandOverride: c.brandOverride,
           ),
         );
       }
@@ -191,6 +193,36 @@ class ParametricSystemResolver {
 
     for (final h in perSetSpecs) {
       final qt = h.qtyText.trim();
+      if (qt.startsWith('AREA_SQM')) {
+        final unit = qt.substring('AREA_SQM'.length).trim();
+        final resolvedUnit = unit.isEmpty ? 'ตร.ม.' : unit;
+        final hasTransomH1 =
+            pattern.auxType == AuxDimensionType.refHeightH1 ||
+                pattern.auxType == AuxDimensionType.transomHeightHt ||
+                pattern.tableMode == InputTableMode.smartPlus90FourCol ||
+                pattern.id.contains('_top_') ||
+                pattern.id.contains('_bot_');
+        double areaSum = 0.0;
+        for (final r in rows) {
+          final vars = _buildVariables(pattern, r, null);
+          final effW = pattern.tableMode == InputTableMode.cornerW1W2
+              ? ((vars['W1'] ?? r.widthMm) + (vars['W2'] ?? 0.0))
+              : r.widthMm;
+          final effH = hasTransomH1 ? (vars['H1'] ?? r.heightMm) : r.heightMm;
+          areaSum += ((effW * effH) / 1000000.0) * (r.qty > 0 ? r.qty : 1);
+        }
+        final roundedArea = ((areaSum * 100.0).round() / 100.0);
+        out.add(
+          AggregatedHardwareItem(
+            code: h.code,
+            name: h.name,
+            decimalQty: roundedArea > 0 ? roundedArea : 0.01,
+            unitOrNote: resolvedUnit,
+          ),
+        );
+        continue;
+      }
+
       final m = RegExp(r'^(\d+)\s*(.*)$').firstMatch(qt);
       if (m != null) {
         final baseN = int.parse(m.group(1)!);
@@ -241,7 +273,22 @@ class ParametricSystemResolver {
   }) {
     // 1. Category 4 Parametric Folding Family (136 active cards)
     if (pattern.foldingFamily != null) {
-      return _resolveFoldingTable(pattern, selectedOptions, seed);
+      final foldTable = _resolveFoldingTable(pattern, selectedOptions, seed);
+      final foldCuts = foldTable.cuts.map((c) => c.copyWith()).toList();
+      final foldHw = List<HardwareItemSpec>.from(foldTable.hardware);
+      _applyUniversalMosquitoModifier(
+        pattern: pattern,
+        opts: selectedOptions,
+        cuts: foldCuts,
+        hardware: foldHw,
+      );
+      return VerifiedFormulaTable(
+        key: foldTable.key,
+        header: foldTable.header,
+        cuts: foldCuts,
+        glasses: foldTable.glasses,
+        hardware: foldHw,
+      );
     }
 
     // 2. Determine Base Key (accounting for direct variant tables in seed)
@@ -373,6 +420,13 @@ class ParametricSystemResolver {
       );
     }
 
+    _applyUniversalMosquitoModifier(
+      pattern: pattern,
+      opts: selectedOptions,
+      cuts: cuts,
+      hardware: hardware,
+    );
+
     return VerifiedFormulaTable(
       key: base.key,
       header: base.header,
@@ -380,6 +434,230 @@ class ParametricSystemResolver {
       glasses: glasses,
       hardware: hardware,
     );
+  }
+
+  /// Universal 3-Type Mosquito Screen Modifier applied to every operable pattern
+  /// across all categories (EXCEPT pure fixed windows & shower systems).
+  /// When `mosquito` is unset or `'none'` / `'false'`, this is a strict no-op,
+  /// guaranteeing 0 regressions on all 194 verified factory formula tables.
+  static void _applyUniversalMosquitoModifier({
+    required PatternCardDef pattern,
+    required Map<String, String> opts,
+    required List<CutPieceSpec> cuts,
+    required List<HardwareItemSpec> hardware,
+  }) {
+    final raw = (opts['mosquito'] ?? 'none').trim();
+    if (raw.isEmpty || raw == 'none' || raw == 'false') return;
+    if (CatalogDefinitions.isFixedOnlyPattern(pattern)) return;
+
+    final pid = pattern.id.toLowerCase();
+    final title = pattern.title.toLowerCase();
+    final hasTransomH1 =
+        pattern.auxType == AuxDimensionType.refHeightH1 ||
+            pattern.auxType == AuxDimensionType.transomHeightHt ||
+            pattern.tableMode == InputTableMode.smartPlus90FourCol ||
+            pid.contains('_top_') ||
+            pid.contains('_bot_');
+    final hVar = hasTransomH1 ? 'H1' : 'H';
+
+    final isFolding = pattern.foldingFamily != null ||
+        pid.contains('fold') ||
+        pid.startsWith('c4_') ||
+        title.contains('เฟี้ยม');
+    final isSliding = !isFolding &&
+        (pid.contains('_s2') ||
+            pid.contains('_s3') ||
+            pid.contains('_s4') ||
+            pid.contains('_s5') ||
+            pid.contains('_s6') ||
+            pid.contains('hang') ||
+            title.contains('เลื่อน'));
+    final isDoubleLeaf = pid.contains('_s4') ||
+        pid.contains('_s6') ||
+        pid.contains('case2') ||
+        pid.contains('win2') ||
+        pid.contains('win3') ||
+        pid.contains('win7') ||
+        pid.contains('awn2') ||
+        pid.contains('door2') ||
+        pid.contains('sw2') ||
+        pid.contains('hang2') ||
+        title.contains('คู่') ||
+        title.contains('แบ่ง 4') ||
+        title.contains('4 บาน') ||
+        title.contains('6 บาน') ||
+        (pattern.foldingTotalPanels ?? 0) >= 4;
+    final is3PanelSliding =
+        isSliding && (pid.contains('_s3') || title.contains('3 บาน'));
+
+    final mosqPanels = isDoubleLeaf ? 2 : 1;
+
+    // 1. Pleated Screen (มุ้งจีบ — ชุดสำเร็จรูปคิดตาม ตร.ม. ไม่แยกเส้นตัด)
+    if (raw == 'pleated') {
+      hardware.add(
+        const HardwareItemSpec(
+          code: 'MS-PLEATED',
+          name: 'ชุดมุ้งจีบสำเร็จรูป (รวมรางและมุ้ง)',
+          qtyText: 'AREA_SQM ตร.ม.',
+        ),
+      );
+      return;
+    }
+
+    // 2. Security Mesh Screen (มุ้งนิรภัย — กรอบมุ้งนิรภัย + คิ้วตบ + ตาข่ายสแตนเลส + ล็อก)
+    if (raw == 'security') {
+      final horizFormula = isSliding
+          ? (is3PanelSliding
+              ? '(W - 50) / 3'
+              : (isDoubleLeaf ? '(W - 60) / 2' : '(W - 50) / 2'))
+          : (isDoubleLeaf ? '(W - 60) / 2' : 'W - 50');
+      final beadHorizFormula = isSliding
+          ? (is3PanelSliding
+              ? '(W - 110) / 3'
+              : (isDoubleLeaf ? '(W - 120) / 2' : '(W - 110) / 2'))
+          : (isDoubleLeaf ? '(W - 120) / 2' : 'W - 110');
+
+      cuts.addAll([
+        CutPieceSpec(
+          section: 'มุ้งนิรภัย',
+          code: 'MS-SEC-F',
+          name: 'กรอบมุ้งนิรภัยแนวตั้ง',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '45° / 45°',
+          formula: '$hVar - 50',
+          brandOverride: 'MOSQUITO',
+        ),
+        CutPieceSpec(
+          section: 'มุ้งนิรภัย',
+          code: 'MS-SEC-F',
+          name: 'กรอบมุ้งนิรภัยแนวนอน',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '45° / 45°',
+          formula: horizFormula,
+          brandOverride: 'MOSQUITO',
+        ),
+        CutPieceSpec(
+          section: 'มุ้งนิรภัย',
+          code: 'MS-SEC-C',
+          name: 'คิ้วตบกรอบมุ้งนิรภัยแนวตั้ง',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '90° / 90°',
+          formula: '$hVar - 110',
+          brandOverride: 'MOSQUITO',
+        ),
+        CutPieceSpec(
+          section: 'มุ้งนิรภัย',
+          code: 'MS-SEC-C',
+          name: 'คิ้วตบกรอบมุ้งนิรภัยแนวนอน',
+          stockMm: 6400,
+          qty: 2 * mosqPanels,
+          qtyText: '${2 * mosqPanels} ชิ้น',
+          angle: '90° / 90°',
+          formula: beadHorizFormula,
+          brandOverride: 'MOSQUITO',
+        ),
+      ]);
+      hardware.addAll([
+        const HardwareItemSpec(
+          code: 'MS-MESH-SEC',
+          name: 'ตาข่ายสแตนเลสมุ้งนิรภัย (304)',
+          qtyText: 'AREA_SQM ตร.ม.',
+        ),
+        HardwareItemSpec(
+          code: 'MS-LOCK-SEC',
+          name: 'ชุดมือจับและล็อกมุ้งนิรภัย',
+          qtyText: '$mosqPanels ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'MS-ACC-SEC',
+          name: 'ลูกล้อ/บานพับมุ้งนิรภัย',
+          qtyText: '${4 * mosqPanels} ตัว',
+        ),
+      ]);
+      return;
+    }
+
+    // 3. Fiber Mosquito Screen (มุ้งไฟเบอร์: fiber | small_mkt | true)
+    if (raw == 'fiber' || raw == 'small_mkt' || raw == 'true') {
+      final alreadyHasMosqCuts =
+          cuts.any((c) => c.section.contains('มุ้ง') || c.name.contains('มุ้ง'));
+      if (!alreadyHasMosqCuts) {
+        final horizFormula = isSliding
+            ? (is3PanelSliding
+                ? '(W - 47) / 3'
+                : (isDoubleLeaf ? '(W - 55) / 2' : '(W - 47) / 2'))
+            : (isDoubleLeaf ? '(W - 55) / 2' : 'W - 47');
+        final barFormula = isSliding
+            ? (is3PanelSliding
+                ? '(W - 134) / 3'
+                : (isDoubleLeaf ? '(W - 142) / 2' : '(W - 134) / 2'))
+            : (isDoubleLeaf ? '(W - 142) / 2' : 'W - 134');
+
+        cuts.addAll([
+          CutPieceSpec(
+            section: 'มุ้งไฟเบอร์',
+            code: 'MS-FIBER-F',
+            name: 'กรอบมุ้งไฟเบอร์แนวตั้ง (2006)',
+            stockMm: 6400,
+            qty: 2 * mosqPanels,
+            qtyText: '${2 * mosqPanels} ชิ้น',
+            angle: '45° / 45°',
+            formula: '$hVar - 54',
+            brandOverride: 'MOSQUITO',
+          ),
+          CutPieceSpec(
+            section: 'มุ้งไฟเบอร์',
+            code: 'MS-FIBER-F',
+            name: 'กรอบมุ้งไฟเบอร์แนวนอน (2006)',
+            stockMm: 6400,
+            qty: 2 * mosqPanels,
+            qtyText: '${2 * mosqPanels} ชิ้น',
+            angle: '45° / 45°',
+            formula: horizFormula,
+            brandOverride: 'MOSQUITO',
+          ),
+          CutPieceSpec(
+            section: 'มุ้งไฟเบอร์',
+            code: 'MS-FIBER-B',
+            name: 'เส้นคาดกลางมุ้งไฟเบอร์ (2005)',
+            stockMm: 6400,
+            qty: mosqPanels,
+            qtyText: '$mosqPanels ชิ้น',
+            angle: '90° / 90°',
+            formula: barFormula,
+            brandOverride: 'MOSQUITO',
+          ),
+        ]);
+      }
+
+      // Add fiber mesh & accessories only if not already provided by native NEX/Fuji/SmartX table
+      final alreadyHasMosqHw = hardware.any((h) => h.name.contains('มุ้ง'));
+      if (!alreadyHasMosqHw) {
+        hardware.addAll([
+          const HardwareItemSpec(
+            code: 'MS-MESH-FIBER',
+            name: 'ผ้ามุ้งไฟเบอร์ + ยางอัดมุ้ง',
+            qtyText: 'AREA_SQM ตร.ม.',
+          ),
+          HardwareItemSpec(
+            code: 'MS-CORNER-F',
+            name: 'มุมมุ้งพลาสติก',
+            qtyText: '${4 * mosqPanels} ตัว',
+          ),
+          HardwareItemSpec(
+            code: 'MS-ACC-F',
+            name: 'ลูกล้อ/บานพับมุ้งไฟเบอร์',
+            qtyText: '${2 * mosqPanels} ตัว',
+          ),
+        ]);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

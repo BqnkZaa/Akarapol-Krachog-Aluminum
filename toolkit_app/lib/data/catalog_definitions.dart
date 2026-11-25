@@ -4,6 +4,129 @@ import 'seed_repository.dart';
 class CatalogDefinitions {
   CatalogDefinitions._();
 
+  /// Universal 3-type mosquito screen selector injected automatically on every
+  /// operable door/window profile across all categories EXCEPT fixed windows
+  /// (`บานติดตาย`) and frameless shower systems.
+  static const OptionGroupDef universalMosquitoOptionGroup = OptionGroupDef(
+    id: 'mosquito',
+    title: 'ประเภทมุ้งลวด (เลือกเสริมได้ 3 แบบ)',
+    choices: [
+      OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
+      OptionChoice(id: 'fiber', label: 'มุ้งไฟเบอร์'),
+      OptionChoice(id: 'pleated', label: 'มุ้งจีบ'),
+      OptionChoice(id: 'security', label: 'มุ้งนิรภัย'),
+    ],
+    defaultValue: 'none',
+  );
+
+  /// Returns `true` when [pattern] represents a pure fixed window / transom /
+  /// frameless shower system that MUST NOT include mosquito screen options.
+  static bool isFixedOnlyPattern(
+    PatternCardDef pattern, {
+    String? categoryId,
+    String? systemId,
+  }) {
+    if (categoryId == 'cat5_shower') return true;
+    final sys = (systemId ?? '').toLowerCase();
+    if (sys.contains('fixed') || sys.endsWith('_fix') || sys.contains('_fix_')) {
+      return true;
+    }
+    final pid = pattern.id.toLowerCase();
+    if (pid.contains('_fix')) {
+      return true;
+    }
+    final title = pattern.title.toLowerCase();
+    final hasOperableWord = title.contains('เลื่อน') ||
+        title.contains('เปิด') ||
+        title.contains('กระทุ้ง') ||
+        title.contains('เฟี้ยม') ||
+        title.contains('สวิง') ||
+        title.contains('รางแขวน') ||
+        title.contains('ชุดผสม');
+    if (!hasOperableWord &&
+        (title.contains('ติดตาย') ||
+            title.contains('ช่องแสงเดี่ยว') ||
+            title.contains('ช่องแสงแบ่ง') ||
+            title.contains('บานฟิก') ||
+            title.contains('fixed'))) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Returns the effective list of [OptionGroupDef]s for [pattern],
+  /// automatically appending [universalMosquitoOptionGroup] to every operable
+  /// profile (except fixed windows & shower systems).
+  static List<OptionGroupDef> effectiveOptionGroupsFor(
+    PatternCardDef pattern, {
+    String? categoryId,
+    String? systemId,
+  }) {
+    if (isFixedOnlyPattern(
+      pattern,
+      categoryId: categoryId,
+      systemId: systemId,
+    )) {
+      return pattern.optionGroups;
+    }
+    if (pattern.optionGroups.any((g) => g.id == 'mosquito')) {
+      return pattern.optionGroups;
+    }
+    return [...pattern.optionGroups, universalMosquitoOptionGroup];
+  }
+
+  /// Looks up a [PatternCardDef] and its full catalog ancestry by [patternId],
+  /// searching both built-in catalogs and user-defined Custom Studio systems.
+  static ({
+    CategoryDef category,
+    BrandDef? brand,
+    SubSystemDef? system,
+    PatternCardDef pattern,
+  })? findPatternById(
+    String patternId, [
+    List<CustomProfileSystem>? customOverride,
+  ]) {
+    final cats = mergedCategories(customOverride);
+    for (final cat in cats) {
+      for (final sys in cat.directSystems) {
+        for (final pat in sys.patterns) {
+          if (pat.id == patternId) {
+            return (category: cat, brand: null, system: sys, pattern: pat);
+          }
+        }
+        for (final tab in sys.subTabs) {
+          for (final pat in tab.patterns) {
+            if (pat.id == patternId) {
+              return (category: cat, brand: null, system: tab, pattern: pat);
+            }
+          }
+        }
+      }
+      for (final br in cat.brands) {
+        for (final pat in br.directPatterns) {
+          if (pat.id == patternId) {
+            return (category: cat, brand: br, system: null, pattern: pat);
+          }
+        }
+        for (final sys in br.systems) {
+          for (final pat in sys.patterns) {
+            if (pat.id == patternId) {
+              return (category: cat, brand: br, system: sys, pattern: pat);
+            }
+          }
+          for (final tab in sys.subTabs) {
+            for (final pat in tab.patterns) {
+              if (pat.id == patternId) {
+                return (category: cat, brand: br, system: tab, pattern: pat);
+              }
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   /// Merges built-in categories with any user-created [CustomProfileSystem]s.
   static List<CategoryDef> mergedCategories([
     List<CustomProfileSystem>? customOverride,
@@ -450,16 +573,12 @@ class CatalogDefinitions {
     ),
     OptionGroupDef(
       id: 'mosquito',
-      title: 'ประเภทมุ้ง',
+      title: 'ประเภทมุ้งลวด (เลือกเสริมได้ 3 แบบ)',
       choices: [
         OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
-        OptionChoice(id: 'small_mkt', label: 'มุ้งตลาดเล็ก'),
-        OptionChoice(
-          id: 'security',
-          label: 'มุ้งนิรภัย',
-          enabled: false,
-          disabledBadge: 'รอสูตรที่ได้รับการยืนยัน',
-        ),
+        OptionChoice(id: 'small_mkt', label: 'มุ้งไฟเบอร์ (ตลาดเล็ก)'),
+        OptionChoice(id: 'pleated', label: 'มุ้งจีบ'),
+        OptionChoice(id: 'security', label: 'มุ้งนิรภัย'),
       ],
       defaultValue: 'none',
     ),
@@ -503,10 +622,12 @@ class CatalogDefinitions {
     ),
     OptionGroupDef(
       id: 'mosquito',
-      title: 'มุ้งไฟเบอร์ (รางใน)',
+      title: 'ประเภทมุ้งลวด (เลือกเสริมได้ 3 แบบ)',
       choices: [
         OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
-        OptionChoice(id: 'fiber', label: 'มีมุ้งไฟเบอร์ (กรอบ 2006 + ชนกลาง 4017)'),
+        OptionChoice(id: 'fiber', label: 'มุ้งไฟเบอร์ (กรอบ 2006 + 4017)'),
+        OptionChoice(id: 'pleated', label: 'มุ้งจีบ'),
+        OptionChoice(id: 'security', label: 'มุ้งนิรภัย'),
       ],
       defaultValue: 'none',
     ),
@@ -575,13 +696,14 @@ class CatalogDefinitions {
     ),
     OptionGroupDef(
       id: 'mosquito',
-      title: 'มุ้งลวด',
-      controlType: OptionControlType.switchToggle,
+      title: 'ประเภทมุ้งลวด (เลือกเสริมได้ 3 แบบ)',
       choices: [
-        OptionChoice(id: 'false', label: 'ไม่รวมมุ้ง'),
-        OptionChoice(id: 'true', label: 'รวมมุ้งลวด'),
+        OptionChoice(id: 'none', label: 'ไม่มีมุ้ง'),
+        OptionChoice(id: 'true', label: 'มุ้งไฟเบอร์ (กรอบ F7982)'),
+        OptionChoice(id: 'pleated', label: 'มุ้งจีบ'),
+        OptionChoice(id: 'security', label: 'มุ้งนิรภัย'),
       ],
-      defaultValue: 'false',
+      defaultValue: 'none',
     ),
   ];
 

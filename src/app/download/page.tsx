@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.10/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.11/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,9 +51,9 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.10 (VIP Offline)",
+      version: "0.1.11 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
-      sizeMb: "42.50",
+      sizeMb: "42.70",
       sha256: "-",
       updatedAt: "-",
     };
@@ -75,8 +75,8 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "คำนวณระยะตัดครบ 5 หมวด (รวม ALUMET NEX) และเปลี่ยนชิ้นส่วนวัสดุได้สด",
-      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ยูโรโปรไฟล์ และบานเฟี้ยมครบ 136 ผัง สามารถแตะแก้ไข/สลับรหัสเส้นอลูมิเนียมข้ามแบรนด์ แก้ขนาดกระจก และเพิ่ม–ลบอุปกรณ์ได้ทั้งตอนคำนวณและในงานโปรเจกต์",
+      title: "คำนวณระยะตัดครบ 5 หมวด · เสริมมุ้งครบ 3 แบบทุกโปรไฟล์ (เว้นบานติดตาย)",
+      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ยูโรโปรไฟล์ และบานเฟี้ยม 136 ผัง รองรับมุ้งไฟเบอร์ มุ้งจีบ และมุ้งนิรภัยทุกโปรไฟล์ (ยกเว้นบานติดตาย) พร้อมแก้ไขแบบ/เปลี่ยนโปรไฟล์และสลับชิ้นส่วนวัสดุข้ามแบรนด์ได้สด",
     },
     {
       icon: Layers,
@@ -85,13 +85,13 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Calculator,
-      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,924 รายการ) ปรับ % กำไรและค่าแรงสด",
-      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวม ALUMET NEX 21/11/2569) ปรับลด–เพิ่มเปอร์เซ็นต์กำไร (%) และค่าแรงติดตั้ง (บาท/ตร.ม. หรือเหมา) พร้อมบันทึกค่าตั้งต้นของร้านและสำรองตารางราคา (.json)",
+      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,952 รายการ) ปรับ % กำไรและค่าแรงสด",
+      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวม ALUMET NEX 21/11/2569 และชุดมุ้งทั้ง 3 แบบ) ปรับเปอร์เซ็นต์กำไร (%) และค่าแรงได้ 3 แบบ (บาท/ตร.ม., เหมาทั้งงาน, หรือ % ค่าของ) พร้อมบันทึกค่าตั้งต้นของร้านและสำรองตารางราคา (.json)",
     },
     {
       icon: FileText,
-      title: "จัดการแฟ้มโครงการและออกเอกสาร PDF มาตรฐาน A4",
-      desc: "บันทึกงานแยกตามโครงการ ออกใบสั่งตัดเดี่ยว เอกสารสรุปโครงการพร้อมผังจัดเส้นแนวนอน และใบเสนอราคาทั้งแบบแยกรายการและเหมาทั้งโครงการ ปรับ % กำไร/ค่าแรงและส่วนลด (บาท หรือ %) ได้สดก่อนออก PDF",
+      title: "ปรับจำนวนชุดก่อนทำใบราคา แก้ไขใบเสนอราคาเดิม และออก PDF มาตรฐาน A4",
+      desc: "เพิ่ม–ลดจำนวนชุดได้ทันทีในโปรเจกต์ หน้าทำราคา และหน้าใบเสนอราคา กดแก้ไขแบบบานหรือแก้ไขใบเสนอราคาเดิมได้โดยไม่ต้องลบและสร้างใหม่ พร้อมปรับ % กำไร/ค่าแรงและส่วนลด (บาท หรือ %) ก่อนออก PDF",
     },
   ];
 
@@ -253,10 +253,10 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      3,924
+                      3,952
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ฐานข้อมูลราคา 8 แบรนด์
+                      ฐานข้อมูลราคา 8 แบรนด์ + มุ้ง 3 แบบ
                     </p>
                   </div>
                   <div>

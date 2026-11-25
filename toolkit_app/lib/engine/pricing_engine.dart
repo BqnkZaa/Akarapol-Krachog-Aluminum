@@ -239,9 +239,22 @@ class PricingEngine {
     final safeLaborRate = laborRate < 0 ? 0.0 : laborRate;
     final safeProfitPct = profitPercent.clamp(0.0, 200.0);
 
-    final laborCost = laborMode == LaborCostMode.perSqM
-        ? round2(safeArea * safeLaborRate)
-        : round2(safeLaborRate);
+    final double effectiveLaborRate;
+    final double laborCost;
+    switch (laborMode) {
+      case LaborCostMode.perSqM:
+        effectiveLaborRate = safeLaborRate;
+        laborCost = round2(safeArea * effectiveLaborRate);
+        break;
+      case LaborCostMode.flatBaht:
+        effectiveLaborRate = safeLaborRate;
+        laborCost = round2(effectiveLaborRate);
+        break;
+      case LaborCostMode.percentOfMaterial:
+        effectiveLaborRate = safeLaborRate.clamp(0.0, 200.0);
+        laborCost = round2(safeMat * (effectiveLaborRate / 100.0));
+        break;
+    }
 
     final profitBase = profitBaseMode == ProfitBaseMode.materialAndLabor
         ? (safeMat + laborCost)
@@ -253,7 +266,7 @@ class PricingEngine {
       materialCost: round2(safeMat),
       openingAreaSqM: round2(safeArea),
       laborMode: laborMode,
-      laborRate: safeLaborRate,
+      laborRate: effectiveLaborRate,
       laborCost: laborCost,
       profitPercent: safeProfitPct,
       profitBaseMode: profitBaseMode,
@@ -784,7 +797,7 @@ class PricingEngine {
     double hwSum = 0.0;
     for (final h in hardware) {
       final rate = matchHardwareRate(hw: h, mergedHwRates: mergedHw);
-      final qty = h.numericQty;
+      final qty = h.effectiveQty;
       if (qty == null || qty <= 0) {
         hwLines.add(
           HardwareCostLine(
