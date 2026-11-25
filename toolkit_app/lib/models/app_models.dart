@@ -374,6 +374,7 @@ class EvaluatedCutItem {
   final int qtyPerSet;
   final int totalQty;
   final String angle;
+  final String? brandOverride;
 
   const EvaluatedCutItem({
     required this.section,
@@ -386,7 +387,41 @@ class EvaluatedCutItem {
     required this.qtyPerSet,
     required this.totalQty,
     required this.angle,
+    this.brandOverride,
   });
+
+  EvaluatedCutItem copyWith({
+    String? section,
+    String? code,
+    String? name,
+    int? stockMm,
+    bool? isSiteMeasured,
+    double? lengthMm,
+    bool clearLengthMm = false,
+    double? estimatedTotalMm,
+    bool clearEstimatedTotalMm = false,
+    int? qtyPerSet,
+    int? totalQty,
+    String? angle,
+    String? brandOverride,
+    bool clearBrandOverride = false,
+  }) =>
+      EvaluatedCutItem(
+        section: section ?? this.section,
+        code: code ?? this.code,
+        name: name ?? this.name,
+        stockMm: stockMm ?? this.stockMm,
+        isSiteMeasured: isSiteMeasured ?? this.isSiteMeasured,
+        lengthMm: clearLengthMm ? null : (lengthMm ?? this.lengthMm),
+        estimatedTotalMm: clearEstimatedTotalMm
+            ? null
+            : (estimatedTotalMm ?? this.estimatedTotalMm),
+        qtyPerSet: qtyPerSet ?? this.qtyPerSet,
+        totalQty: totalQty ?? this.totalQty,
+        angle: angle ?? this.angle,
+        brandOverride:
+            clearBrandOverride ? null : (brandOverride ?? this.brandOverride),
+      );
 
   Map<String, dynamic> toJson() => {
         'section': section,
@@ -399,6 +434,8 @@ class EvaluatedCutItem {
         'qtyPerSet': qtyPerSet,
         'totalQty': totalQty,
         'angle': angle,
+        if (brandOverride != null && brandOverride!.trim().isNotEmpty)
+          'brandOverride': brandOverride!.trim(),
       };
 
   factory EvaluatedCutItem.fromJson(Map<String, dynamic> j) => EvaluatedCutItem(
@@ -412,6 +449,7 @@ class EvaluatedCutItem {
         qtyPerSet: (j['qtyPerSet'] as num).toInt(),
         totalQty: (j['totalQty'] as num).toInt(),
         angle: j['angle'] as String,
+        brandOverride: j['brandOverride'] as String?,
       );
 }
 
@@ -431,6 +469,25 @@ class EvaluatedGlassItem {
     required this.totalPanels,
     required this.setIndex,
   });
+
+  EvaluatedGlassItem copyWith({
+    String? name,
+    bool? siteCut,
+    double? widthMm,
+    bool clearWidthMm = false,
+    double? heightMm,
+    bool clearHeightMm = false,
+    int? totalPanels,
+    int? setIndex,
+  }) =>
+      EvaluatedGlassItem(
+        name: name ?? this.name,
+        siteCut: siteCut ?? this.siteCut,
+        widthMm: clearWidthMm ? null : (widthMm ?? this.widthMm),
+        heightMm: clearHeightMm ? null : (heightMm ?? this.heightMm),
+        totalPanels: totalPanels ?? this.totalPanels,
+        setIndex: setIndex ?? this.setIndex,
+      );
 
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -465,6 +522,19 @@ class EvaluatedSetResult {
     required this.glasses,
   });
 
+  EvaluatedSetResult copyWith({
+    int? setIndex,
+    SizeRowInput? sizeRow,
+    List<EvaluatedCutItem>? cuts,
+    List<EvaluatedGlassItem>? glasses,
+  }) =>
+      EvaluatedSetResult(
+        setIndex: setIndex ?? this.setIndex,
+        sizeRow: sizeRow ?? this.sizeRow,
+        cuts: cuts ?? this.cuts,
+        glasses: glasses ?? this.glasses,
+      );
+
   Map<String, dynamic> toJson() => {
         'setIndex': setIndex,
         'sizeRow': sizeRow.toJson(),
@@ -497,6 +567,20 @@ class AggregatedHardwareItem {
     this.numericQty,
     required this.unitOrNote,
   });
+
+  AggregatedHardwareItem copyWith({
+    String? code,
+    String? name,
+    int? numericQty,
+    bool clearNumericQty = false,
+    String? unitOrNote,
+  }) =>
+      AggregatedHardwareItem(
+        code: code ?? this.code,
+        name: name ?? this.name,
+        numericQty: clearNumericQty ? null : (numericQty ?? this.numericQty),
+        unitOrNote: unitOrNote ?? this.unitOrNote,
+      );
 
   String get displayQty =>
       numericQty != null ? '$numericQty $unitOrNote' : unitOrNote;
@@ -593,6 +677,29 @@ class CalculationOutput {
     required this.hardware,
     required this.barGroups,
   });
+
+  CalculationOutput copyWith({
+    String? brandTitle,
+    String? priceBrandKey,
+    String? systemTitle,
+    String? patternId,
+    String? patternTitle,
+    Map<String, String>? selectedOptions,
+    List<EvaluatedSetResult>? sets,
+    List<AggregatedHardwareItem>? hardware,
+    List<ProfileBarGroup>? barGroups,
+  }) =>
+      CalculationOutput(
+        brandTitle: brandTitle ?? this.brandTitle,
+        priceBrandKey: priceBrandKey ?? this.priceBrandKey,
+        systemTitle: systemTitle ?? this.systemTitle,
+        patternId: patternId ?? this.patternId,
+        patternTitle: patternTitle ?? this.patternTitle,
+        selectedOptions: selectedOptions ?? this.selectedOptions,
+        sets: sets ?? this.sets,
+        hardware: hardware ?? this.hardware,
+        barGroups: barGroups ?? this.barGroups,
+      );
 
   int get totalSetsCount => sets.fold(0, (s, e) => s + e.sizeRow.qty);
   int get totalStockBars => barGroups.fold(0, (s, g) => s + g.totalBars);

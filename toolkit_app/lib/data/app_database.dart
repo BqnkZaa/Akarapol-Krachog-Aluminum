@@ -748,6 +748,31 @@ class AppDatabase {
     );
   }
 
+  Future<void> updateProjectItemMaterials({
+    required int itemId,
+    required int projectId,
+    required List<EvaluatedSetResult> evaluatedSets,
+    required List<AggregatedHardwareItem> hardware,
+  }) async {
+    final db = await database;
+    await db.update(
+      'project_items',
+      {
+        'evaluated_sets_json':
+            jsonEncode(evaluatedSets.map((e) => e.toJson()).toList()),
+        'hardware_json': jsonEncode(hardware.map((e) => e.toJson()).toList()),
+      },
+      where: 'id = ?',
+      whereArgs: [itemId],
+    );
+    await db.update(
+      'projects',
+      {'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [projectId],
+    );
+  }
+
   Future<void> deleteProjectItem(int itemId, int projectId) async {
     final db = await database;
     await db.delete('project_items', where: 'id = ?', whereArgs: [itemId]);

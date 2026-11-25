@@ -11,11 +11,13 @@ import '../data/app_database.dart';
 import '../data/seed_repository.dart';
 import '../engine/clipboard_formatter.dart';
 import '../engine/formula_evaluator.dart';
+import '../engine/material_mutation_helper.dart';
 import '../engine/pricing_engine.dart';
 import '../models/app_models.dart';
 import '../pdf/single_cut_pdf.dart';
 import 'alupro_thumbnail_widgets.dart';
 import 'custom_system_studio_screens.dart';
+import 'material_editor_sheets.dart';
 import 'projects_and_quotation_screens.dart';
 import 'theme_tokens.dart';
 
@@ -25,12 +27,14 @@ class ResultScreen extends StatefulWidget {
   final CalculationOutput output;
   final List<SizeRowInput> sizeRows;
   final int? targetProjectId;
+  final SavedProjectItem? editingProjectItem;
 
   const ResultScreen({
     super.key,
     required this.output,
     required this.sizeRows,
     this.targetProjectId,
+    this.editingProjectItem,
   });
 
   @override
@@ -40,17 +44,231 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late CalculationOutput _workingOut;
+  bool _hasMaterialEdits = false;
   bool _checkedNotice = false;
 
   @override
   void initState() {
     super.initState();
+    _workingOut = widget.output;
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging && _tabController.index == 3) {
         _maybeShowPricingBetaDialog();
       }
     });
+  }
+
+  void _applyMutation(CalculationOutput next, {String? snackMessage}) {
+    setState(() {
+      _workingOut = next;
+      _hasMaterialEdits = true;
+    });
+    if (snackMessage != null && mounted) {
+      showToolkitSnackBar(context, snackMessage);
+    }
+  }
+
+  void _resetToOriginalFormula() {
+    setState(() {
+      _workingOut = widget.output;
+      _hasMaterialEdits = false;
+    });
+    showToolkitSnackBar(context, 'คืนค่าชิ้นส่วนวัสดุตามสูตรเดิมแล้ว');
+  }
+
+  Future<void> _openAddAluminumCut({int setListIndex = 0}) async {
+    final overrides = await AppDatabase.instance.getAllCustomPrices();
+    if (!mounted) return;
+    final res = await showAluminumCutEditorSheet(
+      context: context,
+      defaultBrandKey: _workingOut.priceBrandKey,
+      customPriceOverrides: overrides,
+    );
+    if (res == null || res.type != MaterialEditActionType.save || res.cut == null) {
+      return;
+    }
+    _applyMutation(
+      MaterialMutationHelper.addCutItem(
+        _workingOut,
+        setListIndex: setListIndex,
+        cut: res.cut!,
+      ),
+      snackMessage: 'เพิ่มเส้น ${res.cut!.code} และจัดเส้น + คำนวณราคาใหม่แล้ว',
+    );
+  }
+
+  Future<void> _openEditAluminumCut({
+    required int setListIndex,
+    required int cutIndex,
+    required EvaluatedCutItem cut,
+  }) async {
+    final overrides = await AppDatabase.instance.getAllCustomPrices();
+    if (!mounted) return;
+    final res = await showAluminumCutEditorSheet(
+      context: context,
+      defaultBrandKey: _workingOut.priceBrandKey,
+      existingCut: cut,
+      customPriceOverrides: overrides,
+    );
+    if (res == null) return;
+    if (res.type == MaterialEditActionType.delete) {
+      _applyMutation(
+        MaterialMutationHelper.deleteCutItem(
+          _workingOut,
+          setListIndex: setListIndex,
+          cutIndex: cutIndex,
+        ),
+        snackMessage: 'ลบรายการ ${cut.code} ออกแล้ว',
+      );
+    } else if (res.cut != null) {
+      _applyMutation(
+        MaterialMutationHelper.updateCutItem(
+          _workingOut,
+          setListIndex: setListIndex,
+          cutIndex: cutIndex,
+          cut: res.cut!,
+        ),
+        snackMessage: 'อัปเดตชิ้นส่วน ${res.cut!.code} และคำนวณใหม่แล้ว',
+      );
+    }
+  }
+
+  Future<void> _openSwapOrDeleteProfileGroup(ProfileBarGroup grp) async {
+    final overrides = await AppDatabase.instance.getAllCustomPrices();
+    if (!mounted) return;
+    final res = await showAluminumCutEditorSheet(
+      context: context,
+      defaultBrandKey: _workingOut.priceBrandKey,
+      existingGroup: grp,
+      customPriceOverrides: overrides,
+    );
+    if (res == null) return;
+    if (res.type == MaterialEditActionType.delete) {
+      _applyMutation(
+        MaterialMutationHelper.deleteProfileGroup(
+          _workingOut,
+          brand: grp.brand,
+          code: grp.code,
+          stockMm: grp.stockLengthMm,
+        ),
+        snackMessage: 'ลบหน้าตัด ${grp.code} ออกแล้ว',
+      );
+    } else if (res.newCode != null) {
+      _applyMutation(
+        MaterialMutationHelper.swapProfileGroup(
+          _workingOut,
+          oldBrand: grp.brand,
+          oldCode: grp.code,
+          oldStockMm: grp.stockLengthMm,
+          newBrand: res.newBrand ?? grp.brand,
+          newCode: res.newCode!,
+          newName: res.newName ?? grp.combinedNames,
+          newStockMm: res.newStockMm ?? grp.stockLengthMm,
+          overrideDirectBars: res.overrideDirectBars,
+        ),
+        snackMessage: 'เปลี่ยนหน้าตัดเป็น ${res.newCode!} และจับคู่ราคาใหม่แล้ว',
+      );
+    }
+  }
+
+  Future<void> _openAddGlass({int setListIndex = 0}) async {
+    final res = await showGlassItemEditorSheet(context: context);
+    if (res == null ||
+        res.type != MaterialEditActionType.save ||
+        res.glass == null) {
+      return;
+    }
+    _applyMutation(
+      MaterialMutationHelper.addGlassItem(
+        _workingOut,
+        setListIndex: setListIndex,
+        glass: res.glass!,
+      ),
+      snackMessage: 'เพิ่มรายการกระจก ${res.glass!.name} แล้ว',
+    );
+  }
+
+  Future<void> _openEditGlass(int flatIndex, EvaluatedGlassItem glass) async {
+    final res = await showGlassItemEditorSheet(
+      context: context,
+      existingGlass: glass,
+    );
+    if (res == null) return;
+    if (res.type == MaterialEditActionType.delete) {
+      _applyMutation(
+        MaterialMutationHelper.deleteGlassByFlatIndex(
+          _workingOut,
+          flatIndex: flatIndex,
+        ),
+        snackMessage: 'ลบรายการกระจก ${glass.name} แล้ว',
+      );
+    } else if (res.glass != null) {
+      _applyMutation(
+        MaterialMutationHelper.updateGlassByFlatIndex(
+          _workingOut,
+          flatIndex: flatIndex,
+          glass: res.glass!,
+        ),
+        snackMessage: 'อัปเดตรายการกระจก ${res.glass!.name} แล้ว',
+      );
+    }
+  }
+
+  Future<void> _openAddHardware() async {
+    final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
+    if (!mounted) return;
+    final res = await showHardwareItemEditorSheet(
+      context: context,
+      materialOverrides: matOv,
+    );
+    if (res == null ||
+        res.type != MaterialEditActionType.save ||
+        res.hardware == null) {
+      return;
+    }
+    _applyMutation(
+      MaterialMutationHelper.addHardwareItem(_workingOut, res.hardware!),
+      snackMessage: 'เพิ่มอุปกรณ์ ${res.hardware!.name} แล้ว',
+    );
+  }
+
+  Future<void> _openEditHardware(int index, AggregatedHardwareItem hw) async {
+    final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
+    if (!mounted) return;
+    final res = await showHardwareItemEditorSheet(
+      context: context,
+      existingHardware: hw,
+      materialOverrides: matOv,
+    );
+    if (res == null) return;
+    if (res.type == MaterialEditActionType.delete) {
+      _applyMutation(
+        MaterialMutationHelper.deleteHardwareItem(_workingOut, index),
+        snackMessage: 'ลบอุปกรณ์ ${hw.name} แล้ว',
+      );
+    } else if (res.hardware != null) {
+      _applyMutation(
+        MaterialMutationHelper.updateHardwareItem(
+            _workingOut, index, res.hardware!),
+        snackMessage: 'อัปเดตอุปกรณ์ ${res.hardware!.name} แล้ว',
+      );
+    }
+  }
+
+  Future<void> _saveEditedProjectItem() async {
+    final it = widget.editingProjectItem;
+    if (it == null || it.id == null) return;
+    await AppDatabase.instance.updateProjectItemMaterials(
+      itemId: it.id!,
+      projectId: it.projectId,
+      evaluatedSets: _workingOut.sets,
+      hardware: _workingOut.hardware,
+    );
+    if (!mounted) return;
+    showToolkitSnackBar(context, 'บันทึกการแก้ไขชิ้นส่วนวัสดุลงโปรเจกต์แล้ว');
+    Navigator.pop(context, true);
   }
 
   Future<void> _maybeShowPricingBetaDialog() async {
@@ -88,7 +306,7 @@ class _ResultScreenState extends State<ResultScreen>
   }
 
   Future<void> _shareSingleCutPdf() async {
-    final bytes = await SingleCutPdfGenerator.generate(widget.output);
+    final bytes = await SingleCutPdfGenerator.generate(_workingOut);
     if (!mounted) return;
     Navigator.push(
       context,
@@ -104,10 +322,23 @@ class _ResultScreenState extends State<ResultScreen>
 
   @override
   Widget build(BuildContext context) {
-    final out = widget.output;
+    final out = _workingOut;
+    final isEditingSaved = widget.editingProjectItem != null;
     return Scaffold(
       appBar: AppBar(
         title: Text('${out.brandTitle} | ${out.patternTitle}'),
+        actions: [
+          if (_hasMaterialEdits)
+            TextButton.icon(
+              key: const ValueKey('btn_reset_materials'),
+              onPressed: _resetToOriginalFormula,
+              icon: const Icon(Icons.restore_rounded, size: 17),
+              label: const Text(
+                'คืนค่าเดิม',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelPadding: const EdgeInsets.symmetric(horizontal: 6),
@@ -152,6 +383,12 @@ class _ResultScreenState extends State<ResultScreen>
                             0.88,
                   ),
                   hardware: out.hardware,
+                  onAddAluminum: () => _openAddAluminumCut(),
+                  onEditProfileGroup: _openSwapOrDeleteProfileGroup,
+                  onAddGlass: () => _openAddGlass(),
+                  onEditGlass: _openEditGlass,
+                  onAddHardware: _openAddHardware,
+                  onEditHardware: _openEditHardware,
                 ),
               ],
             ),
@@ -192,24 +429,34 @@ class _ResultScreenState extends State<ResultScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.icon(
+                      key: const ValueKey('btn_save_result_middle'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: ToolkitColors.deepNavy,
+                        backgroundColor: isEditingSaved
+                            ? ToolkitColors.successGreen
+                            : ToolkitColors.deepNavy,
                         padding: const EdgeInsets.symmetric(vertical: 11),
                       ),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => SaveToProjectDialog(
-                            output: out,
-                            sizeRows: widget.sizeRows,
-                            preselectedProjectId: widget.targetProjectId,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.bookmark_add_outlined, size: 17),
-                      label: const Text(
-                        'บันทึกงาน',
-                        style: TextStyle(
+                      onPressed: isEditingSaved
+                          ? _saveEditedProjectItem
+                          : () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => SaveToProjectDialog(
+                                  output: out,
+                                  sizeRows: widget.sizeRows,
+                                  preselectedProjectId: widget.targetProjectId,
+                                ),
+                              );
+                            },
+                      icon: Icon(
+                        isEditingSaved
+                            ? Icons.save_outlined
+                            : Icons.bookmark_add_outlined,
+                        size: 17,
+                      ),
+                      label: Text(
+                        isEditingSaved ? 'บันทึกการแก้ไข' : 'บันทึกงาน',
+                        style: const TextStyle(
                             fontSize: 12.5, fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -245,12 +492,14 @@ class _ResultScreenState extends State<ResultScreen>
       cacheExtent: 600,
       padding: const EdgeInsets.all(14),
       children: [
-        ...out.sets.map((s) {
+        ...List.generate(out.sets.length, (setListIdx) {
+          final s = out.sets[setListIdx];
           final wStr = FormulaEvaluator.formatMm(s.sizeRow.widthMm);
           final hStr = FormulaEvaluator.formatMm(s.sizeRow.heightMm);
-          final grouped = <String, List<EvaluatedCutItem>>{};
-          for (final c in s.cuts) {
-            grouped.putIfAbsent(c.section, () => []).add(c);
+          final grouped = <String, List<({int cutIdx, EvaluatedCutItem cut})>>{};
+          for (int ci = 0; ci < s.cuts.length; ci++) {
+            final c = s.cuts[ci];
+            grouped.putIfAbsent(c.section, () => []).add((cutIdx: ci, cut: c));
           }
 
           return Container(
@@ -272,108 +521,195 @@ class _ResultScreenState extends State<ResultScreen>
                   color: ToolkitColors.slateDark,
                 ),
               ),
-              children: grouped.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: ToolkitColors.softBlueBg,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          entry.key,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: ToolkitColors.royalBlue,
+              subtitle: const Text(
+                'แตะชิ้นส่วนใดก็ได้เพื่อเปลี่ยนรหัส / แก้ระยะตัด / ลบ',
+                style: TextStyle(fontSize: 11.5, color: ToolkitColors.royalBlue),
+              ),
+              children: [
+                ...grouped.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: ToolkitColors.softBlueBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: ToolkitColors.royalBlue,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      ...entry.value.map((c) {
-                        final cutVal = c.isSiteMeasured
-                            ? 'วัดตามจริง'
-                            : 'ตัด ${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม.';
-                        final profImg = AluproImageRegistry.instance
-                            .resolveProfileAsset(
-                              code: c.code,
-                              name: c.name,
-                              brandKey: out.priceBrandKey,
-                            );
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              if (profImg != null) ...[
-                                AluproThumbnail(
-                                  assetPath: profImg,
-                                  width: 50,
-                                  height: 38,
-                                  showZoomBadge: true,
-                                  zoomTitle: '${c.code} · ${c.name}',
-                                  zoomSubtitle:
-                                      '${out.brandTitle} · $cutVal (${c.totalQty} ชิ้น)',
-                                ),
-                                const SizedBox(width: 10),
-                              ],
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      c.code,
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: ToolkitColors.royalBlue,
-                                      ),
-                                    ),
-                                    Text(
-                                      c.name,
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        color: ToolkitColors.slateDark,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                        const SizedBox(height: 6),
+                        ...entry.value.map((rec) {
+                          final c = rec.cut;
+                          final effBrand = MaterialMutationHelper.effectiveBrandOf(
+                            c,
+                            out.priceBrandKey,
+                          );
+                          final cutVal = c.isSiteMeasured
+                              ? (c.angle == 'สั่งเต็มเส้น'
+                                  ? 'สั่งเต็มเส้น ${c.totalQty} เส้น'
+                                  : 'วัดตามจริง')
+                              : 'ตัด ${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม.';
+                          final profImg = AluproImageRegistry.instance
+                              .resolveProfileAsset(
+                            code: c.code,
+                            name: c.name,
+                            brandKey: effBrand,
+                          );
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => _openEditAluminumCut(
+                              setListIndex: setListIdx,
+                              cutIndex: rec.cutIdx,
+                              cut: c,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 5, horizontal: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    cutVal,
-                                    style: const TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: ToolkitColors.slateDark,
+                                  if (profImg != null) ...[
+                                    AluproThumbnail(
+                                      assetPath: profImg,
+                                      width: 50,
+                                      height: 38,
+                                      showZoomBadge: true,
+                                      zoomTitle: '${c.code} · ${c.name}',
+                                      zoomSubtitle:
+                                          '$effBrand · $cutVal (${c.totalQty} ชิ้น)',
+                                    ),
+                                    const SizedBox(width: 10),
+                                  ],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                c.code,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color:
+                                                      ToolkitColors.royalBlue,
+                                                ),
+                                              ),
+                                            ),
+                                            if (c.brandOverride != null &&
+                                                c.brandOverride!
+                                                    .trim()
+                                                    .isNotEmpty) ...[
+                                              const SizedBox(width: 5),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 5,
+                                                        vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFFEF3C7),
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  c.brandOverride!,
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF92400E),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                        Text(
+                                          c.name,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            color: ToolkitColors.slateDark,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  Text(
-                                    '${c.totalQty} ชิ้น · ${c.angle}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: ToolkitColors.slateMuted,
-                                    ),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        cutVal,
+                                        style: const TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: ToolkitColors.slateDark,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${c.totalQty} ชิ้น · ${c.angle}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: ToolkitColors.slateMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 16,
+                                    color: ToolkitColors.slateMuted,
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      key: ValueKey('tab1_add_cut_$setListIdx'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ToolkitColors.royalBlue,
+                        side: BorderSide(
+                          color: ToolkitColors.royalBlue.withValues(alpha: 0.35),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () =>
+                          _openAddAluminumCut(setListIndex: setListIdx),
+                      icon: const Icon(Icons.add_rounded, size: 17),
+                      label: const Text(
+                        'เพิ่มเส้นอลูมิเนียมนอกสูตร',
+                        style: TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
           );
         }),
@@ -400,20 +736,30 @@ class _ResultScreenState extends State<ResultScreen>
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(15, 0, 15, 14),
-                child: allGlasses.isEmpty
-                    ? const Text(
-                        'ไม่มีรายการกระจก',
-                        style: TextStyle(color: ToolkitColors.slateMuted),
+                child: Column(
+                  children: [
+                    if (allGlasses.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'ไม่มีรายการกระจก',
+                          style: TextStyle(color: ToolkitColors.slateMuted),
+                        ),
                       )
-                    : Column(
-                        children: allGlasses.map((g) {
-                          final dimTxt = g.siteCut
-                              ? 'วัดตัดหน้างาน · ${g.totalPanels} แผ่น'
-                              : 'ขนาดสั่งตัดกระจก: ${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม. · ${g.totalPanels} แผ่น';
-                          final glassImg =
-                              AluproImageRegistry.instance.glassAsset;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 5),
+                    else
+                      ...List.generate(allGlasses.length, (gi) {
+                        final g = allGlasses[gi];
+                        final dimTxt = g.siteCut
+                            ? 'วัดตัดหน้างาน · ${g.totalPanels} แผ่น'
+                            : 'ขนาดสั่งตัดกระจก: ${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม. · ${g.totalPanels} แผ่น';
+                        final glassImg =
+                            AluproImageRegistry.instance.glassAsset;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _openEditGlass(gi, g),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 5, horizontal: 2),
                             child: Row(
                               children: [
                                 if (glassImg != null) ...[
@@ -447,11 +793,41 @@ class _ResultScreenState extends State<ResultScreen>
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 15,
+                                  color: ToolkitColors.slateMuted,
+                                ),
                               ],
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        );
+                      }),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('tab1_add_glass'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: ToolkitColors.royalBlue,
+                          side: BorderSide(
+                            color:
+                                ToolkitColors.royalBlue.withValues(alpha: 0.35),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => _openAddGlass(),
+                        icon: const Icon(Icons.add_rounded, size: 17),
+                        label: const Text(
+                          'เพิ่มกระจกนอกสูตร',
+                          style: TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w700),
+                        ),
                       ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -469,170 +845,250 @@ class _ResultScreenState extends State<ResultScreen>
       children: [
         _summarySectionCard(
           title: 'อลูมิเนียมที่ต้องสั่งซื้อ',
-          children: out.barGroups.map((g) {
-            final profImg = AluproImageRegistry.instance.resolveProfileAsset(
-              code: g.code,
-              name: g.combinedNames,
-              brandKey: g.brand,
-            );
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  if (profImg != null) ...[
-                    AluproThumbnail(
-                      assetPath: profImg,
-                      width: 50,
-                      height: 38,
-                      showZoomBadge: true,
-                      zoomTitle: '${g.code} · ${g.combinedNames}',
-                      zoomSubtitle:
-                          'เส้นโรงงาน ${g.stockLengthMm} มม. · ${g.totalBars} เส้น',
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${g.code} · ${g.combinedNames}',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
+          trailing: TextButton.icon(
+            key: const ValueKey('tab2_add_alu'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () => _openAddAluminumCut(),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text(
+              'เพิ่มเส้น',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          children: out.barGroups.isEmpty
+              ? [const Text('ไม่มีรายการอลูมิเนียม')]
+              : out.barGroups.map((g) {
+                  final profImg =
+                      AluproImageRegistry.instance.resolveProfileAsset(
+                    code: g.code,
+                    name: g.combinedNames,
+                    brandKey: g.brand,
+                  );
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _openSwapOrDeleteProfileGroup(g),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 2),
+                      child: Row(
+                        children: [
+                          if (profImg != null) ...[
+                            AluproThumbnail(
+                              assetPath: profImg,
+                              width: 50,
+                              height: 38,
+                              showZoomBadge: true,
+                              zoomTitle: '${g.code} · ${g.combinedNames}',
+                              zoomSubtitle:
+                                  '${g.brand} · เส้นโรงงาน ${g.stockLengthMm} มม. · ${g.totalBars} เส้น',
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${g.code} · ${g.combinedNames}',
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  '${g.brand} · เส้นโรงงาน ${g.stockLengthMm} มม.',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: ToolkitColors.slateMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Text(
-                          'เส้นโรงงาน ${g.stockLengthMm} มม.',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          const SizedBox(width: 8),
+                          Text(
+                            '${g.totalBars} เส้น',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: ToolkitColors.royalBlue,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.swap_horiz_rounded,
+                            size: 16,
                             color: ToolkitColors.slateMuted,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${g.totalBars} เส้น',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: ToolkitColors.royalBlue,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 12),
-        _summarySectionCard(
-          title: 'กระจกที่ต้องสั่ง',
-          children: allGlasses.isEmpty
-              ? [const Text('ไม่มีรายการกระจก')]
-              : allGlasses.map((g) {
-                  final subTxt = g.siteCut
-                      ? 'วัดตัดหน้างาน'
-                      : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม.';
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        if (glassImg != null) ...[
-                          AluproThumbnail(
-                            assetPath: glassImg,
-                            width: 48,
-                            height: 36,
-                            zoomTitle: g.name,
-                            zoomSubtitle: '$subTxt · ${g.totalPanels} แผ่น',
-                          ),
-                          const SizedBox(width: 10),
                         ],
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                g.name,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                subTxt,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: ToolkitColors.slateMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${g.totalPanels} แผ่น',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   );
                 }).toList(),
         ),
         const SizedBox(height: 12),
         _summarySectionCard(
-          title: 'อุปกรณ์ประกอบ',
-          children: out.hardware.isEmpty
-              ? [const Text('ไม่มีรายการอุปกรณ์ประกอบ')]
-              : out.hardware.map((h) {
-                  final hwImg = AluproImageRegistry.instance
-                      .resolveHardwareAsset(code: h.code, name: h.name);
-                  final hwLabel =
-                      h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        if (hwImg != null) ...[
-                          AluproThumbnail(
-                            assetPath: hwImg,
-                            width: 48,
-                            height: 36,
-                            showZoomBadge: true,
-                            zoomTitle: hwLabel,
-                            zoomSubtitle: h.displayQty,
-                          ),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: Text(
-                            hwLabel,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
+          title: 'กระจกที่ต้องสั่ง',
+          trailing: TextButton.icon(
+            key: const ValueKey('tab2_add_glass'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () => _openAddGlass(),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text(
+              'เพิ่มกระจก',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          children: allGlasses.isEmpty
+              ? [const Text('ไม่มีรายการกระจก')]
+              : List.generate(allGlasses.length, (gi) {
+                  final g = allGlasses[gi];
+                  final subTxt = g.siteCut
+                      ? 'วัดตัดหน้างาน'
+                      : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม.';
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _openEditGlass(gi, g),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 2),
+                      child: Row(
+                        children: [
+                          if (glassImg != null) ...[
+                            AluproThumbnail(
+                              assetPath: glassImg,
+                              width: 48,
+                              height: 36,
+                              zoomTitle: g.name,
+                              zoomSubtitle: '$subTxt · ${g.totalPanels} แผ่น',
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  g.name,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  subTxt,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: ToolkitColors.slateMuted,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 118),
-                          child: Text(
-                            h.displayQty,
-                            textAlign: TextAlign.right,
+                          const SizedBox(width: 8),
+                          Text(
+                            '${g.totalPanels} แผ่น',
                             style: const TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 15,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ],
+                      ),
                     ),
                   );
-                }).toList(),
+                }),
+        ),
+        const SizedBox(height: 12),
+        _summarySectionCard(
+          title: 'อุปกรณ์ประกอบ',
+          trailing: TextButton.icon(
+            key: const ValueKey('tab2_add_hw'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: _openAddHardware,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text(
+              'เพิ่มอุปกรณ์',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
+          children: out.hardware.isEmpty
+              ? [const Text('ไม่มีรายการอุปกรณ์ประกอบ')]
+              : List.generate(out.hardware.length, (hi) {
+                  final h = out.hardware[hi];
+                  final hwImg = AluproImageRegistry.instance
+                      .resolveHardwareAsset(code: h.code, name: h.name);
+                  final hwLabel =
+                      h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _openEditHardware(hi, h),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 5, horizontal: 2),
+                      child: Row(
+                        children: [
+                          if (hwImg != null) ...[
+                            AluproThumbnail(
+                              assetPath: hwImg,
+                              width: 48,
+                              height: 36,
+                              showZoomBadge: true,
+                              zoomTitle: hwLabel,
+                              zoomSubtitle: h.displayQty,
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: Text(
+                              hwLabel,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 118),
+                            child: Text(
+                              h.displayQty,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.swap_horiz_rounded,
+                            size: 16,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
         ),
       ],
     );
@@ -691,6 +1147,7 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _summarySectionCard({
     required String title,
+    Widget? trailing,
     required List<Widget> children,
   }) {
     return Container(
@@ -703,13 +1160,20 @@ class _ResultScreenState extends State<ResultScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: ToolkitColors.slateDark,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: ToolkitColors.slateDark,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
           ),
           const Divider(),
           ...children,
@@ -895,6 +1359,12 @@ class PricingWorkspaceWidget extends StatefulWidget {
   final double fallbackOpeningAreaSqM;
   final List<AggregatedHardwareItem> hardware;
   final ValueChanged<PricingSummary>? onSummaryChanged;
+  final VoidCallback? onAddAluminum;
+  final ValueChanged<ProfileBarGroup>? onEditProfileGroup;
+  final VoidCallback? onAddGlass;
+  final void Function(int index, EvaluatedGlassItem glass)? onEditGlass;
+  final VoidCallback? onAddHardware;
+  final void Function(int index, AggregatedHardwareItem hw)? onEditHardware;
 
   const PricingWorkspaceWidget({
     super.key,
@@ -904,6 +1374,12 @@ class PricingWorkspaceWidget extends StatefulWidget {
     this.fallbackOpeningAreaSqM = 0.0,
     this.hardware = const [],
     this.onSummaryChanged,
+    this.onAddAluminum,
+    this.onEditProfileGroup,
+    this.onAddGlass,
+    this.onEditGlass,
+    this.onAddHardware,
+    this.onEditHardware,
   });
 
   @override
@@ -951,6 +1427,28 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
             widget.fallbackOpeningAreaSqM > 0);
     _includeHardware = widget.hardware.any((h) => (h.numericQty ?? 0) > 0);
     _reloadOverrides();
+  }
+
+  @override
+  void didUpdateWidget(covariant PricingWorkspaceWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.barGroups != widget.barGroups ||
+        oldWidget.glasses != widget.glasses ||
+        oldWidget.hardware != widget.hardware) {
+      if (oldWidget.glasses.isEmpty && widget.glasses.isNotEmpty) {
+        _includeGlass = true;
+      }
+      if (oldWidget.hardware.isEmpty &&
+          widget.hardware.any((h) => (h.numericQty ?? 0) > 0)) {
+        _includeHardware = true;
+      }
+      if (!_loading) {
+        _syncValidSelection(_overrides);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _notifyParent();
+        });
+      }
+    }
   }
 
   List<MaterialRateItem> _mergedGlassRates() {
@@ -2144,7 +2642,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
         ),
         const SizedBox(height: 10),
 
-        // 1. Aluminum Breakdown Table (1-Tap Editable!)
+        // 1. Aluminum Breakdown Table (1-Tap Price Edit + Swap/Add Part!)
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -2155,9 +2653,9 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       '1. รายละเอียดต้นทุนเส้นอลูมิเนียม',
                       style: TextStyle(
@@ -2166,14 +2664,34 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                       ),
                     ),
                   ),
-                  Text(
-                    'แตะแถวเพื่อแก้ราคา',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: ToolkitColors.royalBlue,
+                  if (widget.onAddAluminum != null)
+                    TextButton.icon(
+                      key: const ValueKey('tab4_add_alu'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: widget.onAddAluminum,
+                      icon: const Icon(Icons.add_rounded, size: 15),
+                      label: const Text(
+                        'เพิ่มเส้น',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else
+                    const Text(
+                      'แตะแถวเพื่อแก้ราคา',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: ToolkitColors.royalBlue,
+                      ),
                     ),
-                  ),
                 ],
               ),
               const Divider(),
@@ -2232,7 +2750,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -2269,6 +2787,22 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                               ),
                           ],
                         ),
+                        if (widget.onEditProfileGroup != null) ...[
+                          const SizedBox(width: 2),
+                          IconButton(
+                            tooltip: 'เปลี่ยน / ลบหน้าตัดนี้',
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                                minWidth: 30, minHeight: 30),
+                            onPressed: () => widget.onEditProfileGroup!(g),
+                            icon: const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 18,
+                              color: ToolkitColors.royalBlue,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -2373,53 +2907,91 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     ],
                   ),
                   const Divider(height: 18),
-                  ...summary.glassLines.map(
-                    (gl) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  gl.item.name,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                  ...List.generate(summary.glassLines.length, (gi) {
+                    final gl = summary.glassLines[gi];
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: widget.onEditGlass != null
+                          ? () => widget.onEditGlass!(gi, gl.item)
+                          : null,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 4, horizontal: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    gl.item.name,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  gl.note,
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: ToolkitColors.slateMuted,
+                                  Text(
+                                    gl.note,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      color: ToolkitColors.slateMuted,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          Text(
-                            gl.lineCost != null
-                                ? '฿${_bahtFmt.format(gl.lineCost!)}'
-                                : 'วัดหน้างาน',
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: ToolkitColors.slateDark,
+                            Text(
+                              gl.lineCost != null
+                                  ? '฿${_bahtFmt.format(gl.lineCost!)}'
+                                  : 'วัดหน้างาน',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: ToolkitColors.slateDark,
+                              ),
                             ),
-                          ),
-                        ],
+                            if (widget.onEditGlass != null) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.swap_horiz_rounded,
+                                size: 16,
+                                color: ToolkitColors.royalBlue,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  if (widget.onAddGlass != null) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        key: const ValueKey('tab4_add_glass'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: widget.onAddGlass,
+                        icon: const Icon(Icons.add_rounded, size: 15),
+                        label: const Text(
+                          'เพิ่มกระจกนอกสูตร',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ],
             ),
           ),
         ],
 
-        // 3. Hardware Costing Card (1-Tap Editable!)
+        // 3. Hardware Costing Card (1-Tap Price Edit + Swap/Add Part!)
         if (widget.hardware.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
@@ -2467,7 +3039,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 ),
                 if (_includeHardware) ...[
                   const Divider(height: 14),
-                  ...summary.hardwareLines.map((hl) {
+                  ...List.generate(summary.hardwareLines.length, (hi) {
+                    final hl = summary.hardwareLines[hi];
                     final h = hl.item;
                     final title =
                         h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
@@ -2523,14 +3096,77 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                                 ),
                               ],
                             ),
+                            if (widget.onEditHardware != null) ...[
+                              const SizedBox(width: 2),
+                              IconButton(
+                                tooltip: 'เปลี่ยน / ลบอุปกรณ์นี้',
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 28, minHeight: 28),
+                                onPressed: () =>
+                                    widget.onEditHardware!(hi, h),
+                                icon: const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 17,
+                                  color: ToolkitColors.royalBlue,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     );
                   }),
+                  if (widget.onAddHardware != null) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        key: const ValueKey('tab4_add_hw'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: widget.onAddHardware,
+                        icon: const Icon(Icons.add_rounded, size: 15),
+                        label: const Text(
+                          'เพิ่มอุปกรณ์นอกสูตร',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
+          ),
+        ],
+
+        // Quick Add Buttons if Glass or Hardware card is currently empty
+        if ((widget.glasses.isEmpty && widget.onAddGlass != null) ||
+            (widget.hardware.isEmpty && widget.onAddHardware != null)) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              if (widget.glasses.isEmpty && widget.onAddGlass != null)
+                OutlinedButton.icon(
+                  onPressed: widget.onAddGlass,
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('เพิ่มกระจกนอกสูตร'),
+                ),
+              if (widget.hardware.isEmpty && widget.onAddHardware != null)
+                OutlinedButton.icon(
+                  onPressed: widget.onAddHardware,
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('เพิ่มอุปกรณ์นอกสูตร'),
+                ),
+            ],
           ),
         ],
       ],

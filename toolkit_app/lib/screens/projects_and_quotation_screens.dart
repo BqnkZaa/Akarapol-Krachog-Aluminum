@@ -7,6 +7,7 @@ import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
+import '../engine/material_mutation_helper.dart';
 import '../engine/pricing_engine.dart';
 import '../engine/quotation_spec_formatter.dart';
 import '../engine/thai_baht_text.dart';
@@ -733,12 +734,67 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                         color: ToolkitColors.royalBlue,
                                       ),
                                     ),
+                                  const SizedBox(height: 6),
+                                  OutlinedButton.icon(
+                                    key: ValueKey('proj_edit_mat_${it.id ?? idx}'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      foregroundColor: ToolkitColors.royalBlue,
+                                      side: BorderSide(
+                                        color: ToolkitColors.royalBlue
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    onPressed: () async {
+                                      final updated =
+                                          await Navigator.push<bool>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ResultScreen(
+                                            output: MaterialMutationHelper
+                                                .fromSavedProjectItem(it),
+                                            sizeRows: it.sizeRows,
+                                            editingProjectItem: it,
+                                          ),
+                                        ),
+                                      );
+                                      if (updated == true) _reload();
+                                    },
+                                    icon: const Icon(
+                                      Icons.swap_horiz_rounded,
+                                      size: 15,
+                                    ),
+                                    label: const Text(
+                                      'แก้ไข / เปลี่ยนวัสดุ',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                             PopupMenuButton<String>(
                               onSelected: (action) async {
-                                if (action == 'meta') {
+                                if (action == 'materials') {
+                                  final updated = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ResultScreen(
+                                        output: MaterialMutationHelper
+                                            .fromSavedProjectItem(it),
+                                        sizeRows: it.sizeRows,
+                                        editingProjectItem: it,
+                                      ),
+                                    ),
+                                  );
+                                  if (updated == true) _reload();
+                                } else if (action == 'meta') {
                                   await _editItemMetaDialog(it);
                                 } else if (action == 'del') {
                                   await AppDatabase.instance
@@ -747,6 +803,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                 }
                               },
                               itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'materials',
+                                  child: Text('แก้ไข / เปลี่ยนชิ้นส่วนวัสดุ'),
+                                ),
                                 PopupMenuItem(
                                   value: 'meta',
                                   child: Text('แก้ไขเลขอ้างอิง / ตำแหน่งติดตั้ง'),

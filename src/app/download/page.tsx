@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.9/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.10/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,7 +51,7 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.9 (VIP Offline)",
+      version: "0.1.10 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
       sizeMb: "42.50",
       sha256: "-",
@@ -75,8 +75,8 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "คำนวณระยะตัดและถอดรายการวัสดุครบ 5 หมวดระบบ (รวม ALUMET NEX)",
-      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ชุดยูโรโปรไฟล์ และระบบบานเฟี้ยมครบ 136 ผัง พร้อมคำนวณขนาดกระจกและอุปกรณ์อัตโนมัติ",
+      title: "คำนวณระยะตัดครบ 5 หมวด (รวม ALUMET NEX) และเปลี่ยนชิ้นส่วนวัสดุได้สด",
+      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ยูโรโปรไฟล์ และบานเฟี้ยมครบ 136 ผัง สามารถแตะแก้ไข/สลับรหัสเส้นอลูมิเนียมข้ามแบรนด์ แก้ขนาดกระจก และเพิ่ม–ลบอุปกรณ์ได้ทั้งตอนคำนวณและในงานโปรเจกต์",
     },
     {
       icon: Layers,

@@ -27,6 +27,11 @@ class BinPacker {
   static const int endTrimAllowanceMm = 100;
   static const int sawKerfMm = 4;
 
+  static String _effectiveBrand(EvaluatedCutItem cut, String fallbackBrand) {
+    final ov = cut.brandOverride?.trim();
+    return (ov != null && ov.isNotEmpty) ? ov : fallbackBrand;
+  }
+
   /// Packs cuts from a single calculation (`Tab 3 จัดเส้น` & `Single Cut PDF`).
   static List<ProfileBarGroup> packSingleCalculation({
     required String brandKey,
@@ -37,13 +42,14 @@ class BinPacker {
     for (final setRes in sets) {
       for (final cut in setRes.cuts) {
         if (cut.stockMm <= 0) continue;
+        final effBrand = _effectiveBrand(cut, brandKey);
         if (cut.isSiteMeasured) {
           if (cut.estimatedTotalMm != null && cut.estimatedTotalMm! > 0) {
-            final key = '$brandKey|${cut.code}|${cut.stockMm}';
+            final key = '$effBrand|${cut.code}|${cut.stockMm}';
             final bucket = buckets.putIfAbsent(
               key,
               () => _GroupBucket(
-                brand: brandKey,
+                brand: effBrand,
                 code: cut.code,
                 stockMm: cut.stockMm,
               ),
@@ -52,11 +58,11 @@ class BinPacker {
             bucket.estimatedTotalMm += cut.estimatedTotalMm!;
           }
         } else if (cut.lengthMm != null && cut.lengthMm! > 0) {
-          final key = '$brandKey|${cut.code}|${cut.stockMm}';
+          final key = '$effBrand|${cut.code}|${cut.stockMm}';
           final bucket = buckets.putIfAbsent(
             key,
             () => _GroupBucket(
-              brand: brandKey,
+              brand: effBrand,
               code: cut.code,
               stockMm: cut.stockMm,
             ),
@@ -88,13 +94,14 @@ class BinPacker {
       for (final setRes in item.evaluatedSets) {
         for (final cut in setRes.cuts) {
           if (cut.stockMm <= 0) continue;
+          final effBrand = _effectiveBrand(cut, item.priceBrandKey);
           if (cut.isSiteMeasured) {
             if (cut.estimatedTotalMm != null && cut.estimatedTotalMm! > 0) {
-              final key = '${item.priceBrandKey}|${cut.code}|${cut.stockMm}';
+              final key = '$effBrand|${cut.code}|${cut.stockMm}';
               final bucket = buckets.putIfAbsent(
                 key,
                 () => _GroupBucket(
-                  brand: item.priceBrandKey,
+                  brand: effBrand,
                   code: cut.code,
                   stockMm: cut.stockMm,
                 ),
@@ -103,11 +110,11 @@ class BinPacker {
               bucket.estimatedTotalMm += cut.estimatedTotalMm!;
             }
           } else if (cut.lengthMm != null && cut.lengthMm! > 0) {
-            final key = '${item.priceBrandKey}|${cut.code}|${cut.stockMm}';
+            final key = '$effBrand|${cut.code}|${cut.stockMm}';
             final bucket = buckets.putIfAbsent(
               key,
               () => _GroupBucket(
-                brand: item.priceBrandKey,
+                brand: effBrand,
                 code: cut.code,
                 stockMm: cut.stockMm,
               ),
