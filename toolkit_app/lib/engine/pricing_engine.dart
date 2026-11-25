@@ -1,5 +1,6 @@
 import '../data/app_database.dart';
 import '../models/app_models.dart';
+import 'bin_packer.dart';
 
 enum PricingMode {
   actualLength, // ตามระยะใช้จริง (default wastePct = 20%)
@@ -168,6 +169,43 @@ class PricingCatalogAvailability {
   });
 }
 
+/// Per-item (per-model / per-opening) cost & selling breakdown inside a
+/// multi-item project, preserving project-wide bar-packing savings while
+/// allocating true aluminum/glass/hardware costs accurately to each model.
+class ProjectItemPricingBreakdown {
+  final SavedProjectItem item;
+  final int totalUnits;
+  final double openingAreaSqM;
+  final double standaloneAluminumCost;
+  final double standaloneGlassCost;
+  final double standaloneHardwareCost;
+  final double standaloneMaterialCost;
+  final double allocatedMaterialCost;
+  final double laborCost;
+  final double profitAmount;
+  final double suggestedTotalPrice;
+  final double unitSellingPrice;
+
+  const ProjectItemPricingBreakdown({
+    required this.item,
+    required this.totalUnits,
+    required this.openingAreaSqM,
+    required this.standaloneAluminumCost,
+    required this.standaloneGlassCost,
+    required this.standaloneHardwareCost,
+    required this.standaloneMaterialCost,
+    required this.allocatedMaterialCost,
+    required this.laborCost,
+    required this.profitAmount,
+    required this.suggestedTotalPrice,
+    required this.unitSellingPrice,
+  });
+
+  double get materialCostPerUnit => totalUnits > 0
+      ? PricingEngine.round2(allocatedMaterialCost / totalUnits)
+      : 0.0;
+}
+
 class PricingEngine {
   PricingEngine._();
 
@@ -276,19 +314,26 @@ class PricingEngine {
   }
 
   /// Allocates a target selling total across project items proportionally by
-  /// opening area (falling back to unit count when any item lacks area),
-  /// returning per-unit selling prices aligned with [items].
+  /// explicit [itemWeights] (e.g. per-model cost/selling breakdown) when
+  /// provided and positive, otherwise falling back to opening area or unit
+  /// count, returning per-unit selling prices aligned with [items].
   static List<double> allocateUnitSellingPrices({
     required List<({double areaSqM, int qty})> items,
     required double targetTotal,
+    List<double>? itemWeights,
   }) {
     if (items.isEmpty) return const [];
     if (targetTotal <= 0) return List<double>.filled(items.length, 0.0);
 
+    final useExplicitWeights = itemWeights != null &&
+        itemWeights.length == items.length &&
+        itemWeights.every((w) => w > 0);
     final allHaveArea = items.every((e) => e.areaSqM > 0);
-    final weights = items
-        .map((e) => allHaveArea ? e.areaSqM : (e.qty > 0 ? e.qty.toDouble() : 1.0))
-        .toList();
+    final weights = List<double>.generate(items.length, (i) {
+      if (useExplicitWeights) return itemWeights[i];
+      final e = items[i];
+      return allHaveArea ? e.areaSqM : (e.qty > 0 ? e.qty.toDouble() : 1.0);
+    });
     final totalWeight = weights.fold(0.0, (s, w) => s + w);
     if (totalWeight <= 0) return List<double>.filled(items.length, 0.0);
 
@@ -297,7 +342,8 @@ class PricingEngine {
     for (int i = 0; i < items.length; i++) {
       final qty = items[i].qty > 0 ? items[i].qty : 1;
       if (i == items.length - 1 && qty == 1) {
-        final rem = round2((targetTotal - allocatedSum).clamp(0.0, double.infinity));
+        final rem =
+            round2((targetTotal - allocatedSum).clamp(0.0, double.infinity));
         result.add(rem);
         allocatedSum = round2(allocatedSum + rem);
       } else {
@@ -308,6 +354,238 @@ class PricingEngine {
       }
     }
     return result;
+  }
+
+  /// Allocates selling prices per quotation line using each item's true
+  /// allocated [materialCost], [areaSqM], and active labor/profit settings so
+  /// different profile series (e.g. ICONIQ vs Smart X vs NEX 200) of the exact
+  /// same opening size receive distinct, cost-accurate unit prices while
+  /// summing to [targetTotal].
+  static List<double> allocateQuotationLineUnitPrices({
+    required List<({double materialCost, double areaSqM, int qty})> items,
+    required LaborCostMode laborMode,
+    required double laborRate,
+    required double profitPercent,
+    required ProfitBaseMode profitBaseMode,
+    required double targetTotal,
+  }) {
+    if (items.isEmpty) return const [];
+    if (targetTotal <= 0) return List<double>.filled(items.length, 0.0);
+
+    final hasCostForAll = items.every((e) => e.materialCost > 0);
+    if (!hasCostForAll) {
+      return allocateUnitSellingPrices(
+        items: items.map((e) => (areaSqM: e.areaSqM, qty: e.qty)).toList(),
+        targetTotal: targetTotal,
+      );
+    }
+
+    final safeLaborRate = laborRate < 0 ? 0.0 : laborRate;
+    final safeProfitPct = profitPercent.clamp(0.0, 200.0);
+    final totalArea = items.fold<double>(0.0, (s, e) => s + (e.areaSqM > 0 ? e.areaSqM : 0.0));
+    final totalMat = items.fold<double>(0.0, (s, e) => s + e.materialCost);
+
+    final sellingWeights = <double>[];
+    for (final it in items) {
+      final double itemLabor;
+      switch (laborMode) {
+        case LaborCostMode.perSqM:
+          itemLabor = (it.areaSqM > 0 ? it.areaSqM : 0.0) * safeLaborRate;
+          break;
+        case LaborCostMode.percentOfMaterial:
+          itemLabor = it.materialCost * (safeLaborRate.clamp(0.0, 200.0) / 100.0);
+          break;
+        case LaborCostMode.flatBaht:
+          final ratio = totalArea > 0
+              ? ((it.areaSqM > 0 ? it.areaSqM : 0.0) / totalArea)
+              : (totalMat > 0 ? (it.materialCost / totalMat) : (1.0 / items.length));
+          itemLabor = safeLaborRate * ratio;
+          break;
+      }
+      final profitBase = profitBaseMode == ProfitBaseMode.materialAndLabor
+          ? (it.materialCost + itemLabor)
+          : it.materialCost;
+      final itemProfit = profitBase * (safeProfitPct / 100.0);
+      sellingWeights.add(it.materialCost + itemLabor + itemProfit);
+    }
+
+    return allocateUnitSellingPrices(
+      items: items.map((e) => (areaSqM: e.areaSqM, qty: e.qty)).toList(),
+      targetTotal: targetTotal,
+      itemWeights: sellingWeights,
+    );
+  }
+
+  /// Evaluates each [SavedProjectItem] individually using the exact same
+  /// pricing settings as [projectSummary], reconciles bar-packing savings
+  /// proportionally so allocated material sums match [projectSummary.totalCost],
+  /// and computes accurate per-model labor, profit, and unit selling prices.
+  static List<ProjectItemPricingBreakdown> evaluateProjectItems({
+    required List<SavedProjectItem> items,
+    required PricingSummary projectSummary,
+    required List<OrmPriceSku> ormCatalog,
+    required Map<String, CustomPriceOverride> customOverrides,
+    List<MaterialRateItem> hardwareCatalog = const [],
+    Map<String, CustomMaterialRateOverride> materialOverrides = const {},
+  }) {
+    if (items.isEmpty) return const [];
+
+    final standaloneEvals = <({
+      SavedProjectItem item,
+      int qty,
+      double areaSqM,
+      double alu,
+      double glass,
+      double hw,
+      double totalMat,
+    })>[];
+
+    for (final it in items) {
+      final itemGroups = BinPacker.packSingleCalculation(
+        brandKey: it.priceBrandKey,
+        sets: it.evaluatedSets,
+      );
+      final itemGlasses =
+          it.evaluatedSets.expand((s) => s.glasses).toList();
+      final itemArea = it.totalOpeningAreaSqM;
+
+      final ev = evaluate(
+        barGroups: itemGroups,
+        mode: projectSummary.mode,
+        wastePercent: projectSummary.wastePercent,
+        selectedThickness: projectSummary.selectedThickness,
+        selectedColor: projectSummary.selectedColor,
+        ormCatalog: ormCatalog,
+        customOverrides: customOverrides,
+        glasses: itemGlasses,
+        openingAreaSqM: itemArea,
+        fallbackOpeningAreaSqM: itemArea * 0.88,
+        hardware: it.hardware,
+        includeGlass: projectSummary.includeGlass,
+        selectedGlassKey: projectSummary.selectedGlassKey,
+        glassRatePerSqM: projectSummary.glassRatePerSqM,
+        includeHardware: projectSummary.includeHardware,
+        hardwareCatalog: hardwareCatalog,
+        materialOverrides: materialOverrides,
+        laborMode: LaborCostMode.perSqM,
+        laborRate: 0.0,
+        profitPercent: 0.0,
+        profitBaseMode: projectSummary.profitBaseMode,
+      );
+
+      standaloneEvals.add((
+        item: it,
+        qty: it.totalUnits > 0 ? it.totalUnits : 1,
+        areaSqM: itemArea,
+        alu: ev.aluminumCost,
+        glass: projectSummary.includeGlass ? ev.glassCost : 0.0,
+        hw: projectSummary.includeHardware ? ev.hardwareCost : 0.0,
+        totalMat: ev.totalCost,
+      ));
+    }
+
+    final sumStandaloneMat =
+        standaloneEvals.fold<double>(0.0, (s, e) => s + e.totalMat);
+    final totalArea =
+        standaloneEvals.fold<double>(0.0, (s, e) => s + e.areaSqM);
+    final totalUnitsAll =
+        standaloneEvals.fold<int>(0, (s, e) => s + e.qty);
+
+    // Reconcile per-item material cost so sum == projectSummary.totalCost
+    final allocatedMats = <double>[];
+    double matRunning = 0.0;
+    for (int i = 0; i < standaloneEvals.length; i++) {
+      final e = standaloneEvals[i];
+      if (i == standaloneEvals.length - 1) {
+        final rem = round2(
+          (projectSummary.totalCost - matRunning).clamp(0.0, double.infinity),
+        );
+        allocatedMats.add(rem);
+        matRunning = round2(matRunning + rem);
+      } else {
+        final double weight;
+        if (sumStandaloneMat > 0) {
+          weight = e.totalMat / sumStandaloneMat;
+        } else if (totalArea > 0) {
+          weight = e.areaSqM / totalArea;
+        } else {
+          weight = totalUnitsAll > 0
+              ? (e.qty / totalUnitsAll)
+              : (1.0 / standaloneEvals.length);
+        }
+        final share = round2(projectSummary.totalCost * weight);
+        allocatedMats.add(share);
+        matRunning = round2(matRunning + share);
+      }
+    }
+
+    // Compute cost-weighted unit selling prices via unified allocator
+    final unitPrices = allocateQuotationLineUnitPrices(
+      items: List.generate(
+        standaloneEvals.length,
+        (i) => (
+          materialCost: allocatedMats[i],
+          areaSqM: standaloneEvals[i].areaSqM,
+          qty: standaloneEvals[i].qty,
+        ),
+      ),
+      laborMode: projectSummary.laborMode,
+      laborRate: projectSummary.laborRate,
+      profitPercent: projectSummary.profitPercent,
+      profitBaseMode: projectSummary.profitBaseMode,
+      targetTotal: projectSummary.suggestedSellingPrice,
+    );
+
+    final out = <ProjectItemPricingBreakdown>[];
+    for (int i = 0; i < standaloneEvals.length; i++) {
+      final e = standaloneEvals[i];
+      final allocMat = allocatedMats[i];
+      final double itemLabor;
+      switch (projectSummary.laborMode) {
+        case LaborCostMode.perSqM:
+          itemLabor = round2(e.areaSqM * projectSummary.laborRate);
+          break;
+        case LaborCostMode.percentOfMaterial:
+          itemLabor = round2(
+            allocMat * (projectSummary.laborRate.clamp(0.0, 200.0) / 100.0),
+          );
+          break;
+        case LaborCostMode.flatBaht:
+          final ratio = totalArea > 0
+              ? (e.areaSqM / totalArea)
+              : (projectSummary.totalCost > 0
+                  ? (allocMat / projectSummary.totalCost)
+                  : (1.0 / standaloneEvals.length));
+          itemLabor = round2(projectSummary.laborCost * ratio);
+          break;
+      }
+      final profitBase =
+          projectSummary.profitBaseMode == ProfitBaseMode.materialAndLabor
+              ? (allocMat + itemLabor)
+              : allocMat;
+      final itemProfit =
+          round2(profitBase * (projectSummary.profitPercent / 100.0));
+      final uPrice = unitPrices[i];
+      final lineTotal = round2(uPrice * e.qty);
+
+      out.add(
+        ProjectItemPricingBreakdown(
+          item: e.item,
+          totalUnits: e.qty,
+          openingAreaSqM: round2(e.areaSqM),
+          standaloneAluminumCost: e.alu,
+          standaloneGlassCost: e.glass,
+          standaloneHardwareCost: e.hw,
+          standaloneMaterialCost: e.totalMat,
+          allocatedMaterialCost: allocMat,
+          laborCost: itemLabor,
+          profitAmount: itemProfit,
+          suggestedTotalPrice: lineTotal,
+          unitSellingPrice: uPrice,
+        ),
+      );
+    }
+    return out;
   }
 
   static String colorFamily(String rawColor) {

@@ -160,7 +160,12 @@ class ParametricSystemResolver {
       vars['H_t'] = htVal;
       vars['H1'] = h - htVal;
     } else if (pattern.auxType == AuxDimensionType.sideFixWf) {
-      vars['W_f'] = aux > 0 ? aux : (w * 0.35);
+      if (pattern.baseFormulaKey.startsWith('alu_ext:iq:door:')) {
+        final rawWf = aux > 0 ? aux : (w * 0.62);
+        vars['W_f'] = rawWf.clamp(300.0, (w - 200.0).clamp(300.0, w));
+      } else {
+        vars['W_f'] = aux > 0 ? aux : (w * 0.35);
+      }
     } else if (pattern.auxType == AuxDimensionType.secondWidthW2) {
       vars['W1'] = w;
       vars['W2'] = aux > 0 ? aux : w;
@@ -311,7 +316,9 @@ class ParametricSystemResolver {
       }
     }
 
-    final base = seed.getFormulaTable(key);
+    final base = key.startsWith('alu_ext:')
+        ? _resolveAlumetExtendedTable(key, pattern.title)
+        : seed.getFormulaTable(key);
     if (base == null) {
       throw StateError('Formula table not found for key: $key (${pattern.id})');
     }
@@ -1287,7 +1294,9 @@ class ParametricSystemResolver {
     final usage = opts['usage_type'] ?? 'door';
     final roller = opts['roller_type'] ?? 'cartridge';
     final mosq = opts['mosquito'] ?? 'none';
-    final hasTopTransom = patternId == 'c2_nex_s2_top_card';
+    final hasTopTransom = patternId.contains('_top') ||
+        patternId.contains('_arch') ||
+        patternId.contains('_tb');
     final hVar = hasTopTransom ? 'H1' : 'H';
 
     String adjustedRailFormula(String orig) {
@@ -1339,7 +1348,7 @@ class ParametricSystemResolver {
       updatedCuts.add(c);
     }
 
-    if (series == 'nex100' && patternId == 'c2_nex_s4_card') {
+    if (series == 'nex100' && patternId.contains('_s4')) {
       updatedCuts.add(
         CutPieceSpec(
           section: 'กรอบบานเลื่อน',
@@ -1355,8 +1364,8 @@ class ParametricSystemResolver {
     }
 
     if (mosq == 'fiber') {
-      final is4Panel = patternId == 'c2_nex_s4_card';
-      final is3Panel = patternId == 'c2_nex_s3_card';
+      final is4Panel = patternId.contains('_s4');
+      final is3Panel = patternId.contains('_s3');
       final mosqPanels = is4Panel ? 2 : 1;
       final horizFormula = is3Panel
           ? '(W - 47) / 3'
@@ -2805,5 +2814,889 @@ class ParametricSystemResolver {
       ]);
     }
     return hw;
+  }
+
+  // ===========================================================================
+  // ALUMET 6-Album Extended Parametric Pattern Resolver
+  // Supports: sx (Smart X), nex (NEX 100/200), iq (Iconiq Euro)
+  // Families: slide, case, awn, fix, door (ICONIQ ONLY!)
+  // ===========================================================================
+  static VerifiedFormulaTable _resolveAlumetExtendedTable(
+    String key,
+    String patternTitle,
+  ) {
+    final parts = key.split(':');
+    // Format: alu_ext:<series>:<family>:<p1>[:<p2>]
+    final series = parts.length > 1 ? parts[1] : 'sx';
+    final family = parts.length > 2 ? parts[2] : 'fix';
+    final p1 = parts.length > 3 ? parts[3] : '1';
+    final p2 = parts.length > 4 ? parts[4] : 'plain';
+
+    switch (family) {
+      case 'slide':
+        return _buildAlumetExtendedSliding(series, p1, key, patternTitle);
+      case 'case':
+      case 'awn':
+        final n = int.tryParse(p1) ?? 1;
+        return _buildAlumetExtendedCasementOrAwning(
+          series: series,
+          isAwning: family == 'awn',
+          panels: n,
+          transom: p2,
+          key: key,
+          title: patternTitle,
+        );
+      case 'fix':
+        final n = int.tryParse(p1) ?? 1;
+        return _buildAlumetExtendedFixed(
+          series: series,
+          cols: n,
+          transom: p2,
+          key: key,
+          title: patternTitle,
+        );
+      case 'door':
+        return _buildIconiqExtendedSwingDoor(
+          variant: p1,
+          key: key,
+          title: patternTitle,
+        );
+      default:
+        throw StateError('Unknown ALUMET extended formula family: $key');
+    }
+  }
+
+  static CutPieceSpec _c(
+    String section,
+    String code,
+    String name,
+    String formula,
+    int qty, {
+    int stockMm = 6400,
+    String angle = '90° / 90°',
+  }) {
+    return CutPieceSpec(
+      section: section,
+      code: code,
+      name: name,
+      stockMm: stockMm,
+      qty: qty,
+      qtyText: '$qty ชิ้น',
+      angle: angle,
+      formula: formula,
+    );
+  }
+
+  static VerifiedFormulaTable _buildAlumetExtendedSliding(
+    String series,
+    String variant,
+    String key,
+    String title,
+  ) {
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hw = <HardwareItemSpec>[];
+
+    // Combo: 2 flanking casements + 3 center fixed bays
+    if (variant == 'combo_c2_f3' || variant == 'combo_c2_f3_bot') {
+      final hasBot = variant == 'combo_c2_f3_bot';
+      final hWing = hasBot ? 'H1' : 'H';
+
+      if (series == 'sx') {
+        cuts.addAll([
+          _c('ชุดเฟรมหลัก', 'SC-X107', 'วงกบข้างซ้าย/ขวา', 'H', 2),
+          _c('ชุดเฟรมหลัก', 'SC-X107', 'วงกบบนเต็มความกว้าง', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'SC-X108', 'วงกบล่างเต็มความกว้าง', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'SC-X104', 'เสาซอยแบ่งช่องหลัก', 'H - 50', 4),
+          if (hasBot)
+            _c('ช่องแสงล่างใต้บานเปิด', 'SF-X109', 'ขวางแบ่งช่องแสงล่าง', '(W - 140) / 5', 2),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'SC-X204', 'กรอบบานแนวตั้ง', '$hWing - 36', 4, angle: '45° / 45°'),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'SC-X204', 'กรอบบานแนวนอน', '(W - 140) / 5', 4, angle: '45° / 45°'),
+          _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกแนวตั้ง (บานเปิด + บานตาย)', 'H - 90', 10),
+          _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกแนวนอน', '(W - 180) / 5', hasBot ? 14 : 10),
+        ]);
+      } else if (series == 'nex') {
+        cuts.addAll([
+          _c('ชุดเฟรมหลัก', 'PC-0104', 'เฟรมบน-ข้าง บานเปิด-กระทุ้ง เน็กซ์', 'H', 2),
+          _c('ชุดเฟรมหลัก', 'PC-0104', 'เฟรมบนเต็มความกว้าง เน็กซ์', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'PC-0105', 'เฟรมล่างเต็มความกว้าง เน็กซ์', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'PC-0106', 'ซอยเฟรมแบ่งช่องหลัก เน็กซ์', 'H - 50', 4),
+          if (hasBot)
+            _c('ช่องแสงล่างใต้บานเปิด', 'PC-0107', 'ตบเฟรมแบ่งช่องแสงล่าง เน็กซ์', '(W - 140) / 5', 2),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'PC-0204', 'กรอบบานเปิดแนวตั้ง เน็กซ์', '$hWing - 36', 4, angle: '45° / 45°'),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'PC-0204', 'กรอบบานเปิดแนวนอน เน็กซ์', '(W - 140) / 5', 4, angle: '45° / 45°'),
+          _c('คิ้วกระจกช่องแสง', 'A30274', 'คิ้วช่องแสงแนวตั้ง', 'H - 80', 6),
+          _c('คิ้วกระจกช่องแสง', 'A30274', 'คิ้วช่องแสงแนวนอน', '(W - 160) / 5', hasBot ? 10 : 6),
+        ]);
+      } else {
+        // Iconiq Euro
+        cuts.addAll([
+          _c('ชุดเฟรมหลัก', 'iC-0101', 'วงกบข้างซ้าย/ขวา ไอคอนิค', 'H', 2),
+          _c('ชุดเฟรมหลัก', 'iC-0101', 'วงกบบนเต็มความกว้าง ไอคอนิค', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'iC-0102', 'วงกบล่างเต็มความกว้าง ไอคอนิค', 'W - 50', 1),
+          _c('ชุดเฟรมหลัก', 'iF-0104', 'เสาซอยแบ่งช่องหลัก ไอคอนิค', 'H - 50', 4),
+          if (hasBot)
+            _c('ช่องแสงล่างใต้บานเปิด', 'iF-0102', 'ขวางแบ่งช่องแสงล่าง ไอคอนิค', '(W - 140) / 5', 2),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'iC-0201', 'กรอบบานเปิดแนวตั้ง ไอคอนิค', '$hWing - 36', 4, angle: '45° / 45°'),
+          _c('กรอบบานเปิดซ้าย-ขวา', 'iC-0201', 'กรอบบานเปิดแนวนอน ไอคอนิค', '(W - 140) / 5', 4, angle: '45° / 45°'),
+          _c('ชุดตบร่องและคิ้ว', 'SC-X105', 'ตบร่องเฟรมแนวตั้ง', 'H', 2),
+          _c('ชุดตบร่องและคิ้ว', 'iO-0203', 'คิ้วกระจกแนวตั้ง ไอคอนิค', 'H - 110', 10),
+          _c('ชุดตบร่องและคิ้ว', 'iO-0203', 'คิ้วกระจกแนวนอน ไอคอนิค', '(W - 190) / 5', hasBot ? 14 : 10),
+        ]);
+      }
+
+      glasses.addAll([
+        GlassPieceSpec(
+          name: 'กระจกบานเปิดข้างซ้าย-ขวา',
+          siteCut: false,
+          wFormula: '((W - 140) / 5) - 70',
+          hFormula: '$hWing - 116',
+          qty: 2,
+          qtyText: '2 แผ่น',
+        ),
+        const GlassPieceSpec(
+          name: 'กระจกบานติดตายกลาง 3 ช่อง',
+          siteCut: false,
+          wFormula: '((W - 140) / 5) - 20',
+          hFormula: 'H - 60',
+          qty: 3,
+          qtyText: '3 แผ่น',
+        ),
+        if (hasBot)
+          const GlassPieceSpec(
+            name: 'กระจกช่องแสงล่างใต้บานเปิด',
+            siteCut: false,
+            wFormula: '((W - 140) / 5) - 20',
+            hFormula: '(H - H1) - 35',
+            qty: 2,
+            qtyText: '2 แผ่น',
+          ),
+      ]);
+      hw.addAll(const [
+        HardwareItemSpec(code: '', name: 'บานพับกระทุ้ง', qtyText: '2 คู่'),
+        HardwareItemSpec(code: '', name: 'มือจับกระทุ้ง มัลติพอยท์', qtyText: '2 ชุด'),
+        HardwareItemSpec(code: '', name: 'ตลับเกียร์มัลติพอยท์', qtyText: '2 ชุด'),
+        HardwareItemSpec(code: '', name: 'ฉากประคองมุม TL 6.5 มิล', qtyText: '8 ตัว'),
+      ]);
+
+      return VerifiedFormulaTable(
+        key: key,
+        header: title,
+        cuts: cuts,
+        glasses: glasses,
+        hardware: hw,
+      );
+    }
+
+    // Sliding variants:
+    // s2_top2, s3_1f2s, s3_top, s4_top, s4_top4, s4_arch, s3_1f2s_tb, s3_1f2s_tb_asym
+    final is4 = variant.startsWith('s4');
+    final is3 = variant.startsWith('s3');
+    final is2 = variant.startsWith('s2');
+    final isArch = variant == 's4_arch';
+    final isTb = variant == 's3_1f2s_tb' || variant == 's3_1f2s_tb_asym';
+    final isTopOnly = variant == 's2_top2' ||
+        variant == 's3_top' ||
+        variant == 's4_top' ||
+        variant == 's4_top4';
+    final hasTransomH1 = isTopOnly || isArch || isTb;
+    final hSlide = hasTransomH1 ? 'H1' : 'H';
+    final panelCount = is4 ? 4 : (is3 ? 3 : 2);
+    final slidingLeaves = variant.contains('1f2s') ? 2 : (is4 ? 2 : panelCount);
+    final topCells = variant == 's4_top4'
+        ? 4
+        : (variant == 's2_top2'
+            ? 2
+            : (variant == 's3_1f2s_tb'
+                ? 3
+                : (variant == 's3_1f2s_tb_asym' ? 2 : (is3 ? 3 : 1))));
+
+    // Rail width formula matching existing verified deductions per panel count
+    final railFormula = is4
+        ? '(W - 280) / 4'
+        : (is3 ? '(W - 180) / 3' : '(W - 168) / 2');
+    final stileQty = panelCount * 2;
+    final railQty = panelCount * 2;
+    final interlockQty = is4 ? 2 : (is3 ? 2 : 2);
+
+    if (series == 'sx') {
+      cuts.addAll([
+        _c('วงกบและเฟรมบานเลื่อน', 'SS-X101', 'เฟรมบนบานเลื่อน สมาร์ท เอ็กซ์', 'W - 50', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'SS-X102', 'เฟรมล่างบานเลื่อน สมาร์ท เอ็กซ์', 'W - 50', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'SS-X103', 'เฟรมข้างกล่องเรียบ สมาร์ท เอ็กซ์', hSlide, 2),
+        if (hasTransomH1)
+          _c('ชุดต่อช่องแสง', 'SS-X104', 'ตบเฟรมต่อช่องแสง สมาร์ท เอ็กซ์', 'W - 50', isTb ? 2 : 1),
+        _c('กรอบบานเลื่อน', 'SS-X209', 'เสากุญแจมัลติพอยท์ สมาร์ท เอ็กซ์', '$hSlide - 56', stileQty),
+        _c('กรอบบานเลื่อน', 'SS-X210', 'ขวางบน-ล่าง (ล้อตลับ) สมาร์ท เอ็กซ์', railFormula, railQty),
+        _c('กรอบบานเลื่อน', 'SS-0139', 'ตบเกี่ยวเสา สมาร์ท เอ็กซ์', '$hSlide - 56', interlockQty),
+      ]);
+      if (isArch) {
+        cuts.addAll([
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'SF-X110', 'เฟรมดัดโค้งช่องแสงบน (เผื่อดัดโค้ง)', '(W * 1.571) + 100', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'SF-X109', 'ฐานช่องแสงโค้งแนวนอน', 'W - 50', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'SF-X105', 'ซี่รัศมีแบ่งช่องแสงโค้ง', '(W / 2) - 40', 4),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'SF-X108', 'คิ้วกระจกดัดโค้งช่องแสงบน', '(W * 1.571) + 60', 1),
+        ]);
+      } else if (isTopOnly) {
+        cuts.addAll([
+          _c('ช่องแสงบน', 'SF-X110', 'เฟรมบนช่องแสง สมาร์ท เอ็กซ์', 'W - 50', 1),
+          _c('ช่องแสงบน', 'SF-X110', 'เฟรมข้างช่องแสงบน', 'H - H1', 2),
+          if (topCells > 1)
+            _c('ช่องแสงบน', 'SF-X105', 'เสาซอยแบ่งช่องแสงบน', '(H - H1) - 25', topCells - 1),
+          _c('ช่องแสงบน', 'SF-X108', 'คิ้วกระจกช่องแสงแนวนอน', '(W - 70) / $topCells', topCells * 2),
+          _c('ช่องแสงบน', 'SF-X108', 'คิ้วกระจกช่องแสงแนวตั้ง', '(H - H1) - 35', topCells * 2),
+        ]);
+      } else if (isTb) {
+        cuts.addAll([
+          _c('ช่องแสงบน-ล่าง', 'SF-X110', 'เฟรมบน-ล่างช่องแสง สมาร์ท เอ็กซ์', 'W - 50', 2),
+          _c('ช่องแสงบน-ล่าง', 'SF-X110', 'เฟรมข้างช่องแสงบน-ล่าง', '(H - H1) / 2', 4),
+          _c('ช่องแสงบน-ล่าง', 'SF-X105', 'เสาซอยแบ่งช่องแสงบน-ล่าง', '((H - H1) / 2) - 25', topCells + 1),
+          _c('ช่องแสงบน-ล่าง', 'SF-X108', 'คิ้วกระจกช่องแสงแนวนอน', '(W - 80) / 3', 10),
+        ]);
+      }
+    } else if (series == 'nex') {
+      final topTrack = is3 ? 'PS-0113' : 'PS-0107';
+      final botTrack = is3 ? 'PS-0114' : 'PS-0108';
+      final trackLabel = is3 ? '3 ราง' : '2 ราง';
+      cuts.addAll([
+        _c('วงกบและเฟรมบานเลื่อน', topTrack, 'เฟรมบน $trackLabel เน็กซ์', 'W - 40', 1),
+        _c('วงกบและเฟรมบานเลื่อน', botTrack, 'เฟรมล่าง $trackLabel เน็กซ์', 'W - 40', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'PS-0106', 'เฟรมข้างกล่องเรียบ เน็กซ์', hSlide, 2),
+        _c('วงกบและเฟรมบานเลื่อน', 'PS-0109', 'ฝาตบเฟรมบน เน็กซ์', 'W - 40', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'PS-0110', 'ตบธรณีเฟรมล่าง เน็กซ์', 'W - 40', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'PS-0111', 'เสริมรับล็อกเฟรมข้าง เน็กซ์', '$hSlide - 40', 2),
+        if (hasTransomH1)
+          _c('ชุดต่อช่องแสง', 'PS-0112', 'ตบเฟรมบนต่อช่องแสง เน็กซ์', 'W - 40', isTb ? 2 : 1),
+        _c('กรอบบานเลื่อน', 'PS-0206', 'เสากุญแจประตูบานเลื่อน เน็กซ์', '$hSlide - 47', stileQty ~/ 2),
+        _c('กรอบบานเลื่อน', 'PS-0208', 'เสาเกี่ยว เน็กซ์', '$hSlide - 47', stileQty ~/ 2),
+        _c('กรอบบานเลื่อน', 'PS-0207', 'ขวางบน-ล่าง ล้อตลับ เน็กซ์', railFormula, railQty),
+      ]);
+      if (isArch) {
+        cuts.addAll([
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'PF-0103', 'กล่องร่องดัดโค้งช่องแสงบน (เผื่อดัดโค้ง)', '(W * 1.571) + 100', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'PF-0101', 'กล่องเปิดฐานช่องแสงโค้ง', 'W - 40', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'PF-0103', 'ซี่รัศมีแบ่งช่องแสงโค้ง', '(W / 2) - 40', 4),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'A10261', 'ตบร่องช่องแสงโค้ง', '(W * 1.571) + 60', 1),
+        ]);
+      } else if (isTopOnly) {
+        cuts.addAll([
+          _c('ช่องแสงบน', 'PF-0103', 'กล่องร่องเฟรมบนช่องแสง เน็กซ์', 'W - 40', 1),
+          _c('ช่องแสงบน', 'PF-0103', 'กล่องร่องเฟรมข้างช่องแสงบน', 'H - H1', 2),
+          if (topCells > 1)
+            _c('ช่องแสงบน', 'PF-0103', 'กล่องร่องซอยแบ่งช่องแสงบน', '(H - H1) - 25', topCells - 1),
+          _c('ช่องแสงบน', 'PF-0102', 'ฝาปิดกล่องช่องแสงบน', 'W - 40', 1),
+          _c('ช่องแสงบน', 'A10261', 'ตบร่องช่องแสงบน', '(H - H1) - 25', topCells + 1),
+        ]);
+      } else if (isTb) {
+        cuts.addAll([
+          _c('ช่องแสงบน-ล่าง', 'PF-0103', 'กล่องร่องเฟรมบน-ล่างช่องแสง เน็กซ์', 'W - 40', 2),
+          _c('ช่องแสงบน-ล่าง', 'PF-0103', 'กล่องร่องเฟรมข้างช่องแสงบน-ล่าง', '(H - H1) / 2', 4),
+          _c('ช่องแสงบน-ล่าง', 'PF-0103', 'กล่องร่องซอยแบ่งช่องแสงบน-ล่าง', '((H - H1) / 2) - 25', topCells + 1),
+          _c('ช่องแสงบน-ล่าง', 'A10261', 'ตบร่องช่องแสงบน-ล่าง', 'W - 50', 2),
+        ]);
+      }
+    } else {
+      // Iconiq Euro
+      cuts.addAll([
+        _c('วงกบและเฟรมบานเลื่อน', 'iS-0101', 'เฟรมบน-ล่างบานเลื่อน ไอคอนิค', 'W - 50', 2),
+        _c('วงกบและเฟรมบานเลื่อน', 'iS-0102', 'เฟรมข้างบานเลื่อน ไอคอนิค', hSlide, 2),
+        _c('วงกบและเฟรมบานเลื่อน', 'iS-0104', 'ตบรางล้อบานเลื่อน ไอคอนิค', 'W - 50', 2),
+        _c('วงกบและเฟรมบานเลื่อน', 'iS-0113', 'ตบเฟรมบนบานเลื่อน ไอคอนิค', 'W - 50', 1),
+        _c('วงกบและเฟรมบานเลื่อน', 'iS-0114', 'ตบธรณีบานเลื่อน ไอคอนิค', 'W - 50', 1),
+        if (hasTransomH1)
+          _c('ชุดต่อช่องแสง', 'iS-0116', 'เสริมช่องแสงเฟรมบานเลื่อน ไอคอนิค', 'W - 50', isTb ? 2 : 1),
+        _c('กรอบบานเลื่อน', 'iS-0201', 'กรอบบานเลื่อนแนวตั้ง ไอคอนิค', '$hSlide - 62', stileQty, angle: '45° / 45°'),
+        _c('กรอบบานเลื่อน', 'iS-0201', 'กรอบบานเลื่อนแนวนอน ไอคอนิค', railFormula, railQty, angle: '45° / 45°'),
+        _c('คิ้วกรอบบาน', 'iS-0202', 'คิ้วกรอบบานแนวตั้ง ไอคอนิค', '$hSlide - 160', stileQty),
+        _c('คิ้วกรอบบาน', 'iS-0202', 'คิ้วกรอบบานแนวนอน ไอคอนิค', '$railFormula - 80', railQty),
+      ]);
+      if (isArch) {
+        cuts.addAll([
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0101', 'เฟรมดัดโค้งช่องแสงบน ไอคอนิค (เผื่อดัดโค้ง)', '(W * 1.571) + 100', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0102', 'เฟรมฐานช่องแสงโค้ง ไอคอนิค', 'W - 50', 1),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0104', 'ซี่รัศมีแบ่งช่องแสงโค้ง ไอคอนิค', '(W / 2) - 40', 4),
+          _c('ช่องแสงโค้งครึ่งวงกลม', 'iO-0203', 'คิ้วกระจกช่องแสงโค้ง ไอคอนิค', '(W * 1.571) + 60', 1),
+        ]);
+      } else if (isTopOnly) {
+        cuts.addAll([
+          _c('ช่องแสงบน', 'iF-0101', 'เฟรมบนช่องแสง ไอคอนิค', 'W - 50', 1),
+          _c('ช่องแสงบน', 'iF-0101', 'เฟรมข้างช่องแสงบน ไอคอนิค', 'H - H1', 2),
+          if (topCells > 1)
+            _c('ช่องแสงบน', 'iF-0104', 'เสาซอยแบ่งช่องแสงบน ไอคอนิค', '(H - H1) - 25', topCells - 1),
+          _c('ช่องแสงบน', 'iO-0203', 'คิ้วกระจกช่องแสงแนวนอน ไอคอนิค', '(W - 80) / $topCells', topCells * 2),
+        ]);
+      } else if (isTb) {
+        cuts.addAll([
+          _c('ช่องแสงบน-ล่าง', 'iF-0101', 'เฟรมบนช่องแสง ไอคอนิค', 'W - 50', 1),
+          _c('ช่องแสงบน-ล่าง', 'iF-0102', 'เฟรมล่างช่องแสง ไอคอนิค', 'W - 50', 1),
+          _c('ช่องแสงบน-ล่าง', 'iF-0101', 'เฟรมข้างช่องแสงบน-ล่าง ไอคอนิค', '(H - H1) / 2', 4),
+          _c('ช่องแสงบน-ล่าง', 'iF-0104', 'เสาซอยแบ่งช่องแสงบน-ล่าง ไอคอนิค', '((H - H1) / 2) - 25', topCells + 1),
+          _c('ช่องแสงบน-ล่าง', 'iO-0203', 'คิ้วกระจกช่องแสงบน-ล่าง ไอคอนิค', '(W - 80) / 3', 10),
+        ]);
+      }
+    }
+
+    // Glasses for sliding
+    final slideGlassW = is4
+        ? '(W - 360) / 4'
+        : (is3 ? '(W - 260) / 3' : '(W - 220) / 2');
+    glasses.add(
+      GlassPieceSpec(
+        name: 'กระจกบานเลื่อน ($panelCount ช่อง)',
+        siteCut: false,
+        wFormula: slideGlassW,
+        hFormula: '$hSlide - 140',
+        qty: panelCount,
+        qtyText: '$panelCount แผ่น',
+      ),
+    );
+    if (isArch) {
+      glasses.add(
+        const GlassPieceSpec(
+          name: 'กระจกช่องแสงโค้งครึ่งวงกลม (วัดตัดตามแบบโค้งหน้างาน)',
+          siteCut: true,
+          qty: 4,
+          qtyText: '4 แผ่น',
+        ),
+      );
+    } else if (isTopOnly) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงบน ($topCells ช่อง)',
+          siteCut: false,
+          wFormula: '(W - ${40 + topCells * 25}) / $topCells',
+          hFormula: '(H - H1) - 35',
+          qty: topCells,
+          qtyText: '$topCells แผ่น',
+        ),
+      );
+    } else if (isTb) {
+      glasses.addAll([
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงบน ($topCells ช่อง)',
+          siteCut: false,
+          wFormula: '(W - ${40 + topCells * 25}) / $topCells',
+          hFormula: '((H - H1) / 2) - 30',
+          qty: topCells,
+          qtyText: '$topCells แผ่น',
+        ),
+        const GlassPieceSpec(
+          name: 'กระจกช่องแสงล่าง (3 ช่อง)',
+          siteCut: false,
+          wFormula: '(W - 115) / 3',
+          hFormula: '((H - H1) / 2) - 30',
+          qty: 3,
+          qtyText: '3 แผ่น',
+        ),
+      ]);
+    }
+
+    hw.addAll([
+      HardwareItemSpec(
+        code: '',
+        name: 'ล้อตลับบานเลื่อน NEX',
+        qtyText: '${slidingLeaves * 2} ตัว',
+      ),
+      HardwareItemSpec(
+        code: '',
+        name: 'มือจับฝังล็อก ซิงเกิลล็อก',
+        qtyText: '${is2 || is3 ? 2 : 2} ชุด',
+      ),
+      HardwareItemSpec(
+        code: '',
+        name: 'ยางกันกระแทกบานเลื่อน',
+        qtyText: '${slidingLeaves * 2} ตัว',
+      ),
+      const HardwareItemSpec(
+        code: '',
+        name: 'สักหลาดกันเสียง 2 ชั้น',
+        qtyText: '1 ม้วน',
+      ),
+    ]);
+
+    return VerifiedFormulaTable(
+      key: key,
+      header: title,
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hw,
+    );
+  }
+
+  static VerifiedFormulaTable _buildAlumetExtendedCasementOrAwning({
+    required String series,
+    required bool isAwning,
+    required int panels,
+    required String transom, // plain | top | bot | tb
+    required String key,
+    required String title,
+  }) {
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hw = <HardwareItemSpec>[];
+
+    final hasTop = transom == 'top' || transom == 'tb';
+    final hasBot = transom == 'bot' || transom == 'tb';
+    final hasTransom = hasTop || hasBot;
+    final sashH = hasTransom ? 'H1' : 'H';
+    final transomH = transom == 'tb' ? '(H - H1) / 2' : '(H - H1)';
+    final transomDivCount = transom == 'tb' ? 2 : (hasTransom ? 1 : 0);
+    final sashW = panels == 1
+        ? 'W - 36'
+        : '(W - ${36 + (panels - 1) * 24}) / $panels';
+    final glassW = panels == 1
+        ? 'W - 120'
+        : '((W - ${36 + (panels - 1) * 24}) / $panels) - 80';
+    final transomGlassW = panels == 1
+        ? 'W - 60'
+        : '(W - ${40 + panels * 24}) / $panels';
+    final leafLabel = isAwning ? 'บานกระทุ้ง' : 'บานเปิด';
+
+    if (series == 'sx') {
+      cuts.addAll([
+        _c('ชุดวงกบ', 'SC-X107', 'วงกบข้างซ้าย/ขวา สมาร์ท เอ็กซ์', 'H', 2),
+        _c('ชุดวงกบ', 'SC-X107', 'วงกบบน สมาร์ท เอ็กซ์', 'W - 50', 1),
+        _c('ชุดวงกบ', 'SC-X108', 'วงกบล่าง สมาร์ท เอ็กซ์', 'W - 50', 1),
+        if (panels == 2 && !isAwning)
+          _c('เสาแบ่งบาน', 'SC-0212', 'เสารับกลางบานเปิดคู่ สมาร์ท เอ็กซ์', '$sashH - 36', 1)
+        else if (panels > 1)
+          _c('เสาแบ่งบาน', 'SC-X104', 'เสาซอยแบ่งช่อง$leafLabel สมาร์ท เอ็กซ์', '$sashH - 36', panels - 1),
+        if (transomDivCount > 0)
+          _c('ชุดช่องแสง', 'SF-X109', 'เฟรมขวางแบ่งช่องแสง สมาร์ท เอ็กซ์', 'W - 50', transomDivCount),
+        if (hasTransom && panels > 1)
+          _c('ชุดช่องแสง', 'SF-X105', 'เสาซอยแบ่งช่องแสง สมาร์ท เอ็กซ์', '$transomH - 25', (panels - 1) * transomDivCount),
+        _c('กรอบ$leafLabel', 'SC-X204', 'กรอบ$leafLabelแนวตั้ง สมาร์ท เอ็กซ์', '$sashH - 36', panels * 2, angle: '45° / 45°'),
+        _c('กรอบ$leafLabel', 'SC-X204', 'กรอบ$leafLabelแนวนอน สมาร์ท เอ็กซ์', sashW, panels * 2, angle: '45° / 45°'),
+        _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกกรอบบานแนวตั้ง', '$sashH - 110', panels * 2),
+        _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกกรอบบานแนวนอน', '$sashW - 60', panels * 2),
+        if (hasTransom)
+          _c('คิ้วกระจกช่องแสง', 'SF-X108', 'คิ้วกระจกช่องแสงแนวนอน', transomGlassW, panels * 2 * transomDivCount),
+      ]);
+    } else if (series == 'nex') {
+      cuts.addAll([
+        _c('ชุดวงกบ', 'PC-0104', 'เฟรมข้าง บานเปิด-กระทุ้ง เน็กซ์', 'H', 2),
+        _c('ชุดวงกบ', 'PC-0104', 'เฟรมบน บานเปิด-กระทุ้ง เน็กซ์', 'W - 50', 1),
+        _c('ชุดวงกบ', 'PC-0105', 'เฟรมล่าง บานเปิด-กระทุ้ง เน็กซ์', 'W - 50', 1),
+        if (panels == 2 && !isAwning)
+          _c('เสาแบ่งบาน', 'PC-0205', 'เสาเสริมบานเปิดคู่ เน็กซ์', '$sashH - 36', 1)
+        else if (panels > 1)
+          _c('เสาแบ่งบาน', 'PC-0106', 'ซอยเฟรมแบ่งช่อง$leafLabel เน็กซ์', '$sashH - 36', panels - 1),
+        if (hasTop)
+          _c('ชุดช่องแสงบน', 'PC-0106', 'ซอยเฟรมต่อช่องแสงบน เน็กซ์', 'W - 50', 1),
+        if (hasBot)
+          _c('ชุดช่องแสงล่าง', 'PC-0107', 'ตบเฟรมต่อช่องแสงล่าง เน็กซ์', 'W - 50', 1),
+        if (hasTransom && panels > 1)
+          _c('ชุดช่องแสง', 'PC-0106', 'ซอยเฟรมแบ่งช่องแสงแนวตั้ง เน็กซ์', '$transomH - 25', (panels - 1) * transomDivCount),
+        _c('กรอบ$leafLabel', 'PC-0204', 'กรอบ$leafLabelแนวตั้ง เน็กซ์', '$sashH - 36', panels * 2, angle: '45° / 45°'),
+        _c('กรอบ$leafLabel', 'PC-0204', 'กรอบ$leafLabelแนวนอน เน็กซ์', sashW, panels * 2, angle: '45° / 45°'),
+        if (hasTransom) ...[
+          _c('คิ้วช่องแสง', 'A30274', 'คิ้วช่องแสงแนวนอน เน็กซ์', transomGlassW, panels * 2 * transomDivCount),
+          _c('คิ้วช่องแสง', 'A30274', 'คิ้วช่องแสงแนวตั้ง เน็กซ์', '$transomH - 30', panels * 2 * transomDivCount),
+        ],
+      ]);
+    } else {
+      // Iconiq Euro
+      final frameTop = isAwning ? 'iC-0107' : 'iC-0101';
+      final frameBot = isAwning ? 'iC-0108' : 'iC-0102';
+      cuts.addAll([
+        _c('ชุดวงกบ', frameTop, 'วงกบข้างซ้าย/ขวา ไอคอนิค', 'H', 2),
+        _c('ชุดวงกบ', frameTop, 'วงกบบน ไอคอนิค', 'W - 50', 1),
+        _c('ชุดวงกบ', frameBot, 'วงกบล่าง ไอคอนิค', 'W - 50', 1),
+        if (panels == 2 && !isAwning)
+          _c('เสาแบ่งบาน', 'SC-0212', 'เสริมเสาบานเปิดคู่ ไอคอนิค', '$sashH - 36', 1)
+        else if (panels > 1)
+          _c('เสาแบ่งบาน', 'iF-0104', 'เสาซอยแบ่งช่อง$leafLabel ไอคอนิค', '$sashH - 36', panels - 1),
+        if (transomDivCount > 0)
+          _c('ชุดช่องแสง', 'iF-0104', 'ตบช่องแสงที่แนวแบ่ง ไอคอนิค', 'W - 50', transomDivCount),
+        if (hasTransom && panels > 1)
+          _c('ชุดช่องแสง', 'SC-X106', 'เสาซอยแบ่งช่องแสง ไอคอนิค', '$transomH - 25', (panels - 1) * transomDivCount),
+        _c('กรอบ$leafLabel', 'iC-0201', 'กรอบ$leafLabelแนวตั้ง ไอคอนิค', '$sashH - 36', panels * 2, angle: '45° / 45°'),
+        _c('กรอบ$leafLabel', 'iC-0201', 'กรอบ$leafLabelแนวนอน ไอคอนิค', sashW, panels * 2, angle: '45° / 45°'),
+        _c('ตบร่องเฟรม', 'SC-X105', 'ตบร่องเฟรมแนวตั้ง', 'H', 2),
+        _c('ตบร่องเฟรม', 'SC-X105', 'ตบร่องเฟรมแนวนอน', 'W - 50', 2),
+        _c('คิ้วกระจก', 'iO-0203', 'คิ้วกระจกแนวตั้ง ไอคอนิค', '$sashH - 120', panels * 2),
+        _c('คิ้วกระจก', 'iO-0203', 'คิ้วกระจกแนวนอน ไอคอนิค', '$sashW - 80', panels * 2),
+      ]);
+    }
+
+    glasses.add(
+      GlassPieceSpec(
+        name: 'กระจก$leafLabel ($panels บาน)',
+        siteCut: false,
+        wFormula: glassW,
+        hFormula: '$sashH - 116',
+        qty: panels,
+        qtyText: '$panels แผ่น',
+      ),
+    );
+    if (hasTop) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงบน ($panels ช่อง)',
+          siteCut: false,
+          wFormula: transomGlassW,
+          hFormula: '$transomH - 30',
+          qty: panels,
+          qtyText: '$panels แผ่น',
+        ),
+      );
+    }
+    if (hasBot) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงล่าง ($panels ช่อง)',
+          siteCut: false,
+          wFormula: transomGlassW,
+          hFormula: '$transomH - 30',
+          qty: panels,
+          qtyText: '$panels แผ่น',
+        ),
+      );
+    }
+
+    hw.addAll([
+      HardwareItemSpec(
+        code: '',
+        name: 'บานพับกระทุ้ง',
+        qtyText: '$panels คู่',
+      ),
+      HardwareItemSpec(
+        code: '',
+        name: 'มือจับกระทุ้ง มัลติพอยท์',
+        qtyText: '$panels ชุด',
+      ),
+      if (!isAwning)
+        HardwareItemSpec(
+          code: '',
+          name: 'ตลับเกียร์มัลติพอยท์',
+          qtyText: '$panels ชุด',
+        ),
+      HardwareItemSpec(
+        code: '',
+        name: 'ฉากประคองมุม TL 6.5 มิล',
+        qtyText: '${panels * 4} ตัว',
+      ),
+    ]);
+
+    return VerifiedFormulaTable(
+      key: key,
+      header: title,
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hw,
+    );
+  }
+
+  static VerifiedFormulaTable _buildAlumetExtendedFixed({
+    required String series,
+    required int cols,
+    required String transom, // plain | top | tb
+    required String key,
+    required String title,
+  }) {
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hw = <HardwareItemSpec>[];
+
+    final hasTop = transom == 'top' || transom == 'tb';
+    final hasBot = transom == 'tb';
+    final hasTransom = hasTop || hasBot;
+    final centerH = hasTransom ? 'H1' : 'H';
+    final transomH = transom == 'tb' ? '(H - H1) / 2' : '(H - H1)';
+    final transomBars = transom == 'tb' ? 2 : (hasTop ? 1 : 0);
+    final cellGlassW = cols == 1
+        ? 'W - 45'
+        : '(W - ${45 + (cols - 1) * 26}) / $cols';
+
+    if (series == 'sx') {
+      cuts.addAll([
+        _c('ชุดเฟรมช่องแสง', 'SF-X110', 'เฟรมข้างช่องแสง สมาร์ท เอ็กซ์', 'H', 2),
+        _c('ชุดเฟรมช่องแสง', 'SF-X110', 'เฟรมบนช่องแสง สมาร์ท เอ็กซ์', 'W - 50', 1),
+        _c('ชุดเฟรมช่องแสง', 'SF-X109', 'เฟรมล่างช่องแสง สมาร์ท เอ็กซ์', 'W - 50', 1),
+        if (cols > 1)
+          _c('ชุดซอยแบ่งช่อง', 'SF-X105', 'เสาซอยแบ่งช่องแนวตั้ง สมาร์ท เอ็กซ์', 'H - 50', cols - 1),
+        if (transomBars > 0)
+          _c('ชุดซอยแบ่งช่อง', 'SF-X105', 'ขวางแบ่งช่องแสงแนวนอน สมาร์ท เอ็กซ์', 'W - 50', transomBars),
+        _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกแนวตั้ง สมาร์ท เอ็กซ์', '$centerH - 55', cols * 2),
+        _c('คิ้วกระจก', 'SF-X108', 'คิ้วกระจกแนวนอน สมาร์ท เอ็กซ์', cellGlassW, cols * 2 * (1 + transomBars)),
+      ]);
+    } else if (series == 'nex') {
+      cuts.addAll([
+        _c('กรอบช่องแสงสลิม 1 นิ้ว', 'PF-0103', 'กล่องร่องข้างซ้าย/ขวา เน็กซ์', 'H', 2),
+        _c('กรอบช่องแสงสลิม 1 นิ้ว', 'PF-0103', 'กล่องร่องบน เน็กซ์', 'W - 50.8', 1),
+        _c('กรอบช่องแสงสลิม 1 นิ้ว', 'PF-0101', 'กล่องเปิดล่าง เน็กซ์', 'W - 50.8', 1),
+        _c('กรอบช่องแสงสลิม 1 นิ้ว', 'PF-0102', 'ฝาปิดกล่องเปิดล่าง เน็กซ์', 'W - 50.8', 1),
+        if (cols > 1)
+          _c('ชุดซอยแบ่งช่อง', 'PF-0103', 'กล่องร่องซอยแนวตั้ง เน็กซ์', 'H - 50.8', cols - 1),
+        if (transomBars > 0)
+          _c('ชุดซอยแบ่งช่อง', 'PF-0103', 'กล่องร่องซอยแนวนอน เน็กซ์', 'W - 50.8', transomBars),
+        _c('ชุดตบร่อง', 'A10261', 'ตบร่องช่องแสง เน็กซ์', 'H - 50.8', cols + 1),
+        _c('ชุดตบร่อง', 'A10261', 'ตบร่องแนวนอน เน็กซ์', 'W - 50.8', 2 + transomBars),
+      ]);
+    } else {
+      // Iconiq Euro
+      cuts.addAll([
+        _c('ชุดเฟรมช่องแสง', 'iF-0101', 'เฟรมข้างช่องแสง ไอคอนิค', 'H', 2),
+        _c('ชุดเฟรมช่องแสง', 'iF-0101', 'เฟรมบนช่องแสง ไอคอนิค', 'W - 50', 1),
+        _c('ชุดเฟรมช่องแสง', 'iF-0102', 'เฟรมล่างช่องแสง ไอคอนิค', 'W - 50', 1),
+        if (cols > 1)
+          _c('ชุดซอยแบ่งช่อง', 'iF-0104', 'ตบช่องแสง / เสาซอยแนวตั้ง ไอคอนิค', 'H - 50', cols - 1),
+        if (transomBars > 0)
+          _c('ชุดซอยแบ่งช่อง', 'iF-0104', 'ตบช่องแสงแนวนอน ไอคอนิค', 'W - 50', transomBars),
+        _c('คิ้วกระจก', 'iO-0203', 'คิ้วกระจกช่องแสงแนวตั้ง ไอคอนิค', '$centerH - 60', cols * 2),
+        _c('คิ้วกระจก', 'iO-0203', 'คิ้วกระจกช่องแสงแนวนอน ไอคอนิค', cellGlassW, cols * 2 * (1 + transomBars)),
+      ]);
+    }
+
+    glasses.add(
+      GlassPieceSpec(
+        name: 'กระจกบานติดตายหลัก ($cols ช่อง)',
+        siteCut: false,
+        wFormula: cellGlassW,
+        hFormula: '$centerH - 45',
+        qty: cols,
+        qtyText: '$cols แผ่น',
+      ),
+    );
+    if (hasTop) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงบน ($cols ช่อง)',
+          siteCut: false,
+          wFormula: cellGlassW,
+          hFormula: '$transomH - 30',
+          qty: cols,
+          qtyText: '$cols แผ่น',
+        ),
+      );
+    }
+    if (hasBot) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงล่าง ($cols ช่อง)',
+          siteCut: false,
+          wFormula: cellGlassW,
+          hFormula: '$transomH - 30',
+          qty: cols,
+          qtyText: '$cols แผ่น',
+        ),
+      );
+    }
+
+    hw.addAll([
+      HardwareItemSpec(
+        code: '',
+        name: 'สกรูยึดเฟรมช่องแสง',
+        qtyText: '${8 + cols * 4} ตัว',
+      ),
+      HardwareItemSpec(
+        code: '',
+        name: 'ยางอัดกระจกช่องแสง',
+        qtyText: '$cols ชุด',
+      ),
+      const HardwareItemSpec(
+        code: '',
+        name: 'ซิลิโคนยาแนว',
+        qtyText: '2 หลอด',
+      ),
+    ]);
+
+    return VerifiedFormulaTable(
+      key: key,
+      header: title,
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hw,
+    );
+  }
+
+  /// ICONIQ-ONLY Extended Swing Doors (Album 5: ชุดประตูบานเปิด — 9 new variants + 2 existing = 11 total)
+  static VerifiedFormulaTable _buildIconiqExtendedSwingDoor({
+    required String variant,
+    required String key,
+    required String title,
+  }) {
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hw = <HardwareItemSpec>[];
+
+    final isDouble = variant.startsWith('2_');
+    final isLouver = variant.contains('louver');
+    final isFramedLouver = variant.contains('louver_frame');
+    final isSide1 = variant == '1_side1';
+    final isSide2Glass = variant == '2_louver_side2_glass';
+    final isSide2Louver = variant == '2_louver_side2_louver';
+    final isSide2 = isSide2Glass || isSide2Louver;
+    final isTop = variant == '2_top';
+    final isArch = variant == '2_arch';
+    final hDoor = (isTop || isArch) ? 'H1' : 'H';
+
+    // Outer frame
+    cuts.addAll([
+      _c('วงกบประตู ICONIQ', 'iC-0101', 'วงกบข้างซ้าย/ขวา ไอคอนิค', isArch ? 'H1' : 'H', 2),
+      if (!isArch)
+        _c('วงกบประตู ICONIQ', 'iC-0101', 'วงกบบน ไอคอนิค', 'W - 50', 1),
+      _c('วงกบประตู ICONIQ', 'iO-0101', 'ธรณีล่างประตูบานเปิด ไอคอนิค', 'W - 50', 1),
+      _c('ตบร่องเฟรม', 'SC-X105', 'ตบร่องเฟรมข้าง ไอคอนิค', isArch ? 'H1' : 'H', 2),
+      if (!isArch)
+        _c('ตบร่องเฟรม', 'SC-X105', 'ตบร่องเฟรมบน ไอคอนิค', 'W - 50', 1),
+    ]);
+
+    // Door sash dimensions
+    final String sashWFormula;
+    final int sashVertQty = isDouble ? 4 : 2;
+    final int sashHorizQty = isDouble ? 4 : 2;
+    if (isSide1) {
+      sashWFormula = 'W_f - 36';
+    } else if (isSide2) {
+      sashWFormula = '(W_f - 26) / 2';
+    } else if (isDouble) {
+      sashWFormula = '(W - 26) / 2';
+    } else {
+      sashWFormula = 'W - 36';
+    }
+
+    cuts.addAll([
+      _c('กรอบบานประตู ICONIQ', 'iO-0201', 'กรอบบานประตูแนวตั้ง ไอคอนิค', '$hDoor - 36', sashVertQty, angle: '45° / 45°'),
+      _c('กรอบบานประตู ICONIQ', 'iO-0201', 'กรอบบานประตูแนวนอน ไอคอนิค', sashWFormula, sashHorizQty, angle: '45° / 45°'),
+      if (isDouble)
+        _c('กรอบบานประตู ICONIQ', 'SC-0212', 'เสริมเสาบานเปิดคู่ ไอคอนิค', '$hDoor - 36', 1),
+    ]);
+
+    // Infill: Aluminum Louver/Slat vs Glass
+    if (isLouver) {
+      final slatsPerLeaf = isFramedLouver ? 16 : 18;
+      final totalSlats = isDouble ? slatsPerLeaf * 2 : slatsPerLeaf;
+      final slatW = isSide2
+          ? '((W_f - 26) / 2) - 160'
+          : (isDouble ? '((W - 26) / 2) - 160' : 'W - 196');
+      cuts.addAll([
+        _c('ลูกฟัก / เกล็ดอลูมิเนียม', 'iO-0205', 'ใบเกล็ด/ลูกฟักอลูมิเนียม ประตู ไอคอนิค', slatW, totalSlats),
+        _c('คิ้วลูกฟัก', 'iO-0203', 'คิ้วกรอบบานแนวตั้ง ไอคอนิค', '$hDoor - 167', sashVertQty),
+        _c('คิ้วลูกฟัก', 'iO-0203', 'คิ้วกรอบบานแนวนอน ไอคอนิค', slatW, isFramedLouver ? sashHorizQty * 2 : sashHorizQty),
+      ]);
+    } else {
+      final glassW = isSide1
+          ? 'W_f - 196'
+          : (isDouble ? '((W - 26) / 2) - 160' : 'W - 196');
+      cuts.addAll([
+        _c('คิ้วกระจกประตู', 'iO-0203', 'คิ้วกระจกแนวนอน ไอคอนิค', glassW, sashHorizQty),
+        _c('คิ้วกระจกประตู', 'iO-0203', 'คิ้วกระจกแนวตั้ง ไอคอนิค', '$hDoor - 167', sashVertQty),
+      ]);
+      glasses.add(
+        GlassPieceSpec(
+          name: isDouble ? 'กระจกบานประตูคู่ (2 บาน)' : 'กระจกบานประตูเดี่ยว',
+          siteCut: false,
+          wFormula: glassW,
+          hFormula: '$hDoor - 170',
+          qty: isDouble ? 2 : 1,
+          qtyText: isDouble ? '2 แผ่น' : '1 แผ่น',
+        ),
+      );
+    }
+
+    // Sidelights & Transoms
+    if (isSide1) {
+      cuts.addAll([
+        _c('ช่องแสงข้าง 1 ช่อง', 'iF-0104', 'เสาซอยแบ่งช่องแสงข้าง ไอคอนิค', 'H - 50', 1),
+        _c('ช่องแสงข้าง 1 ช่อง', 'iO-0203', 'คิ้วกระจกช่องแสงข้างแนวตั้ง', 'H - 80', 2),
+        _c('ช่องแสงข้าง 1 ช่อง', 'iO-0203', 'คิ้วกระจกช่องแสงข้างแนวนอน', '(W - W_f) - 55', 2),
+      ]);
+      glasses.add(
+        const GlassPieceSpec(
+          name: 'กระจกช่องแสงข้างประตู',
+          siteCut: false,
+          wFormula: '(W - W_f) - 50',
+          hFormula: 'H - 55',
+          qty: 1,
+          qtyText: '1 แผ่น',
+        ),
+      );
+    } else if (isSide2) {
+      cuts.addAll([
+        _c('ช่องข้างซ้าย-ขวา', 'iF-0104', 'เสาซอยแบ่งช่องข้างซ้าย-ขวา ไอคอนิค', 'H - 50', 2),
+        _c('ช่องข้างซ้าย-ขวา', 'iO-0203', 'คิ้วกรอบช่องข้างแนวตั้ง', 'H - 80', 4),
+        _c('ช่องข้างซ้าย-ขวา', 'iO-0203', 'คิ้วกรอบช่องข้างแนวนอน', '((W - W_f) / 2) - 50', 4),
+      ]);
+      if (isSide2Louver) {
+        cuts.add(
+          _c('ช่องเกล็ดซ้าย-ขวา', 'iO-0205', 'ใบเกล็ดอลูมิเนียมช่องข้างซ้าย-ขวา ไอคอนิค', '((W - W_f) / 2) - 55', 32),
+        );
+      } else {
+        glasses.add(
+          const GlassPieceSpec(
+            name: 'กระจกช่องแสงซ้าย-ขวา (2 ช่อง)',
+            siteCut: false,
+            wFormula: '((W - W_f) / 2) - 45',
+            hFormula: 'H - 55',
+            qty: 2,
+            qtyText: '2 แผ่น',
+          ),
+        );
+      }
+    } else if (isTop) {
+      cuts.addAll([
+        _c('ช่องแสงบน', 'iF-0104', 'ขวางแบ่งช่องแสงบน ไอคอนิค', 'W - 50', 1),
+        _c('ช่องแสงบน', 'iO-0203', 'คิ้วกระจกช่องแสงบนแนวนอน', 'W - 80', 2),
+        _c('ช่องแสงบน', 'iO-0203', 'คิ้วกระจกช่องแสงบนแนวตั้ง', '(H - H1) - 40', 2),
+      ]);
+      glasses.add(
+        const GlassPieceSpec(
+          name: 'กระจกช่องแสงบนประตู',
+          siteCut: false,
+          wFormula: 'W - 60',
+          hFormula: '(H - H1) - 35',
+          qty: 1,
+          qtyText: '1 แผ่น',
+        ),
+      );
+    } else if (isArch) {
+      cuts.addAll([
+        _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0101', 'เฟรมดัดโค้งช่องแสงบน ไอคอนิค (เผื่อดัดโค้ง)', '(W * 1.571) + 100', 1),
+        _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0104', 'ขวางฐานช่องแสงโค้ง ไอคอนิค', 'W - 50', 1),
+        _c('ช่องแสงโค้งครึ่งวงกลม', 'iF-0104', 'ซี่รัศมีแบ่งช่องแสงโค้ง ไอคอนิค', '(W / 2) - 40', 4),
+        _c('ช่องแสงโค้งครึ่งวงกลม', 'iO-0203', 'คิ้วกระจกดัดโค้งช่องแสงบน ไอคอนิค', '(W * 1.571) + 60', 1),
+      ]);
+      glasses.add(
+        const GlassPieceSpec(
+          name: 'กระจกช่องแสงโค้งครึ่งวงกลม (วัดตัดตามแบบโค้งหน้างาน)',
+          siteCut: true,
+          qty: 4,
+          qtyText: '4 แผ่น',
+        ),
+      );
+    }
+
+    hw.addAll([
+      HardwareItemSpec(
+        code: '',
+        name: 'บานพับประตูบานเปิด ไอคอนิค',
+        qtyText: isDouble ? '6 ตัว' : '3 ตัว',
+      ),
+      const HardwareItemSpec(
+        code: '',
+        name: 'ชุดกุญแจมือจับก้านโยกประตู ไอคอนิค',
+        qtyText: '1 ชุด',
+      ),
+      if (isDouble)
+        const HardwareItemSpec(
+          code: '',
+          name: 'กลอนฝังประตูบานคู่ (Flush Bolt)',
+          qtyText: '2 ตัว',
+        ),
+      HardwareItemSpec(
+        code: '',
+        name: 'ฉากยึดมุมกรอบบานประตู',
+        qtyText: isDouble ? '8 ตัว' : '4 ตัว',
+      ),
+    ]);
+
+    return VerifiedFormulaTable(
+      key: key,
+      header: title,
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hw,
+    );
   }
 }

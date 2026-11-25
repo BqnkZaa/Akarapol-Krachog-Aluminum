@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
 import '../data/catalog_definitions.dart';
+import '../data/seed_repository.dart';
 import '../engine/bin_packer.dart';
 import '../engine/formula_evaluator.dart';
 import '../engine/material_mutation_helper.dart';
@@ -1130,6 +1131,7 @@ class ProjectPricingScreen extends StatefulWidget {
 class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
   late SavedProject _workingProject;
   PricingSummary? _latestSummary;
+  List<ProjectItemPricingBreakdown> _latestItemBreakdowns = const [];
   late List<ProfileBarGroup> _packedGroups;
   late List<EvaluatedGlassItem> _projectGlasses;
   late List<AggregatedHardwareItem> _projectHardware;
@@ -1216,6 +1218,12 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
       return;
     }
     final s = _latestSummary;
+    final itemMatCosts =
+        _latestItemBreakdowns.length == _workingProject.items.length
+            ? _latestItemBreakdowns
+                .map((b) => b.allocatedMaterialCost)
+                .toList()
+            : null;
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -1223,6 +1231,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
           project: _workingProject,
           shopInfo: shop,
           estimatedAluminumCost: s?.totalCost ?? 0.0,
+          itemMaterialCosts: itemMatCosts,
           initialAluminumThickness: s?.selectedThickness,
           initialAluminumColor: s?.selectedColor,
           openingAreaSqM: _projectOpeningAreaSqM,
@@ -1381,6 +1390,10 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
               openingAreaSqM: _projectOpeningAreaSqM,
               fallbackOpeningAreaSqM: _projectOpeningAreaSqM * 0.88,
               hardware: _projectHardware,
+              projectItems: _workingProject.items,
+              onProjectItemBreakdownsChanged: (b) {
+                _latestItemBreakdowns = b;
+              },
               onSummaryChanged: (s) {
                 final prev = _latestSummary;
                 final changed = prev == null ||
@@ -1451,6 +1464,8 @@ class _EditableQtLine {
   final String sizeText;
   final TextEditingController qtyCtrl;
   final TextEditingController unitPriceCtrl;
+  final double baseMaterialCost;
+  final int initialQty;
   bool confirmed;
   bool editingSpec;
   bool userCustomizedSubtitle;
@@ -1463,10 +1478,12 @@ class _EditableQtLine {
     required this.sizeText,
     required int qty,
     required double suggestedUnitPrice,
+    this.baseMaterialCost = 0.0,
     bool initialConfirmed = false,
     bool initialCustomizedSubtitle = false,
     bool initialEditedPrice = false,
-  })  : labelCtrl = TextEditingController(text: label),
+  })  : initialQty = qty.clamp(1, 9999),
+        labelCtrl = TextEditingController(text: label),
         subtitleCtrl = TextEditingController(text: subtitle),
         qtyCtrl = TextEditingController(text: qty.clamp(1, 9999).toString()),
         unitPriceCtrl = TextEditingController(
@@ -1481,6 +1498,19 @@ class _EditableQtLine {
   int get qty => (int.tryParse(qtyCtrl.text.trim()) ?? 1).clamp(1, 9999);
   double get unitPrice => double.tryParse(unitPriceCtrl.text.trim()) ?? 0.0;
   double get lineTotal => PricingEngine.round2(unitPrice * qty);
+
+  double get effectiveMaterialCost {
+    if (baseMaterialCost <= 0) return 0.0;
+    final orig = initialQty > 0 ? initialQty : 1;
+    return PricingEngine.round2((baseMaterialCost / orig) * qty);
+  }
+
+  double get effectiveAreaSqM {
+    final srcArea = sourceItem?.totalOpeningAreaSqM ?? 0.0;
+    if (srcArea <= 0) return 0.0;
+    final orig = initialQty > 0 ? initialQty : 1;
+    return (srcArea / orig) * qty;
+  }
 
   void setQty(int next) {
     qtyCtrl.text = next.clamp(1, 9999).toString();
@@ -1498,6 +1528,7 @@ class QuotationBuilderScreen extends StatefulWidget {
   final SavedProject project;
   final ShopInfo shopInfo;
   final double estimatedAluminumCost;
+  final List<double>? itemMaterialCosts;
   final String? initialAluminumThickness;
   final String? initialAluminumColor;
   final double? openingAreaSqM;
@@ -1512,6 +1543,7 @@ class QuotationBuilderScreen extends StatefulWidget {
     required this.project,
     required this.shopInfo,
     required this.estimatedAluminumCost,
+    this.itemMaterialCosts,
     this.initialAluminumThickness,
     this.initialAluminumColor,
     this.openingAreaSqM,
@@ -1677,6 +1709,59 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _populateLinesFromProject(_workingProject, isInit: true);
   }
 
+  List<double> _resolveItemMaterialCosts(
+    SavedProject proj, {
+    required bool isInit,
+  }) {
+    if (proj.items.isEmpty) return const [];
+    final passed = widget.itemMaterialCosts;
+    if (isInit &&
+        passed != null &&
+        passed.length == proj.items.length &&
+        passed.every((c) => c > 0)) {
+      return passed;
+    }
+    if (widget.estimatedAluminumCost <= 0) {
+      return List<double>.filled(proj.items.length, 0.0);
+    }
+    // Fallback: estimate relative per-model material cost weights directly from
+    // catalog prices so even callers without explicit itemMaterialCosts split
+    // prices accurately across different series (e.g. ICONIQ vs Smart X vs NEX).
+    final catalog = SeedRepository.instance.allCatalogPrices;
+    if (catalog.isEmpty) {
+      return List<double>.filled(proj.items.length, 0.0);
+    }
+    final dummySummary = PricingSummary(
+      mode: PricingMode.actualLength,
+      wastePercent: 20.0,
+      selectedThickness: (widget.initialAluminumThickness ?? '').isNotEmpty
+          ? widget.initialAluminumThickness!
+          : '1.2 มม.',
+      selectedColor: (widget.initialAluminumColor ?? '').isNotEmpty
+          ? widget.initialAluminumColor!
+          : 'อบดำ (8816)',
+      lines: const [],
+      matchedCount: 0,
+      totalCount: 0,
+      aluminumCost: widget.estimatedAluminumCost,
+      totalCost: widget.estimatedAluminumCost,
+      openingAreaSqM: _openingAreaSqM,
+      laborMode: _laborMode,
+      laborRate: _laborRate,
+      profitPercent: _profitPct,
+      profitBaseMode: _profitBaseMode,
+      suggestedSellingPrice: _breakdown.suggestedSellingPrice,
+    );
+    final evaluated = PricingEngine.evaluateProjectItems(
+      items: proj.items,
+      projectSummary: dummySummary,
+      ormCatalog: catalog,
+      customOverrides: const {},
+      hardwareCatalog: SeedRepository.instance.hardwareRates,
+    );
+    return evaluated.map((b) => b.allocatedMaterialCost).toList();
+  }
+
   void _populateLinesFromProject(
     SavedProject proj, {
     bool isInit = false,
@@ -1693,11 +1778,21 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
 
     final initBreakdown = _breakdown;
     final hasCost = widget.estimatedAluminumCost > 0;
+    final itemMatCosts = _resolveItemMaterialCosts(proj, isInit: isInit);
     final unitPrices = hasCost
-        ? PricingEngine.allocateUnitSellingPrices(
-            items: proj.items
-                .map((it) => (areaSqM: it.totalOpeningAreaSqM, qty: it.totalUnits))
-                .toList(),
+        ? PricingEngine.allocateQuotationLineUnitPrices(
+            items: List.generate(
+              proj.items.length,
+              (i) => (
+                materialCost: i < itemMatCosts.length ? itemMatCosts[i] : 0.0,
+                areaSqM: proj.items[i].totalOpeningAreaSqM,
+                qty: proj.items[i].totalUnits,
+              ),
+            ),
+            laborMode: _laborMode,
+            laborRate: _laborRate,
+            profitPercent: _profitPct,
+            profitBaseMode: _profitBaseMode,
             targetTotal: initBreakdown.suggestedSellingPrice,
           )
         : List<double>.filled(proj.items.length, 3500.0);
@@ -1718,6 +1813,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
         sizeText: QuotationSpecFormatter.formatQuotationSize(it),
         qty: it.totalUnits,
         suggestedUnitPrice: unitPrices[i],
+        baseMaterialCost: i < itemMatCosts.length ? itemMatCosts[i] : 0.0,
       );
       sumInit += line.lineTotal;
       _lines.add(line);
@@ -1762,13 +1858,18 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   void _applyMarkupToSellingPrices({bool forceAll = false}) {
     if (widget.estimatedAluminumCost <= 0) return;
     final target = _breakdown.suggestedSellingPrice;
-    final unitPrices = PricingEngine.allocateUnitSellingPrices(
+    final unitPrices = PricingEngine.allocateQuotationLineUnitPrices(
       items: _lines
           .map((l) => (
-                areaSqM: l.sourceItem?.totalOpeningAreaSqM ?? 0.0,
+                materialCost: l.effectiveMaterialCost,
+                areaSqM: l.effectiveAreaSqM,
                 qty: l.qty,
               ))
           .toList(),
+      laborMode: _laborMode,
+      laborRate: _laborRate,
+      profitPercent: _profitPct,
+      profitBaseMode: _profitBaseMode,
       targetTotal: target,
     );
     for (int i = 0; i < _lines.length; i++) {

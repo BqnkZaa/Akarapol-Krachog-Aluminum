@@ -255,9 +255,128 @@ class AluproImageRegistry {
   String? resolveBrandAsset(String brandId) => _toAsset(
       _userBrandImages[brandId] ?? _brands[brandId] ?? _defaultBrandLogos[brandId]);
 
+  static final RegExp _alumetMatrixPatternRe = RegExp(
+    r'^(?:c2_alu|c2_nex_win|c2_nex|c3_alu)_(case|awn|fix)_([1-5])_(plain|top|bot|tb)_card$',
+  );
+
+  /// Maps all ALUMET 6-album extended pattern IDs (Smart X, NEX, Iconiq, Folding)
+  /// cleanly to the optimized official elevation PNGs in `assets/profiles/`.
+  static String? _resolveAlumetPatternAsset(String patternId) {
+    final m = _alumetMatrixPatternRe.firstMatch(patternId);
+    if (m != null) {
+      final fam = m.group(1)!;
+      final n = m.group(2)!;
+      final mode = m.group(3)!;
+      final suffix = mode == 'plain' ? '' : '_$mode';
+      return 'assets/profiles/alumet_pat_${fam}_$n$suffix.png';
+    }
+
+    // Folding Album #6 upgrades (including newly added 5-5-0 and 8-4-4)
+    const foldingMap = {
+      'fold_alu_3_3_0': 'assets/profiles/alumet_pat_fold_3_3_0.png',
+      'fold_alu_3_2_1': 'assets/profiles/alumet_pat_fold_3_2_1.png',
+      'fold_alu_4_2_2': 'assets/profiles/alumet_pat_fold_4_2_2.png',
+      'fold_alu_4_3_1': 'assets/profiles/alumet_pat_fold_4_3_1.png',
+      'fold_alu_5_5_0': 'assets/profiles/alumet_pat_fold_5_5_0.png',
+      'fold_alu_6_5_1': 'assets/profiles/alumet_pat_fold_6_5_1.png',
+      'fold_alu_6_3_3': 'assets/profiles/alumet_pat_fold_6_3_3.png',
+      'fold_alu_8_4_4': 'assets/profiles/alumet_pat_fold_8_4_4.png',
+    };
+    if (foldingMap.containsKey(patternId)) return foldingMap[patternId];
+
+    // ICONIQ-only Swing Door Album #5 (all 11 diagrams)
+    const iconiqDoorMap = {
+      'c3_alu_d1_card': 'assets/profiles/alumet_pat_door_1_glass.png',
+      'c3_alu_d1_louver_card': 'assets/profiles/alumet_pat_door_1_louver.png',
+      'c3_alu_d1_louver_frame_card':
+          'assets/profiles/alumet_pat_door_1_louver_frame.png',
+      'c3_alu_d1_side1_card': 'assets/profiles/alumet_pat_door_1_side1.png',
+      'c3_alu_d2_card': 'assets/profiles/alumet_pat_door_2_glass.png',
+      'c3_alu_d2_louver_card': 'assets/profiles/alumet_pat_door_2_louver.png',
+      'c3_alu_d2_louver_frame_card':
+          'assets/profiles/alumet_pat_door_2_louver_frame.png',
+      'c3_alu_d2_top_card': 'assets/profiles/alumet_pat_door_2_top.png',
+      'c3_alu_d2_arch_card': 'assets/profiles/alumet_pat_door_2_arch.png',
+      'c3_alu_d2_louver_side2_glass_card':
+          'assets/profiles/alumet_pat_door_2_louver_side2_glass.png',
+      'c3_alu_d2_louver_side2_louver_card':
+          'assets/profiles/alumet_pat_door_2_louver_side2_louver.png',
+    };
+    if (iconiqDoorMap.containsKey(patternId)) return iconiqDoorMap[patternId];
+
+    // Existing Smart X & Iconiq window cards upgraded with clean ALUMET elevations
+    const existingWindowMap = {
+      'c2_alu_win1_card': 'assets/profiles/alumet_pat_case_1.png',
+      'c2_alu_win3_card': 'assets/profiles/alumet_pat_case_2_top.png',
+      'c2_alu_win4_card': 'assets/profiles/alumet_pat_awn_1.png',
+      'c2_alu_win5_card': 'assets/profiles/alumet_pat_awn_1_top.png',
+      'c2_alu_win6_card': 'assets/profiles/alumet_pat_awn_2.png',
+      'c2_alu_win7_card': 'assets/profiles/alumet_pat_awn_2_top.png',
+      'c3_alu_case1_card': 'assets/profiles/alumet_pat_case_1.png',
+      'c3_alu_case2_card': 'assets/profiles/alumet_pat_case_2.png',
+      'c3_alu_awn1_card': 'assets/profiles/alumet_pat_awn_1.png',
+      'c3_alu_awn1_bot_card': 'assets/profiles/alumet_pat_awn_1_bot.png',
+    };
+    if (existingWindowMap.containsKey(patternId)) {
+      return existingWindowMap[patternId];
+    }
+
+    // Sliding & Combo Album #1 across Smart X, NEX, and Iconiq
+    if (patternId.startsWith('c2_alu_') ||
+        patternId.startsWith('c2_nex_') ||
+        patternId.startsWith('c3_alu_')) {
+      if (patternId.endsWith('_s3_1f2s_card')) {
+        return 'assets/profiles/alumet_pat_s3_1f2s.png';
+      }
+      if (patternId.endsWith('_s2_top2_card')) {
+        return 'assets/profiles/alumet_pat_s2_top2.png';
+      }
+      if (patternId.endsWith('_s3_top_card')) {
+        return 'assets/profiles/alumet_pat_s4_top4.png';
+      }
+      if (patternId.endsWith('_s4_top_card') ||
+          patternId.endsWith('_s4_top4_card') ||
+          patternId.endsWith('_s4_ctr_top_card')) {
+        return 'assets/profiles/alumet_pat_s4_top4.png';
+      }
+      if (patternId.endsWith('_s4_arch_card')) {
+        return 'assets/profiles/alumet_pat_s4_arch.png';
+      }
+      if (patternId.endsWith('_s3_1f2s_tb_asym_card')) {
+        return 'assets/profiles/alumet_pat_s3_1f2s_tb_asym.png';
+      }
+      if (patternId.endsWith('_s3_1f2s_tb_card')) {
+        return 'assets/profiles/alumet_pat_s3_1f2s_tb.png';
+      }
+      if (patternId.endsWith('_combo_c2_f3_card')) {
+        return 'assets/profiles/alumet_pat_combo_c2_f3.png';
+      }
+      if (patternId.endsWith('_combo_c2_f3_bot_card')) {
+        return 'assets/profiles/alumet_pat_combo_c2_f3_bot.png';
+      }
+      if (patternId == 'c2_alu_s2_card' || patternId == 'c3_alu_s2_card') {
+        return 'assets/profiles/alumet_pat_s2.png';
+      }
+      if (patternId == 'c2_alu_s2_top_card' ||
+          patternId == 'c3_alu_s2_top_card') {
+        return 'assets/profiles/alumet_pat_s2_top1.png';
+      }
+      if (patternId == 'c2_alu_s3_card' || patternId == 'c3_alu_s3_card') {
+        return 'assets/profiles/alumet_pat_s3_all.png';
+      }
+      if (patternId == 'c2_alu_s4_card' ||
+          patternId == 'c3_alu_s4_ctr_card') {
+        return 'assets/profiles/alumet_pat_s4.png';
+      }
+    }
+
+    return null;
+  }
+
   String? resolvePatternAsset(String patternId) => _toAsset(
       _userPatternImages[patternId] ??
           _customPatternOverrides[patternId] ??
+          _resolveAlumetPatternAsset(patternId) ??
           _patterns[patternId]);
 
   /// Resolves ONLY exact 1:1 verified profile CAD cross-sections for the matching brand,

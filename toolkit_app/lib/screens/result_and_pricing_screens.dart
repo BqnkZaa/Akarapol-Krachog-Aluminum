@@ -1365,7 +1365,10 @@ class PricingWorkspaceWidget extends StatefulWidget {
   final double? openingAreaSqM;
   final double fallbackOpeningAreaSqM;
   final List<AggregatedHardwareItem> hardware;
+  final List<SavedProjectItem>? projectItems;
   final ValueChanged<PricingSummary>? onSummaryChanged;
+  final ValueChanged<List<ProjectItemPricingBreakdown>>?
+      onProjectItemBreakdownsChanged;
   final VoidCallback? onAddAluminum;
   final ValueChanged<ProfileBarGroup>? onEditProfileGroup;
   final VoidCallback? onAddGlass;
@@ -1380,7 +1383,9 @@ class PricingWorkspaceWidget extends StatefulWidget {
     this.openingAreaSqM,
     this.fallbackOpeningAreaSqM = 0.0,
     this.hardware = const [],
+    this.projectItems,
     this.onSummaryChanged,
+    this.onProjectItemBreakdownsChanged,
     this.onAddAluminum,
     this.onEditProfileGroup,
     this.onAddGlass,
@@ -1442,7 +1447,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     if (oldWidget.barGroups != widget.barGroups ||
         oldWidget.glasses != widget.glasses ||
         oldWidget.hardware != widget.hardware ||
-        oldWidget.openingAreaSqM != widget.openingAreaSqM) {
+        oldWidget.openingAreaSqM != widget.openingAreaSqM ||
+        oldWidget.projectItems != widget.projectItems) {
       if (oldWidget.glasses.isEmpty && widget.glasses.isNotEmpty) {
         _includeGlass = true;
       }
@@ -1549,9 +1555,31 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   }
 
   void _notifyParent() {
-    if (widget.onSummaryChanged != null) {
-      widget.onSummaryChanged!(_computeSummary());
+    if (widget.onSummaryChanged != null ||
+        widget.onProjectItemBreakdownsChanged != null) {
+      final summary = _computeSummary();
+      widget.onSummaryChanged?.call(summary);
+      if (widget.onProjectItemBreakdownsChanged != null) {
+        widget.onProjectItemBreakdownsChanged!(
+          _computeItemBreakdowns(summary),
+        );
+      }
     }
+  }
+
+  List<ProjectItemPricingBreakdown> _computeItemBreakdowns(
+    PricingSummary summary,
+  ) {
+    final items = widget.projectItems;
+    if (items == null || items.isEmpty) return const [];
+    return PricingEngine.evaluateProjectItems(
+      items: items,
+      projectSummary: summary,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
+      customOverrides: _overrides,
+      hardwareCatalog: SeedRepository.instance.hardwareRates,
+      materialOverrides: _materialOverrides,
+    );
   }
 
   PricingSummary _computeSummary() {
@@ -1907,6 +1935,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
     );
     final summary = _computeSummary();
+    final itemBreakdowns = _computeItemBreakdowns(summary);
     final glassRates = _mergedGlassRates();
     final activeGlassItem =
         glassRates.where((r) => r.rateKey == _selectedGlassKey).firstOrNull ??
@@ -2714,6 +2743,157 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
           ),
         ),
         const SizedBox(height: 10),
+
+        // Per-Model / Per-Opening Cost & Selling Breakdown (Multi-model project clarity!)
+        if (itemBreakdowns.isNotEmpty) ...[
+          Container(
+            key: const ValueKey('pricing_per_model_breakdown_card'),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: ToolkitColors.royalBlue.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.analytics_outlined,
+                      size: 18,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'สรุปต้นทุนและราคาขายแยกรายรุ่น (${itemBreakdowns.length} รายการ)',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: ToolkitColors.deepNavy,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'คำนวณแยกราคาขายตามต้นทุนหน้าตัดจริงของแต่ละรุ่น (ยังคงส่วนประหยัดจากการแชร์เส้นรวมทั้งโปรเจกต์)',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: ToolkitColors.slateMuted,
+                  ),
+                ),
+                const Divider(height: 14),
+                ...List.generate(itemBreakdowns.length, (idx) {
+                  final b = itemBreakdowns[idx];
+                  final it = b.item;
+                  final tag = it.displayOrderTag(idx + 1);
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: idx == itemBreakdowns.length - 1 ? 0 : 10,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ToolkitColors.bgScaffold,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: ToolkitColors.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ToolkitColors.softBlueBg,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: ToolkitColors.royalBlue,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      it.patternTitle,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: ToolkitColors.slateDark,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${it.brandTitle} · ${b.totalUnits} ชุด · ${b.openingAreaSqM.toStringAsFixed(2)} ตร.ม.',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: ToolkitColors.slateMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '฿${_bahtFmt.format(b.unitSellingPrice)} / ชุด',
+                                    key: ValueKey('proj_model_unit_price_$idx'),
+                                    style: const TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
+                                  ),
+                                  Text(
+                                    'รวม ฿${_bahtFmt.format(b.suggestedTotalPrice)}',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: ToolkitColors.successGreen,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'ต้นทุนวัสดุจัดสรร ฿${_bahtFmt.format(b.allocatedMaterialCost)} (เฉลี่ย ฿${_bahtFmt.format(b.materialCostPerUnit)}/ชุด)'
+                            '${b.laborCost > 0 ? ' · ค่าแรง ฿${_bahtFmt.format(b.laborCost)}' : ''}'
+                            '${b.profitAmount > 0 ? ' · กำไร ฿${_bahtFmt.format(b.profitAmount)}' : ''}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: ToolkitColors.slateMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
 
         // 1. Aluminum Breakdown Table (1-Tap Price Edit + Swap/Add Part!)
         Container(

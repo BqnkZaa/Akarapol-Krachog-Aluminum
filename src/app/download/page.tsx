@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.11/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.12/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,9 +51,9 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.11 (VIP Offline)",
+      version: "0.1.12 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
-      sizeMb: "42.70",
+      sizeMb: "44.20",
       sha256: "-",
       updatedAt: "-",
     };
@@ -75,8 +75,8 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "คำนวณระยะตัดครบ 5 หมวด · เสริมมุ้งครบ 3 แบบทุกโปรไฟล์ (เว้นบานติดตาย)",
-      desc: "ครอบคลุมชุดตลาด ชุดพัฒนา (Smart X, NEX 100/200, ORM, Schimmer, Smart Plus, UAI) ยูโรโปรไฟล์ และบานเฟี้ยม 136 ผัง รองรับมุ้งไฟเบอร์ มุ้งจีบ และมุ้งนิรภัยทุกโปรไฟล์ (ยกเว้นบานติดตาย) พร้อมแก้ไขแบบ/เปลี่ยนโปรไฟล์และสลับชิ้นส่วนวัสดุข้ามแบรนด์ได้สด",
+      title: "ชุดผัง ALUMET ครบทั้ง 6 อัลบั้ม · เสริมมุ้ง 3 แบบทุกโปรไฟล์ (เว้นบานติดตาย)",
+      desc: "เพิ่มผังบานเลื่อน บานเปิด 20 แบบ บานกระทุ้ง 14 แบบ บานติดตาย 14 แบบ และบานเฟี้ยม 138 ผังครบทุกซีรีส์ ALUMET (Smart X, NEX 100/200, Iconiq Euro, Folding) พร้อมชุดประตูบานเปิด ICONIQ 11 แบบ (กระจก เกล็ดอลูมิเนียม ช่องแสงข้าง/บน/โค้ง) และมุ้ง 3 แบบครบทุกโปรไฟล์ยกเว้นบานติดตาย",
     },
     {
       icon: Layers,
@@ -85,8 +85,8 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Calculator,
-      title: "ประเมินต้นทุนครบ 8 แบรนด์ (3,952 รายการ) ปรับ % กำไรและค่าแรงสด",
-      desc: "จับคู่ราคาเส้นตามความหนาและสีผิวอัตโนมัติทั้ง 8 แบรนด์ (รวม ALUMET NEX 21/11/2569 และชุดมุ้งทั้ง 3 แบบ) ปรับเปอร์เซ็นต์กำไร (%) และค่าแรงได้ 3 แบบ (บาท/ตร.ม., เหมาทั้งงาน, หรือ % ค่าของ) พร้อมบันทึกค่าตั้งต้นของร้านและสำรองตารางราคา (.json)",
+      title: "แยกราคาขายตามต้นทุนจริงรายรุ่น · ฐานราคา 8 แบรนด์ (3,959 รายการ)",
+      desc: "เมื่อรวมหลายรุ่นในโปรเจกต์เดียว ระบบคำนวณและแยกราคาขายต่อชุดตามต้นทุนหน้าตัดจริงของแต่ละรุ่น (Iconiq / Smart X / NEX ฯลฯ) ไม่เฉลี่ยเท่ากันทั้งหมด พร้อมปรับ % กำไรและค่าแรง 3 แบบสด (บาท/ตร.ม., เหมา, หรือ % ค่าของ)",
     },
     {
       icon: FileText,
@@ -245,7 +245,7 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      136
+                      138
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       ผังระบบบานเฟี้ยม
@@ -253,10 +253,10 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      3,952
+                      3,959
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ฐานข้อมูลราคา 8 แบรนด์ + มุ้ง 3 แบบ
+                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET ครบชุด
                     </p>
                   </div>
                   <div>

@@ -159,8 +159,8 @@ void main() {
       }
     }
 
-    // 32 ORM + 64 Fuji + 1 Schimmer parametric (plus 6 baseFormulaKey Schimmer = 7 total) + 19 SP + 14 ALUMET = 136 total Cat 4 active cards!
-    expect(activeFoldingCards, 130); // + 6 swept Schimmer 240 cards = 136 active Cat 4 cards!
+    // 32 ORM + 64 Fuji + 1 Schimmer parametric (plus 6 baseFormulaKey Schimmer = 7 total) + 19 SP + 16 ALUMET = 138 total Cat 4 active cards!
+    expect(activeFoldingCards, 132); // + 6 swept Schimmer 240 cards = 138 active Cat 4 cards!
     expect(activeCards > 220, isTrue);
   });
 
@@ -463,15 +463,17 @@ void main() {
 
       if (brandId == 'c2_alumet' || brandId == 'c4_alumet_fold') {
         expect(
-          path.endsWith('_alumet.jpg'),
+          path.endsWith('_alumet.jpg') ||
+              path.startsWith('assets/profiles/alumet_pat_'),
           isTrue,
-          reason: '${p.id} in $brandId must carry pure ALUMET watermark',
+          reason: '${p.id} in $brandId must carry pure ALUMET asset',
         );
       } else if (brandId == 'c3_alumet_iconiq') {
         expect(
-          path.endsWith('_iconiq.jpg'),
+          path.endsWith('_iconiq.jpg') ||
+              path.startsWith('assets/profiles/alumet_pat_'),
           isTrue,
-          reason: '${p.id} in $brandId must carry ALUMET ICONIQ watermark',
+          reason: '${p.id} in $brandId must carry pure ALUMET ICONIQ asset',
         );
       }
     }

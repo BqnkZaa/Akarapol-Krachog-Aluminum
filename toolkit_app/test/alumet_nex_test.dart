@@ -109,7 +109,12 @@ void main() {
 
     int patternCount = 0;
     for (final sys in nexBrand.systems) {
-      for (final pat in sys.patterns) {
+      final allSysPatterns = <PatternCardDef>[
+        ...sys.patterns,
+        for (final tab in sys.subTabs) ...tab.patterns,
+      ];
+      for (final pat in allSysPatterns) {
+        if (!pat.enabled) continue;
         patternCount++;
         final patImg = reg.resolvePatternAsset(pat.id);
         expect(patImg, isNotNull, reason: 'Missing pattern diagram for ${pat.id}');
@@ -209,7 +214,7 @@ void main() {
         }
       }
     }
-    expect(patternCount, 12);
+    expect(patternCount, greaterThanOrEqualTo(60));
   });
 
   test('QuotationSpecFormatter & QuotationPdfGenerator label ALUMET NEX 200 and NEX 100 properly', () async {

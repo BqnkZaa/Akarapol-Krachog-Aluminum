@@ -1,10 +1,10 @@
 {
-    "appName":  "อัครพลกระจกอลูมิเนียม",
-    "packageId":  "com.akkaraphon.toolkit",
-    "version":  "0.1.11 (VIP Offline)",
-    "fileName":  "akkaraphon-toolkit.apk",
-    "sizeBytes":  44910820,
-    "sizeMb":  "42.83",
-    "sha256":  "6e35cd9f822017c9428d294ab54422999630c299a2e6adc7f67640f5588aec7a",
-    "updatedAt":  "25/11/2026 17:37"
+  "appName": "อัครพลกระจกอลูมิเนียม",
+  "packageId": "com.akkaraphon.toolkit",
+  "version": "0.1.12 (VIP Offline)",
+  "fileName": "akkaraphon-toolkit.apk",
+  "sizeBytes": 46344696,
+  "sizeMb": "44.20",
+  "sha256": "fd0d7d45e69e947d2cb9dd59b6dce282e78e41aedce33330af5f25bc4e7da9ea",
+  "updatedAt": "25 พ.ย. 2569"
 }

@@ -627,6 +627,10 @@ class _SubTabbedPatternSelectScreenState
         title: Text('${widget.brandTitle} · ${widget.systemTitle}'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: widget.subTabs.length > 2,
+          tabAlignment: widget.subTabs.length > 2
+              ? TabAlignment.start
+              : TabAlignment.fill,
           labelColor: ToolkitColors.royalBlue,
           unselectedLabelColor: ToolkitColors.slateMuted,
           indicatorColor: ToolkitColors.royalBlue,
