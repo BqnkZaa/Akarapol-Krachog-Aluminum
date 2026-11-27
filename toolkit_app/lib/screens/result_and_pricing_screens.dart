@@ -1424,6 +1424,7 @@ class PricingWorkspaceWidget extends StatefulWidget {
   final int? projectId;
   final Map<String, String>? initialSelectedOptions;
   final ValueChanged<PricingSummary>? onSummaryChanged;
+  final ValueChanged<bool>? onUseItemOwnSpecsChanged;
   final ValueChanged<List<ProjectItemPricingBreakdown>>?
       onProjectItemBreakdownsChanged;
   final void Function(int index, SavedProjectItem updatedItem)?
@@ -1446,6 +1447,7 @@ class PricingWorkspaceWidget extends StatefulWidget {
     this.projectId,
     this.initialSelectedOptions,
     this.onSummaryChanged,
+    this.onUseItemOwnSpecsChanged,
     this.onProjectItemBreakdownsChanged,
     this.onUpdateProjectItemSpec,
     this.onAddAluminum,
@@ -1705,6 +1707,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
         _laborCtrl.text = _fmtNumInput(_laborRate);
         _markupLoaded = true;
       }
+      _markupLoaded = true;
       _syncValidSelection(ov);
       _loading = false;
     });
@@ -1753,6 +1756,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     if (persistProject) {
       _persistProjectConfigIfNeeded();
     }
+    widget.onUseItemOwnSpecsChanged?.call(_useItemOwnMaterialSpecs);
     if (widget.onSummaryChanged != null ||
         widget.onProjectItemBreakdownsChanged != null) {
       final summary = _computeSummary();
@@ -1885,7 +1889,20 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => AlertDialog(
+        builder: (ctx, setModal) {
+          final liveAvail = PricingEngine.computeAvailability(
+            barGroups: itemGroups,
+            ormCatalog: SeedRepository.instance.allCatalogPrices,
+            customOverrides: _overrides,
+            preferredColor: selColor,
+          );
+          if (liveAvail.availableThicknesses.isNotEmpty &&
+              !liveAvail.availableThicknesses.contains(selThick)) {
+            selThick = liveAvail.availableThicknesses.contains('1.2 มม.')
+                ? '1.2 มม.'
+                : liveAvail.availableThicknesses.first;
+          }
+          return AlertDialog(
           title: Text('สเปกวัสดุเฉพาะรายการ · ${it.displayOrderTag(idx + 1)}'),
           content: SingleChildScrollView(
             child: Column(
@@ -1902,8 +1919,9 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  key: ValueKey('item_spec_thick_$selColor'),
                   isExpanded: true,
-                  initialValue: avail.availableThicknesses.contains(selThick)
+                  initialValue: liveAvail.availableThicknesses.contains(selThick)
                       ? selThick
                       : null,
                   decoration: const InputDecoration(
@@ -1911,7 +1929,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  items: avail.availableThicknesses
+                  items: liveAvail.availableThicknesses
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
                   onChanged: (v) {
@@ -1921,7 +1939,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  initialValue: avail.availableColors.contains(selColor)
+                  initialValue: liveAvail.availableColors.contains(selColor)
                       ? selColor
                       : null,
                   decoration: const InputDecoration(
@@ -1929,7 +1947,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  items: avail.availableColors
+                  items: liveAvail.availableColors
                       .map((c) => DropdownMenuItem(
                             value: c,
                             child: Text(c, overflow: TextOverflow.ellipsis),
@@ -2015,7 +2033,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
               child: const Text('บันทึกเฉพาะรายการนี้'),
             ),
           ],
-        ),
+        );
+        },
       ),
     );
   }

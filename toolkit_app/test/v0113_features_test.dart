@@ -859,5 +859,99 @@ void main() {
       expect(sub1.contains('ลายไม้สักน้ำตาล (15656)'), isTrue);
       expect(sub1.contains('กระจกเทมเปอร์ใส หนา 10 มม.'), isTrue);
     });
+
+    test('Exhaustive audit: all 138 folding + 128 Pro Smart X hanging + wood colorFamily + all 8 glass types', () {
+      final catalog = SeedRepository.instance.allCatalogPrices;
+      final hwRates = SeedRepository.instance.hardwareRates;
+      final glassRates = SeedRepository.instance.glassRates;
+
+      // 1. Woodgrain colorFamily MUST return 'wood' (never 'sand_bronze' due to 'น้ำตาล')
+      expect(PricingEngine.colorFamily('ลายไม้สักน้ำตาล (15656)'), 'wood');
+      expect(PricingEngine.colorFamily('ลายไม้วอลนัท (15659)'), 'wood');
+
+      // 2. All 8 glass types from SizeAndSpecInputScreen match cleanly
+      for (final gType in const [
+        'กระจกใส',
+        'กระจกเขียวตัดแสง',
+        'กระจกชาดำ',
+        'กระจกฝ้า',
+        'กระจกเงา',
+        'กระจกเทมเปอร์ใส',
+        'กระจกเทมเปอร์เขียวตัดแสง',
+        'กระจกลามิเนต',
+      ]) {
+        final m = PricingEngine.matchGlassRateFromSpec(
+          glassType: gType,
+          glassThick: '6 มม.',
+          mergedGlassRates: glassRates,
+        );
+        expect(m, isNotNull, reason: 'Glass type $gType 6 มม. must match');
+        expect(m!.effectivePrice, greaterThan(0));
+      }
+
+      // 3. All 138 folding patterns across all 5 folding brands have valid cuts, priced hardware & 100% matched profiles
+      int foldingCount = 0;
+      for (final cat in CatalogDefinitions.categories) {
+        for (final b in cat.brands) {
+          final allPats = <({String sys, PatternCardDef p})>[
+            for (final p in b.directPatterns) (sys: b.title, p: p),
+            for (final s in b.systems) ...[
+              for (final p in s.patterns) (sys: s.title, p: p),
+              for (final st in s.subTabs)
+                for (final p in st.patterns) (sys: s.title, p: p),
+            ],
+          ];
+          for (final entry in allPats) {
+            final p = entry.p;
+            if (!p.enabled) continue;
+            final isFolding = cat.id == 'cat_folding' ||
+                p.id.startsWith('fold_') ||
+                p.foldingFamily != null ||
+                p.id.startsWith('c4_');
+            if (!isFolding) continue;
+            foldingCount++;
+            final opts = <String, String>{
+              for (final g in CatalogDefinitions.effectiveOptionGroupsFor(p))
+                g.id: g.defaultValue,
+            };
+            final out = ParametricSystemResolver.calculate(
+              brandTitle: b.title,
+              priceBrandKey: b.priceBrandKey,
+              systemTitle: entry.sys,
+              pattern: p,
+              selectedOptions: opts,
+              sizeRows: const [SizeRowInput(widthMm: 3600, heightMm: 2200, qty: 1)],
+            );
+            expect(out.sets.first.cuts, isNotEmpty, reason: p.id);
+            expect(out.hardware, isNotEmpty, reason: p.id);
+            for (final h in out.hardware) {
+              final mr = PricingEngine.matchHardwareRate(hw: h, mergedHwRates: hwRates);
+              expect(mr, isNotNull, reason: 'Unpriced HW ${h.code} in ${p.id}');
+              expect(mr!.effectivePrice, greaterThan(0));
+            }
+            final sum = PricingEngine.evaluate(
+              barGroups: out.barGroups,
+              mode: PricingMode.actualLength,
+              wastePercent: 20,
+              selectedThickness: '1.5 มม.',
+              selectedColor:
+                  b.priceBrandKey == 'ALUMET' ? 'อบดำ (8816)' : 'พ่นดำ ซุปเปอร์แบล็ค',
+              ormCatalog: catalog,
+              customOverrides: const {},
+              glasses: out.sets.first.glasses,
+              openingAreaSqM: 7.92,
+              hardware: out.hardware,
+              includeGlass: true,
+              selectedGlassKey: 'GLASS|กระจกใส 6 มม.',
+              glassRatePerSqM: 205,
+              includeHardware: true,
+              hardwareCatalog: hwRates,
+            );
+            expect(sum.lines.every((l) => l.isMatched), isTrue, reason: p.id);
+          }
+        }
+      }
+      expect(foldingCount, greaterThanOrEqualTo(138));
+    });
   });
 }

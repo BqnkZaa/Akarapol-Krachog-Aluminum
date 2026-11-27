@@ -1177,6 +1177,24 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
     if (_selectedOpts['spec_alu_color']?.trim().isEmpty ?? true) {
       _selectedOpts['spec_alu_color'] =
           _priceBrandKey.toUpperCase() == 'ALUMET' ? 'อบดำ (8816)' : 'สีดำ';
+    } else {
+      final validColors = QuotationSpecFormatter.aluminumColorChoicesForBrand(
+        _priceBrandKey,
+        includePerItemOption: false,
+        includeUnspecifiedOption: true,
+      );
+      if (!validColors.contains(_selectedOpts['spec_alu_color'])) {
+        final normalized =
+            QuotationSpecFormatter.normalizePricingColorForQuotation(
+          _selectedOpts['spec_alu_color'],
+          brandKey: _priceBrandKey,
+        );
+        final fallback =
+            _priceBrandKey.toUpperCase() == 'ALUMET' ? 'อบดำ (8816)' : 'สีดำ';
+        _selectedOpts['spec_alu_color'] =
+            validColors.contains(normalized) ? normalized : fallback;
+        _selectedOpts.remove('pricing_alu_color');
+      }
     }
     if (_selectedOpts['spec_glass_type']?.trim().isEmpty ?? true) {
       _selectedOpts['spec_glass_type'] = 'กระจกใส';
@@ -1969,6 +1987,9 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
     final curGlassType = _selectedOpts['spec_glass_type'] ?? 'กระจกใส';
     final curGlassThick = _selectedOpts['spec_glass_thick'] ??
         (_priceBrandKey.toUpperCase() == 'MARKET' ? '5 มม.' : '6 มม.');
+    final aluThickInputChoices = QuotationSpecFormatter.aluminumThicknessChoices
+        .where((c) => c != 'ตามรายการ')
+        .toList();
     final colorChoices = QuotationSpecFormatter.aluminumColorChoicesForBrand(
       _priceBrandKey,
       includePerItemOption: false,
@@ -2084,9 +2105,16 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
           if (!hasOwnThickness)
             chipGroup(
               label: 'ความหนาอลูมิเนียม',
-              choices: QuotationSpecFormatter.aluminumThicknessChoices,
+              choices: aluThickInputChoices,
               current: curAluThick,
-              onPick: (v) => setState(() => _selectedOpts['spec_alu_thick'] = v),
+              onPick: (v) => setState(() {
+                _selectedOpts['spec_alu_thick'] = v;
+                if (v != 'ไม่ระบุ') {
+                  _selectedOpts['pricing_alu_thick'] = v;
+                } else {
+                  _selectedOpts.remove('pricing_alu_thick');
+                }
+              }),
             ),
           chipGroup(
             label: _priceBrandKey.toUpperCase() == 'ALUMET'
@@ -2094,21 +2122,35 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 : 'สีอลูมิเนียม',
             choices: colorChoices,
             current: curAluColor,
-            onPick: (v) => setState(() => _selectedOpts['spec_alu_color'] = v),
+            onPick: (v) => setState(() {
+              _selectedOpts['spec_alu_color'] = v;
+              if (v != 'ไม่ระบุ') {
+                _selectedOpts['pricing_alu_color'] = v;
+              } else {
+                _selectedOpts.remove('pricing_alu_color');
+              }
+            }),
           ),
           chipGroup(
             label: 'ประเภทกระจก',
             choices: glassTypeInputChoices,
             current: curGlassType,
-            onPick: (v) => setState(() => _selectedOpts['spec_glass_type'] = v),
+            onPick: (v) => setState(() {
+              _selectedOpts['spec_glass_type'] = v;
+              _selectedOpts.remove('pricing_glass_key');
+              _selectedOpts['pricing_include_glass'] =
+                  v == 'ไม่รวมกระจก' ? 'false' : 'true';
+            }),
           ),
           if (curGlassType != 'ไม่รวมกระจก' && !hasOwnGlassThick)
             chipGroup(
               label: 'ความหนากระจก',
               choices: glassThickInputChoices,
               current: curGlassThick,
-              onPick: (v) =>
-                  setState(() => _selectedOpts['spec_glass_thick'] = v),
+              onPick: (v) => setState(() {
+                _selectedOpts['spec_glass_thick'] = v;
+                _selectedOpts.remove('pricing_glass_key');
+              }),
             ),
         ],
       ),

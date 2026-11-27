@@ -524,6 +524,29 @@ class PricingEngine {
         return r;
       }
     }
+    // Smart family fallback (e.g., กระจกเทมเปอร์เขียวตัดแสง -> กระจกเทมเปอร์ใส, กระจกเงา -> กระจกใส)
+    String? familyToken;
+    if (gType.contains('เทมเปอร์')) {
+      familyToken = 'กระจกเทมเปอร์';
+    } else if (gType.contains('ลามิเนต')) {
+      familyToken = 'กระจกลามิเนต';
+    } else if (gType.contains('เงา') || gType.contains('ฝ้า')) {
+      familyToken = 'กระจกใส';
+    }
+    if (familyToken != null) {
+      if (gThick.isNotEmpty && gThick != 'ไม่ระบุ' && gThick != 'ตามรายการ') {
+        for (final r in mergedGlassRates) {
+          if (r.rateKey.contains(familyToken) && r.rateKey.contains(gThick)) {
+            return r;
+          }
+        }
+      }
+      for (final r in mergedGlassRates) {
+        if (r.rateKey.contains(familyToken)) {
+          return r;
+        }
+      }
+    }
     return null;
   }
 
@@ -1007,6 +1030,11 @@ class PricingEngine {
         c.contains('504')) {
       return 'grey_sahara';
     }
+    if (c.contains('ลายไม้') ||
+        c.contains('15656') ||
+        c.contains('15659')) {
+      return 'wood';
+    }
     if (c.contains('ทรายซาฮาร่า') ||
         c.contains('น้ำตาล') ||
         c.contains('สีชา') ||
@@ -1018,11 +1046,6 @@ class PricingEngine {
         c.contains('512') ||
         c.contains('514')) {
       return 'sand_bronze';
-    }
-    if (c.contains('ลายไม้') ||
-        c.contains('15656') ||
-        c.contains('15659')) {
-      return 'wood';
     }
     return 'other';
   }

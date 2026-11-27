@@ -1137,6 +1137,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
   late List<AggregatedHardwareItem> _projectHardware;
   late double _projectOpeningAreaSqM;
   bool _showQtyPanel = false;
+  bool _useItemOwnSpecs = true;
 
   @override
   void initState() {
@@ -1262,6 +1263,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
           initialAluminumThickness: s?.selectedThickness,
           initialAluminumColor: s?.selectedColor,
           initialGlassKey: (s?.includeGlass ?? true) ? s?.selectedGlassKey : null,
+          useItemOwnMaterialSpecs: _useItemOwnSpecs,
           openingAreaSqM: _projectOpeningAreaSqM,
           initialProfitPercent: s?.profitPercent,
           initialProfitBaseMode: s?.profitBaseMode,
@@ -1421,6 +1423,9 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
               projectItems: _workingProject.items,
               projectId: _workingProject.id,
               onUpdateProjectItemSpec: _updatePricingItemSpec,
+              onUseItemOwnSpecsChanged: (v) {
+                _useItemOwnSpecs = v;
+              },
               onProjectItemBreakdownsChanged: (b) {
                 _latestItemBreakdowns = b;
               },
@@ -1436,7 +1441,9 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
                     prev.laborMode != s.laborMode ||
                     prev.profitBaseMode != s.profitBaseMode ||
                     prev.selectedThickness != s.selectedThickness ||
-                    prev.selectedColor != s.selectedColor;
+                    prev.selectedColor != s.selectedColor ||
+                    prev.selectedGlassKey != s.selectedGlassKey ||
+                    prev.includeGlass != s.includeGlass;
                 if (changed) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) {
@@ -1566,6 +1573,7 @@ class QuotationBuilderScreen extends StatefulWidget {
   final String? initialAluminumThickness;
   final String? initialAluminumColor;
   final String? initialGlassKey;
+  final bool useItemOwnMaterialSpecs;
   final double? openingAreaSqM;
   final double? initialProfitPercent;
   final ProfitBaseMode? initialProfitBaseMode;
@@ -1582,6 +1590,7 @@ class QuotationBuilderScreen extends StatefulWidget {
     this.initialAluminumThickness,
     this.initialAluminumColor,
     this.initialGlassKey,
+    this.useItemOwnMaterialSpecs = true,
     this.openingAreaSqM,
     this.initialProfitPercent,
     this.initialProfitBaseMode,
@@ -1734,7 +1743,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           (g.isNotEmpty && g != 'ไม่ระบุ' && g != 'ตามรายการ');
     });
 
-    if (hasAnyItemOwnSpec) {
+    if (widget.useItemOwnMaterialSpecs && hasAnyItemOwnSpec) {
       _globalAluThick = 'ตามรายการ';
       _globalAluColor = 'ตามรายการ';
       _globalGlassType = 'ตามรายการ';
