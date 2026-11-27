@@ -1154,6 +1154,33 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
     _projectOpeningAreaSqM = _workingProject.totalOpeningAreaSqM;
   }
 
+  Future<void> _updatePricingItemSpec(
+    int idx,
+    SavedProjectItem updatedItem,
+  ) async {
+    if (updatedItem.id != null) {
+      await AppDatabase.instance.updateProjectItemFull(updatedItem);
+    }
+    if (!mounted) return;
+    final nextItems = List<SavedProjectItem>.from(_workingProject.items);
+    nextItems[idx] = updatedItem;
+    setState(() {
+      _workingProject = SavedProject(
+        id: _workingProject.id,
+        name: _workingProject.name,
+        note: _workingProject.note,
+        createdAt: _workingProject.createdAt,
+        updatedAt: DateTime.now(),
+        items: nextItems,
+      );
+      _recomputeProjectAggregates();
+    });
+    showToolkitSnackBar(
+      context,
+      'อัปเดตสเปกวัสดุเฉพาะรายการ ${updatedItem.displayOrderTag(idx + 1)} แล้ว',
+    );
+  }
+
   Future<void> _updatePricingItemQty(int idx, List<int> nextRowQtys) async {
     final oldItem = _workingProject.items[idx];
     final updatedItem = MaterialMutationHelper.updateProjectItemQuantities(
@@ -1234,6 +1261,7 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
           itemMaterialCosts: itemMatCosts,
           initialAluminumThickness: s?.selectedThickness,
           initialAluminumColor: s?.selectedColor,
+          initialGlassKey: (s?.includeGlass ?? true) ? s?.selectedGlassKey : null,
           openingAreaSqM: _projectOpeningAreaSqM,
           initialProfitPercent: s?.profitPercent,
           initialProfitBaseMode: s?.profitBaseMode,
@@ -1391,6 +1419,8 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
               fallbackOpeningAreaSqM: _projectOpeningAreaSqM * 0.88,
               hardware: _projectHardware,
               projectItems: _workingProject.items,
+              projectId: _workingProject.id,
+              onUpdateProjectItemSpec: _updatePricingItemSpec,
               onProjectItemBreakdownsChanged: (b) {
                 _latestItemBreakdowns = b;
               },
@@ -1459,6 +1489,8 @@ class _ProjectPricingScreenState extends State<ProjectPricingScreen> {
 // =============================================================================
 class _EditableQtLine {
   final SavedProjectItem? sourceItem;
+  final String? patternId;
+  final String? imageAssetPath;
   final TextEditingController labelCtrl;
   final TextEditingController subtitleCtrl;
   final String sizeText;
@@ -1473,13 +1505,15 @@ class _EditableQtLine {
 
   _EditableQtLine({
     this.sourceItem,
+    this.patternId,
+    this.imageAssetPath,
     required String label,
     required String subtitle,
     required this.sizeText,
     required int qty,
     required double suggestedUnitPrice,
     this.baseMaterialCost = 0.0,
-    bool initialConfirmed = false,
+    bool initialConfirmed = true,
     bool initialCustomizedSubtitle = false,
     bool initialEditedPrice = false,
   })  : initialQty = qty.clamp(1, 9999),
@@ -1531,6 +1565,7 @@ class QuotationBuilderScreen extends StatefulWidget {
   final List<double>? itemMaterialCosts;
   final String? initialAluminumThickness;
   final String? initialAluminumColor;
+  final String? initialGlassKey;
   final double? openingAreaSqM;
   final double? initialProfitPercent;
   final ProfitBaseMode? initialProfitBaseMode;
@@ -1546,6 +1581,7 @@ class QuotationBuilderScreen extends StatefulWidget {
     this.itemMaterialCosts,
     this.initialAluminumThickness,
     this.initialAluminumColor,
+    this.initialGlassKey,
     this.openingAreaSqM,
     this.initialProfitPercent,
     this.initialProfitBaseMode,
@@ -1560,7 +1596,8 @@ class QuotationBuilderScreen extends StatefulWidget {
 
 class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   late SavedProject _workingProject;
-  String? _mode; // Starts unselected unless editingQuotation != null
+  String? _mode; // Defaults to ITEMIZED so every selectable control starts ready
+  bool _includeImages = true;
   late final TextEditingController _docTitleCtrl;
   late final TextEditingController _qtNumCtrl;
   late final TextEditingController _issueDateCtrl;
@@ -1589,11 +1626,11 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
   late final TextEditingController _laborCtrl;
   bool _lumpSumManuallyEdited = false;
 
-  // Global Quotation Material Spec Controls
+  // Global Quotation Material Spec Controls (default 'ตามรายการ' when items carry own specs!)
   late String _globalAluThick;
   late String _globalAluColor;
-  String _globalGlassType = 'ไม่ระบุ';
-  String _globalGlassThick = 'ไม่ระบุ';
+  String _globalGlassType = 'ตามรายการ';
+  String _globalGlassThick = 'ตามรายการ';
   final TextEditingController _customGlassNoteCtrl = TextEditingController();
 
   final List<_EditableQtLine> _lines = [];
@@ -1622,7 +1659,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     final now = DateTime.now();
     final rand6 = (100000 + Random().nextInt(900000)).toString();
 
-    _mode = edit?.mode;
+    _mode = edit?.mode ?? 'ITEMIZED';
+    _includeImages = edit != null
+        ? edit.lines.any((l) => (l.imageAssetPath ?? '').trim().isNotEmpty)
+        : true;
     _docTitleCtrl = TextEditingController(
       text: edit != null
           ? edit.docTitle
@@ -1657,9 +1697,21 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       text: edit != null ? _fmtNumInput(edit.discount) : '0',
     );
     _vatEnabled = edit?.vatEnabled ?? false;
-    _payTermsCtrl = TextEditingController(text: edit?.paymentTerms ?? '');
-    _leadTimeCtrl = TextEditingController(text: edit?.leadTime ?? '');
-    _warrantyCtrl = TextEditingController(text: edit?.warranty ?? '');
+    _payTermsCtrl = TextEditingController(
+      text: edit != null
+          ? edit.paymentTerms
+          : 'มัดจำ 50% ก่อนผลิต ส่วนที่เหลือชำระวันส่งมอบ/ติดตั้งเสร็จ',
+    );
+    _leadTimeCtrl = TextEditingController(
+      text: edit != null
+          ? edit.leadTime
+          : '15–20 วันทำการ หลังยืนยันแบบและรับมัดจำ',
+    );
+    _warrantyCtrl = TextEditingController(
+      text: edit != null
+          ? edit.warranty
+          : 'รับประกันงานติดตั้งและอุปกรณ์ 1 ปี',
+    );
     _remarksCtrl = TextEditingController(text: edit?.remarks ?? '');
 
     _openingAreaSqM =
@@ -1672,23 +1724,61 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     _profitCtrl = TextEditingController(text: _fmtNumInput(_profitPct));
     _laborCtrl = TextEditingController(text: _fmtNumInput(_laborRate));
 
-    final initThick = widget.initialAluminumThickness?.trim() ?? '';
-    _globalAluThick =
-        QuotationSpecFormatter.aluminumThicknessChoices.contains(initThick)
-            ? initThick
-            : 'ตามรายการ';
-    _globalAluColor = QuotationSpecFormatter.normalizePricingColorForQuotation(
-      widget.initialAluminumColor,
-    );
+    // Preserve each item's own saved material specs when present so items never
+    // overwrite each other; fall back to project-level initial specs for legacy items.
+    final hasAnyItemOwnSpec = _workingProject.items.any((it) {
+      final o = it.selectedOptions;
+      final c = (o['pricing_alu_color'] ?? o['spec_alu_color'] ?? '').trim();
+      final g = (o['pricing_glass_key'] ?? o['spec_glass_type'] ?? '').trim();
+      return (c.isNotEmpty && c != 'ไม่ระบุ' && c != 'ตามรายการ') ||
+          (g.isNotEmpty && g != 'ไม่ระบุ' && g != 'ตามรายการ');
+    });
+
+    if (hasAnyItemOwnSpec) {
+      _globalAluThick = 'ตามรายการ';
+      _globalAluColor = 'ตามรายการ';
+      _globalGlassType = 'ตามรายการ';
+      _globalGlassThick = 'ตามรายการ';
+    } else {
+      final initThick = widget.initialAluminumThickness?.trim() ?? '';
+      _globalAluThick =
+          QuotationSpecFormatter.aluminumThicknessChoices.contains(initThick)
+              ? initThick
+              : 'ตามรายการ';
+      final firstBrand = _workingProject.items.isNotEmpty
+          ? _workingProject.items.first.priceBrandKey
+          : null;
+      _globalAluColor = QuotationSpecFormatter.normalizePricingColorForQuotation(
+        widget.initialAluminumColor,
+        brandKey: firstBrand,
+      );
+      if ((widget.initialGlassKey ?? '').trim().isNotEmpty) {
+        final parsedGlass =
+            QuotationSpecFormatter.parseGlassRateKey(widget.initialGlassKey);
+        if (parsedGlass.glassType != 'ไม่ระบุ') {
+          _globalGlassType = parsedGlass.glassType;
+        }
+        if (parsedGlass.glassThickness != 'ไม่ระบุ') {
+          _globalGlassThick = parsedGlass.glassThickness;
+        }
+      }
+    }
 
     if (edit != null) {
       for (int i = 0; i < edit.lines.length; i++) {
         final e = edit.lines[i];
         final matchedSrc =
             i < _workingProject.items.length ? _workingProject.items[i] : null;
+        final patId = e.patternId ?? matchedSrc?.patternId;
+        final imgPath = e.imageAssetPath ??
+            (patId != null
+                ? AluproImageRegistry.instance.resolvePatternAsset(patId)
+                : null);
         _lines.add(
           _EditableQtLine(
             sourceItem: matchedSrc,
+            patternId: patId,
+            imageAssetPath: imgPath,
             label: e.label,
             subtitle: e.subtitle,
             sizeText: e.sizeText,
@@ -1800,8 +1890,12 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     double sumInit = 0.0;
     for (int i = 0; i < proj.items.length; i++) {
       final it = proj.items[i];
+      final imgPath =
+          AluproImageRegistry.instance.resolvePatternAsset(it.patternId);
       final line = _EditableQtLine(
         sourceItem: it,
+        patternId: it.patternId,
+        imageAssetPath: imgPath,
         label: QuotationSpecFormatter.formatLineTitle(it, i + 1),
         subtitle: QuotationSpecFormatter.buildItemSpecSubtitle(
           item: it,
@@ -1814,6 +1908,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
         qty: it.totalUnits,
         suggestedUnitPrice: unitPrices[i],
         baseMaterialCost: i < itemMatCosts.length ? itemMatCosts[i] : 0.0,
+        initialConfirmed: true,
       );
       sumInit += line.lineTotal;
       _lines.add(line);
@@ -2018,6 +2113,8 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
               qty: l.qty,
               unitPrice: l.unitPrice,
               confirmed: l.confirmed,
+              patternId: l.patternId,
+              imageAssetPath: _includeImages ? l.imageAssetPath : null,
             ),
           )
           .toList(),
@@ -2865,8 +2962,27 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           }),
         ),
         specRow(
-          title: 'สีอลูมิเนียม',
-          choices: QuotationSpecFormatter.aluminumColorChoices,
+          title: _workingProject.items
+                  .any((it) => it.priceBrandKey.toUpperCase() == 'ALUMET')
+              ? 'สีอลูมิเนียม (รองรับรหัสสี ALUMET)'
+              : 'สีอลูมิเนียม',
+          choices: () {
+            final hasAlumet = _workingProject.items
+                .any((it) => it.priceBrandKey.toUpperCase() == 'ALUMET');
+            final list = List<String>.from(
+              hasAlumet
+                  ? QuotationSpecFormatter.aluminumColorChoicesForBrand(
+                      'ALUMET',
+                      includePerItemOption: true,
+                      includeUnspecifiedOption: true,
+                    )
+                  : QuotationSpecFormatter.aluminumColorChoices,
+            );
+            if (_globalAluColor.isNotEmpty && !list.contains(_globalAluColor)) {
+              list.insert(1, _globalAluColor);
+            }
+            return list;
+          }(),
           current: _globalAluColor,
           onSelected: (v) => setState(() {
             _globalAluColor = v;
@@ -2901,6 +3017,22 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           ),
           onChanged: (_) => setState(() => _syncSubtitlesFromSpec()),
         ),
+        const SizedBox(height: 6),
+        SwitchListTile(
+          key: const ValueKey('qt_include_images_switch'),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          value: _includeImages,
+          title: const Text(
+            'แสดงรูปภาพประกอบแบบบานในใบเสนอราคา (PDF)',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          subtitle: const Text(
+            'เพิ่มคอลัมน์รูปแบบบานข้างรายการทั้งแบบแยกราคาและแบบเหมา',
+            style: TextStyle(fontSize: 11.5),
+          ),
+          onChanged: (v) => setState(() => _includeImages = v),
+        ),
       ],
     );
   }
@@ -2912,6 +3044,38 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_includeImages && (ln.imageAssetPath ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: InkWell(
+                  onTap: () => showAluproImageZoomDialog(
+                    context,
+                    assetPath: ln.imageAssetPath!,
+                    title: ln.label.isEmpty ? 'รูปแบบบาน' : ln.label,
+                    subtitle: ln.sizeText.replaceAll('\n', ', '),
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: ToolkitColors.cardBorder),
+                    ),
+                    child: buildAssetOrFileImage(
+                      ln.imageAssetPath!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.window_outlined,
+                        size: 24,
+                        color: ToolkitColors.slateMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

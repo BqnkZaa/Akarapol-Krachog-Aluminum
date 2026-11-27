@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.12/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.13/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,9 +51,9 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.12 (VIP Offline)",
+      version: "0.1.13 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
-      sizeMb: "44.20",
+      sizeMb: "44.44",
       sha256: "-",
       updatedAt: "-",
     };
@@ -75,23 +75,23 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "ชุดผัง ALUMET ครบทั้ง 6 อัลบั้ม · เสริมมุ้ง 3 แบบทุกโปรไฟล์ (เว้นบานติดตาย)",
-      desc: "เพิ่มผังบานเลื่อน บานเปิด 20 แบบ บานกระทุ้ง 14 แบบ บานติดตาย 14 แบบ และบานเฟี้ยม 138 ผังครบทุกซีรีส์ ALUMET (Smart X, NEX 100/200, Iconiq Euro, Folding) พร้อมชุดประตูบานเปิด ICONIQ 11 แบบ (กระจก เกล็ดอลูมิเนียม ช่องแสงข้าง/บน/โค้ง) และมุ้ง 3 แบบครบทุกโปรไฟล์ยกเว้นบานติดตาย",
+      title: "สูตรบานเฟี้ยม 5 แบรนด์ & บานเลื่อนรางแขวน Pro Smart X ครบตามแคตตาล็อก",
+      desc: "ตรวจสอบและปรับสูตรบานเฟี้ยมพร้อมอุปกรณ์ครบทั้ง 5 ระบบ (ALUMET Smart X Folding รางล่าง 3 แบบ + รหัสอุปกรณ์ AKL-SMBF*, ORM, Fuji, Smart Plus, Schimmer 240) พร้อมเพิ่มบานเลื่อนรางแขวน ALUMET Pro Smart X (บานเดี่ยว/บานคู่ ชุด Soft Close & มาตรฐาน) และค่าตั้งต้นครบทุกช่อง",
     },
     {
       icon: Layers,
-      title: "บริหารการจัดท่อนอลูมิเนียม (1D Bin-Packing)",
-      desc: "คำนวณจำนวนเส้นโรงงานที่ต้องสั่งซื้อตามความยาวใช้งานจริง หักระยะหัวท้าย 100 มม. และเผื่อใบเลื่อย 4 มม. รองรับการจัดท่อนรวมข้ามรายการทั้งโครงการ",
+      title: "รหัสสี ALUMET ครบ 19 รหัสสีมาตรฐานโรงงาน · แยกสเปกวัสดุอิสระรายโครงการ",
+      desc: "เพิ่มรหัสสีอลูเมทครบทั้ง 19 สี (ชุบ 502/504/510/512/514/518/E&A, สีอบ 8815–8911, ซาฮาร่า 8515–8825, ลายไม้ 15656/15659) เฉพาะแบรนด์ ALUMET พร้อมแยกการจัดเส้นและสเปกสี/ความหนา/กระจกอิสระรายโปรเจกต์และรายรายการ ไม่ทับกันเมื่อทำหลายโครงการพร้อมกัน",
     },
     {
       icon: Calculator,
-      title: "แยกราคาขายตามต้นทุนจริงรายรุ่น · ฐานราคา 8 แบรนด์ (3,959 รายการ)",
-      desc: "เมื่อรวมหลายรุ่นในโปรเจกต์เดียว ระบบคำนวณและแยกราคาขายต่อชุดตามต้นทุนหน้าตัดจริงของแต่ละรุ่น (Iconiq / Smart X / NEX ฯลฯ) ไม่เฉลี่ยเท่ากันทั้งหมด พร้อมปรับ % กำไรและค่าแรง 3 แบบสด (บาท/ตร.ม., เหมา, หรือ % ค่าของ)",
+      title: "แยกราคาขายตามต้นทุนจริงรายรุ่น · ฐานราคา 8 แบรนด์ (5,586 รายการ)",
+      desc: "คำนวณราคาต้นทุนตามสี ความหนา และกระจกของแต่ละรายการอย่างแม่นยำตั้งแต่วันแรกที่เลือก ไม่ถูกสเปกชุดล่าสุดเขียนทับ รองรับการจัดท่อนรวมข้ามรายการ (1D Bin-Packing) และตั้งค่าแรง 3 แบบ (บาท/ตร.ม., เหมา, หรือ % ค่าของ)",
     },
     {
       icon: FileText,
-      title: "ปรับจำนวนชุดก่อนทำใบราคา แก้ไขใบเสนอราคาเดิม และออก PDF มาตรฐาน A4",
-      desc: "เพิ่ม–ลดจำนวนชุดได้ทันทีในโปรเจกต์ หน้าทำราคา และหน้าใบเสนอราคา กดแก้ไขแบบบานหรือแก้ไขใบเสนอราคาเดิมได้โดยไม่ต้องลบและสร้างใหม่ พร้อมปรับ % กำไร/ค่าแรงและส่วนลด (บาท หรือ %) ก่อนออก PDF",
+      title: "แทรกรูปแบบบานประกอบในใบเสนอราคา PDF มาตรฐาน A4 (แจกแจง / เหมารวม)",
+      desc: "แสดงรูปผังบานประกอบอัตโนมัติในหน้าจัดทำใบเสนอราคาและเอกสาร PDF ทั้งแบบแจกแจงราคาและแบบเหมารวม (เปิด/ปิดแสดงรูปได้ทันที) พร้อมแก้ไขจำนวนชุด แก้ไขแบบเดิม และปรับส่วนลดก่อนออกเอกสาร",
     },
   ];
 
@@ -237,7 +237,7 @@ export default async function DownloadLandingPage() {
                 <div className="pt-6 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-6">
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      194
+                      196
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       ตารางสูตรคำนวณมาตรฐาน
@@ -253,10 +253,10 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      3,959
+                      5,586
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET ครบชุด
+                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET 19 รหัสสี
                     </p>
                   </div>
                   <div>

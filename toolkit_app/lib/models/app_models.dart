@@ -659,6 +659,8 @@ class ProfileBarGroup {
   final List<BarAssignment> confirmedBars;
   final int estimatedBars;
   final double exactCutSumMm;
+  final String? specThickness;
+  final String? specColor;
 
   const ProfileBarGroup({
     required this.brand,
@@ -668,6 +670,8 @@ class ProfileBarGroup {
     required this.confirmedBars,
     this.estimatedBars = 0,
     required this.exactCutSumMm,
+    this.specThickness,
+    this.specColor,
   });
 
   int get totalBars => confirmedBars.length + estimatedBars;
@@ -991,6 +995,8 @@ class QuotationLineEntry {
   final int qty;
   final double unitPrice;
   final bool confirmed;
+  final String? patternId;
+  final String? imageAssetPath;
 
   const QuotationLineEntry({
     required this.label,
@@ -999,6 +1005,8 @@ class QuotationLineEntry {
     required this.qty,
     required this.unitPrice,
     this.confirmed = false,
+    this.patternId,
+    this.imageAssetPath,
   });
 
   double get lineTotal => unitPrice * qty;
@@ -1010,6 +1018,9 @@ class QuotationLineEntry {
         'qty': qty,
         'unitPrice': unitPrice,
         'confirmed': confirmed,
+        if (patternId != null && patternId!.isNotEmpty) 'patternId': patternId,
+        if (imageAssetPath != null && imageAssetPath!.isNotEmpty)
+          'imageAssetPath': imageAssetPath,
       };
 
   factory QuotationLineEntry.fromJson(Map<String, dynamic> j) =>
@@ -1020,6 +1031,8 @@ class QuotationLineEntry {
         qty: (j['qty'] as num).toInt(),
         unitPrice: (j['unitPrice'] as num).toDouble(),
         confirmed: j['confirmed'] as bool? ?? true,
+        patternId: j['patternId'] as String?,
+        imageAssetPath: j['imageAssetPath'] as String?,
       );
 }
 
@@ -1411,6 +1424,80 @@ class PricingMarkupDefaults {
 
   factory PricingMarkupDefaults.fromJson(Map<String, dynamic> j) =>
       PricingMarkupDefaults(
+        profitPercent:
+            ((j['profitPercent'] as num?)?.toDouble() ?? 20.0).clamp(0.0, 200.0),
+        profitBaseMode: ProfitBaseMode.values.firstWhere(
+          (e) => e.name == (j['profitBaseMode'] as String? ?? 'materialOnly'),
+          orElse: () => ProfitBaseMode.materialOnly,
+        ),
+        laborMode: LaborCostMode.values.firstWhere(
+          (e) => e.name == (j['laborMode'] as String? ?? 'perSqM'),
+          orElse: () => LaborCostMode.perSqM,
+        ),
+        laborRate: ((j['laborRate'] as num?)?.toDouble() ?? 0.0)
+            .clamp(0.0, 10000000.0),
+      );
+}
+
+/// Persisted per-project pricing preferences (stored in `app_flags` under
+/// `project_pricing_<projectId>` so multiple concurrent projects never
+/// overwrite each other's aluminum, glass, hardware, labor, or profit settings).
+class ProjectPricingConfig {
+  final String modeName; // 'actualLength' | 'fullBars'
+  final double wastePercent;
+  final bool useItemOwnMaterialSpecs;
+  final String selectedThickness;
+  final String selectedColor;
+  final bool includeGlass;
+  final String selectedGlassKey;
+  final bool includeHardware;
+  final double profitPercent;
+  final ProfitBaseMode profitBaseMode;
+  final LaborCostMode laborMode;
+  final double laborRate;
+
+  const ProjectPricingConfig({
+    this.modeName = 'actualLength',
+    this.wastePercent = 20.0,
+    this.useItemOwnMaterialSpecs = true,
+    this.selectedThickness = '',
+    this.selectedColor = '',
+    this.includeGlass = true,
+    this.selectedGlassKey = 'GLASS|กระจกใส 6 มม.',
+    this.includeHardware = true,
+    this.profitPercent = 20.0,
+    this.profitBaseMode = ProfitBaseMode.materialOnly,
+    this.laborMode = LaborCostMode.perSqM,
+    this.laborRate = 0.0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'modeName': modeName,
+        'wastePercent': wastePercent,
+        'useItemOwnMaterialSpecs': useItemOwnMaterialSpecs,
+        'selectedThickness': selectedThickness,
+        'selectedColor': selectedColor,
+        'includeGlass': includeGlass,
+        'selectedGlassKey': selectedGlassKey,
+        'includeHardware': includeHardware,
+        'profitPercent': profitPercent,
+        'profitBaseMode': profitBaseMode.name,
+        'laborMode': laborMode.name,
+        'laborRate': laborRate,
+      };
+
+  factory ProjectPricingConfig.fromJson(Map<String, dynamic> j) =>
+      ProjectPricingConfig(
+        modeName: j['modeName'] as String? ?? 'actualLength',
+        wastePercent:
+            ((j['wastePercent'] as num?)?.toDouble() ?? 20.0).clamp(0.0, 200.0),
+        useItemOwnMaterialSpecs: j['useItemOwnMaterialSpecs'] as bool? ?? true,
+        selectedThickness: j['selectedThickness'] as String? ?? '',
+        selectedColor: j['selectedColor'] as String? ?? '',
+        includeGlass: j['includeGlass'] as bool? ?? true,
+        selectedGlassKey:
+            j['selectedGlassKey'] as String? ?? 'GLASS|กระจกใส 6 มม.',
+        includeHardware: j['includeHardware'] as bool? ?? true,
         profitPercent:
             ((j['profitPercent'] as num?)?.toDouble() ?? 20.0).clamp(0.0, 200.0),
         profitBaseMode: ProfitBaseMode.values.firstWhere(

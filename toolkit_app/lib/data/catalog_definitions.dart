@@ -319,6 +319,66 @@ class CatalogDefinitions {
     ),
   ];
 
+  static const List<OptionGroupDef> alumetSmartXHangingOptions = [
+    OptionGroupDef(
+      id: 'track_type',
+      title: 'ชนิดรางแขวนบน (Pro Smart X)',
+      choices: [
+        OptionChoice(
+          id: 'SS-X116',
+          label: 'รางแขวนยึดผนังด้านข้าง · SS-X116 (2.5 มม.)',
+          subtitle: 'ติดตั้งหน้าผนังเหนือช่องเปิด + ฝาปิดสกรู iS-0209',
+        ),
+        OptionChoice(
+          id: 'SS-X113',
+          label: 'รางแขวนยึดผนังด้านบน/ฝ้า · SS-X113 (2.5 มม.)',
+          subtitle: 'ติดตั้งใต้ท้องคาน/ในช่องเปิด',
+        ),
+      ],
+      defaultValue: 'SS-X116',
+    ),
+    OptionGroupDef(
+      id: 'sash_profile',
+      title: 'รุ่นกรอบบานเลื่อน',
+      choices: [
+        OptionChoice(
+          id: '45_12',
+          label: 'ประกอบบาน 45° · หนา 1.2 มม. (SS-X212)',
+        ),
+        OptionChoice(
+          id: '45_15',
+          label: 'ประกอบบาน 45° · หนา 1.5 มม. (SS-X219)',
+        ),
+        OptionChoice(
+          id: '90_12',
+          label: 'ประกอบบาน 90° · หนา 1.2 มม. (SS-0138 / SS-X217)',
+        ),
+        OptionChoice(
+          id: '90_15',
+          label: 'ประกอบบาน 90° · หนา 1.5 มม. (SS-X209 / SS-X210)',
+        ),
+      ],
+      defaultValue: '45_12',
+    ),
+    OptionGroupDef(
+      id: 'hang_hw',
+      title: 'ชุดอุปกรณ์ล้อรางแขวน',
+      choices: [
+        OptionChoice(
+          id: 'soft_close',
+          label: 'ชุดล้อรางแขวน + ซอฟท์โค้ท (Soft Close)',
+          subtitle: 'เปิด-ปิดนุ่มนวล รับน้ำหนักสูงสุด 120 กก./บาน',
+        ),
+        OptionChoice(
+          id: 'standard',
+          label: 'ชุดล้อรางแขวนมาตรฐาน (ไม่มีซอฟท์โค้ท)',
+          subtitle: 'รับน้ำหนักสูงสุด 120 กก./บาน',
+        ),
+      ],
+      defaultValue: 'soft_close',
+    ),
+  ];
+
   static const List<OptionGroupDef> marketUnionOptions = [
     OptionGroupDef(
       id: 'hinge_size',
@@ -1757,7 +1817,7 @@ class CatalogDefinitions {
             SubSystemDef(
               id: 'c2_alu_sliding',
               title: 'บานเลื่อน Smart X',
-              subtitle: '18 แบบ · บานเลื่อน 2–4 บาน · ช่องแสง · ช่องแสงโค้ง · ชุดผสม · เข้ามุม 90°',
+              subtitle: '20 แบบ · บานเลื่อน 2–4 บาน · รางแขวน Pro Smart X · ช่องแสง · เข้ามุม 90°',
               patterns: [
                 const PatternCardDef(
                   id: 'c2_alu_s2_card',
@@ -1831,10 +1891,18 @@ class CatalogDefinitions {
                   tableMode: InputTableMode.cornerW1W2,
                 ),
                 const PatternCardDef(
-                  id: 'c2_alu_hang_dis',
+                  id: 'c2_alu_hang1_card',
                   title: 'บานเลื่อนรางแขวนบานเดี่ยว',
-                  enabled: false,
-                  disabledBadge: 'รอข้อมูลสูตร',
+                  subtitle: 'Pro Smart X · รางแขวน SS-X116/SS-X113 · ฝาครอบ SS-X114 · ซอฟท์โค้ท',
+                  baseFormulaKey: 'smx_hang:single',
+                  optionGroups: alumetSmartXHangingOptions,
+                ),
+                const PatternCardDef(
+                  id: 'c2_alu_hang2_card',
+                  title: 'บานเลื่อนรางแขวนบานคู่ เปิดกลาง',
+                  subtitle: 'Pro Smart X · รางแขวน SS-X116/SS-X113 · บานคู่แยกซ้าย-ขวา · ซอฟท์โค้ท',
+                  baseFormulaKey: 'smx_hang:double',
+                  optionGroups: alumetSmartXHangingOptions,
                 ),
               ],
             ),
@@ -3182,7 +3250,7 @@ class CatalogDefinitions {
         BrandDef(
           id: 'c4_alumet_fold',
           title: 'ALUMET (Smart X Folding)',
-          subtitle: 'Smart X Folding 14 รูปแบบ',
+          subtitle: 'Smart X Folding 16 รูปแบบ',
           priceBrandKey: 'ALUMET',
           directPatterns: _buildAlumetFoldingCards(),
         ),

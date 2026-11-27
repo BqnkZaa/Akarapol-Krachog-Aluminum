@@ -137,6 +137,8 @@ class AluproImageRegistry {
     'c2_nex_fix2_card': 'assets/profiles/nex_pat_fix2.png',
     'c2_nex_fix3_card': 'assets/profiles/nex_pat_fix3.png',
     'c2_nex_fix4_card': 'assets/profiles/nex_pat_fix4.png',
+    'c2_alu_hang1_card': 'assets/profiles/alumet_pat_hang1.png',
+    'c2_alu_hang2_card': 'assets/profiles/alumet_pat_hang2.png',
   };
 
   static const Map<String, String> _customProfileOverrides = {

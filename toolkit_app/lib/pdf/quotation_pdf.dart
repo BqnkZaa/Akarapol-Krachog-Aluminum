@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,6 +14,26 @@ class QuotationPdfGenerator {
   static final NumberFormat _moneyFmt = NumberFormat('#,##0.00', 'en_US');
 
   static String formatMoney(double v) => _moneyFmt.format(v);
+
+  static Future<pw.MemoryImage?> _loadPatternImage(String rawPath) async {
+    final clean = rawPath.trim();
+    if (clean.isEmpty) return null;
+    try {
+      // 1. Direct filesystem file (custom user upload or headless test CWD)
+      final file = File(clean);
+      if (file.existsSync()) {
+        return pw.MemoryImage(file.readAsBytesSync());
+      }
+      // 2. Flutter bundled asset (Android / iOS / Web / widget tests)
+      if (clean.startsWith('assets/')) {
+        final bd = await rootBundle.load(clean);
+        return pw.MemoryImage(bd.buffer.asUint8List());
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
 
   static Future<Uint8List> generate({
     required SavedQuotation quotation,
@@ -38,6 +59,22 @@ class QuotationPdfGenerator {
         }
       }
     }
+
+    // Preload unique pattern diagram images for quotation line rows
+    final imageCache = <String, pw.MemoryImage?>{};
+    final lineImages = <pw.MemoryImage?>[];
+    for (final ln in quotation.lines) {
+      final imgPath = ln.imageAssetPath?.trim() ?? '';
+      if (imgPath.isEmpty) {
+        lineImages.add(null);
+        continue;
+      }
+      if (!imageCache.containsKey(imgPath)) {
+        imageCache[imgPath] = await _loadPatternImage(imgPath);
+      }
+      lineImages.add(imageCache[imgPath]);
+    }
+    final showImageCol = lineImages.any((img) => img != null);
 
     final isItemized = quotation.mode == 'ITEMIZED';
     final bahtWords = ThaiBahtText.convert(quotation.netTotal);
@@ -320,24 +357,58 @@ class QuotationPdfGenerator {
             );
           }
 
+          pw.Widget patternImageCell(pw.MemoryImage? img) {
+            return pw.Container(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+              alignment: pw.Alignment.center,
+              child: img != null
+                  ? pw.Container(
+                      width: 44,
+                      height: 44,
+                      padding: const pw.EdgeInsets.all(2),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.white,
+                        borderRadius: pw.BorderRadius.circular(3),
+                        border: pw.Border.all(color: borderGray, width: 0.4),
+                      ),
+                      child: pw.Image(img, fit: pw.BoxFit.contain),
+                    )
+                  : pw.Text(
+                      '-',
+                      style: const pw.TextStyle(fontSize: 8.2, color: muted),
+                    ),
+            );
+          }
+
           if (isItemized) {
             w.add(
               pw.Table(
                 border: pw.TableBorder.all(color: borderGray, width: 0.6),
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
-                columnWidths: const {
-                  0: pw.FlexColumnWidth(0.52),
-                  1: pw.FlexColumnWidth(3.42),
-                  2: pw.FlexColumnWidth(1.20),
-                  3: pw.FlexColumnWidth(0.68),
-                  4: pw.FlexColumnWidth(1.10),
-                  5: pw.FlexColumnWidth(1.18),
-                },
+                columnWidths: showImageCol
+                    ? const {
+                        0: pw.FlexColumnWidth(0.58),
+                        1: pw.FlexColumnWidth(0.92),
+                        2: pw.FlexColumnWidth(2.76),
+                        3: pw.FlexColumnWidth(1.10),
+                        4: pw.FlexColumnWidth(0.64),
+                        5: pw.FlexColumnWidth(1.02),
+                        6: pw.FlexColumnWidth(1.10),
+                      }
+                    : const {
+                        0: pw.FlexColumnWidth(0.52),
+                        1: pw.FlexColumnWidth(3.42),
+                        2: pw.FlexColumnWidth(1.20),
+                        3: pw.FlexColumnWidth(0.68),
+                        4: pw.FlexColumnWidth(1.10),
+                        5: pw.FlexColumnWidth(1.18),
+                      },
                 children: [
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: slateBg),
                     children: [
                       cellBox(headerText('ลำดับ')),
+                      if (showImageCol) cellBox(headerText('รูปแบบ')),
                       cellBox(headerText('รายการ', align: pw.TextAlign.left),
                           alignment: pw.Alignment.centerLeft),
                       cellBox(headerText('ขนาด')),
@@ -350,34 +421,36 @@ class QuotationPdfGenerator {
                   ),
                   ...List.generate(quotation.lines.length, (i) {
                     final ln = quotation.lines[i];
+                    final img = i < lineImages.length ? lineImages[i] : null;
                     return pw.TableRow(
                       children: [
                         cellBox(
                           pw.Text('${i + 1}',
                               style: const pw.TextStyle(fontSize: 8.8)),
                         ),
+                        if (showImageCol) patternImageCell(img),
                         descriptionCell(ln),
                         cellBox(
                           pw.Text(
                             ln.sizeText,
                             textAlign: pw.TextAlign.center,
-                            style: const pw.TextStyle(fontSize: 8.6),
+                            style: const pw.TextStyle(fontSize: 8.4),
                           ),
                         ),
                         cellBox(
                           pw.Text('${ln.qty} ชุด',
-                              style: const pw.TextStyle(fontSize: 8.8)),
+                              style: const pw.TextStyle(fontSize: 8.6)),
                         ),
                         cellBox(
                           pw.Text(formatMoney(ln.unitPrice),
-                              style: const pw.TextStyle(fontSize: 8.8)),
+                              style: const pw.TextStyle(fontSize: 8.6)),
                           alignment: pw.Alignment.centerRight,
                         ),
                         cellBox(
                           pw.Text(
                             formatMoney(ln.lineTotal),
                             style: pw.TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 8.6,
                               fontWeight: pw.FontWeight.bold,
                               color: navy,
                             ),
@@ -408,17 +481,26 @@ class QuotationPdfGenerator {
               pw.Table(
                 border: pw.TableBorder.all(color: borderGray, width: 0.6),
                 defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
-                columnWidths: const {
-                  0: pw.FlexColumnWidth(0.65),
-                  1: pw.FlexColumnWidth(3.85),
-                  2: pw.FlexColumnWidth(1.65),
-                  3: pw.FlexColumnWidth(0.95),
-                },
+                columnWidths: showImageCol
+                    ? const {
+                        0: pw.FlexColumnWidth(0.62),
+                        1: pw.FlexColumnWidth(1.02),
+                        2: pw.FlexColumnWidth(3.30),
+                        3: pw.FlexColumnWidth(1.40),
+                        4: pw.FlexColumnWidth(0.82),
+                      }
+                    : const {
+                        0: pw.FlexColumnWidth(0.65),
+                        1: pw.FlexColumnWidth(3.85),
+                        2: pw.FlexColumnWidth(1.65),
+                        3: pw.FlexColumnWidth(0.95),
+                      },
                 children: [
                   pw.TableRow(
                     decoration: const pw.BoxDecoration(color: slateBg),
                     children: [
                       cellBox(headerText('ลำดับ')),
+                      if (showImageCol) cellBox(headerText('รูปแบบ')),
                       cellBox(headerText('รายการ', align: pw.TextAlign.left),
                           alignment: pw.Alignment.centerLeft),
                       cellBox(headerText('ขนาด')),
@@ -427,12 +509,14 @@ class QuotationPdfGenerator {
                   ),
                   ...List.generate(quotation.lines.length, (i) {
                     final ln = quotation.lines[i];
+                    final img = i < lineImages.length ? lineImages[i] : null;
                     return pw.TableRow(
                       children: [
                         cellBox(
                           pw.Text('${i + 1}',
                               style: const pw.TextStyle(fontSize: 8.8)),
                         ),
+                        if (showImageCol) patternImageCell(img),
                         descriptionCell(ln),
                         cellBox(
                           pw.Text(

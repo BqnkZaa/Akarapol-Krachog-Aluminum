@@ -144,6 +144,7 @@ class AppDatabase {
   Map<String, CustomMaterialRateOverride>? _cachedMaterialRates;
   bool? _cachedPricingNoticeSeen;
   PricingMarkupDefaults? _cachedMarkupDefaults;
+  Map<int, ProjectPricingConfig>? _cachedProjectPricingConfigs;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -167,6 +168,7 @@ class AppDatabase {
     _cachedMaterialRates = {};
     _cachedPricingNoticeSeen = false;
     _cachedMarkupDefaults = const PricingMarkupDefaults();
+    _cachedProjectPricingConfigs = {};
     await _ensureAllTables(testDb);
   }
 
@@ -359,6 +361,50 @@ class AppDatabase {
       {
         'flag_key': 'default_pricing_markup',
         'flag_value': jsonEncode(defaults.toJson()),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Per-Project Pricing Config (isolated per projectId in app_flags, zero schema migration) ---
+  Future<ProjectPricingConfig?> getProjectPricingConfig(int projectId) async {
+    if (_cachedProjectPricingConfigs != null) {
+      return _cachedProjectPricingConfigs![projectId];
+    }
+    final db = await database;
+    final rows = await db.query(
+      'app_flags',
+      where: 'flag_key LIKE ?',
+      whereArgs: ['project_pricing_%'],
+    );
+    final loaded = <int, ProjectPricingConfig>{};
+    for (final row in rows) {
+      final k = row['flag_key'] as String? ?? '';
+      final idPart = k.replaceFirst('project_pricing_', '');
+      final pid = int.tryParse(idPart);
+      if (pid == null) continue;
+      try {
+        loaded[pid] = ProjectPricingConfig.fromJson(
+          jsonDecode(row['flag_value'] as String) as Map<String, dynamic>,
+        );
+      } catch (_) {}
+    }
+    _cachedProjectPricingConfigs = loaded;
+    return loaded[projectId];
+  }
+
+  Future<void> saveProjectPricingConfig(
+    int projectId,
+    ProjectPricingConfig config,
+  ) async {
+    _cachedProjectPricingConfigs ??= {};
+    _cachedProjectPricingConfigs![projectId] = config;
+    final db = await database;
+    await db.insert(
+      'app_flags',
+      {
+        'flag_key': 'project_pricing_$projectId',
+        'flag_value': jsonEncode(config.toJson()),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );

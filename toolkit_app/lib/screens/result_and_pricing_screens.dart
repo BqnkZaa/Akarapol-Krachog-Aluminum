@@ -9,10 +9,12 @@ import 'package:printing/printing.dart';
 import '../data/alupro_image_registry.dart';
 import '../data/app_database.dart';
 import '../data/seed_repository.dart';
+import '../engine/bin_packer.dart';
 import '../engine/clipboard_formatter.dart';
 import '../engine/formula_evaluator.dart';
 import '../engine/material_mutation_helper.dart';
 import '../engine/pricing_engine.dart';
+import '../engine/quotation_spec_formatter.dart';
 import '../models/app_models.dart';
 import '../pdf/single_cut_pdf.dart';
 import 'alupro_thumbnail_widgets.dart';
@@ -45,8 +47,56 @@ class _ResultScreenState extends State<ResultScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late CalculationOutput _workingOut;
+  PricingSummary? _latestTab4Summary;
   bool _hasMaterialEdits = false;
   bool _checkedNotice = false;
+
+  CalculationOutput _outputWithSelectedPricingSpecs() {
+    final opts = Map<String, String>.from(_workingOut.selectedOptions);
+    final s = _latestTab4Summary;
+    if (s != null) {
+      if (s.selectedThickness.trim().isNotEmpty) {
+        opts['pricing_alu_thick'] = s.selectedThickness.trim();
+        opts['spec_alu_thick'] = s.selectedThickness.trim();
+      }
+      if (s.selectedColor.trim().isNotEmpty) {
+        opts['pricing_alu_color'] = s.selectedColor.trim();
+        final normCol = QuotationSpecFormatter.normalizePricingColorForQuotation(
+          s.selectedColor,
+          brandKey: _workingOut.priceBrandKey,
+        );
+        if (normCol != 'ตามรายการ' && normCol != 'ไม่ระบุ') {
+          opts['spec_alu_color'] = normCol;
+        }
+      }
+      opts['pricing_include_glass'] = s.includeGlass ? 'true' : 'false';
+      if (s.includeGlass && s.selectedGlassKey.trim().isNotEmpty) {
+        opts['pricing_glass_key'] = s.selectedGlassKey.trim();
+        final parsed =
+            QuotationSpecFormatter.parseGlassRateKey(s.selectedGlassKey);
+        if (parsed.glassType != 'ไม่ระบุ') {
+          opts['spec_glass_type'] = parsed.glassType;
+        }
+        if (parsed.glassThickness != 'ไม่ระบุ') {
+          opts['spec_glass_thick'] = parsed.glassThickness;
+        }
+      } else if (!s.includeGlass) {
+        opts['spec_glass_type'] = 'ไม่รวมกระจก';
+      }
+      opts['pricing_include_hw'] = s.includeHardware ? 'true' : 'false';
+    }
+    return CalculationOutput(
+      brandTitle: _workingOut.brandTitle,
+      priceBrandKey: _workingOut.priceBrandKey,
+      systemTitle: _workingOut.systemTitle,
+      patternId: _workingOut.patternId,
+      patternTitle: _workingOut.patternTitle,
+      selectedOptions: opts,
+      sets: _workingOut.sets,
+      hardware: _workingOut.hardware,
+      barGroups: _workingOut.barGroups,
+    );
+  }
 
   @override
   void initState() {
@@ -260,17 +310,18 @@ class _ResultScreenState extends State<ResultScreen>
   Future<void> _saveEditedProjectItem() async {
     final it = widget.editingProjectItem;
     if (it == null || it.id == null) return;
+    final outToSave = _outputWithSelectedPricingSpecs();
     await AppDatabase.instance.updateProjectItemFull(
       it.copyWith(
-        brandTitle: _workingOut.brandTitle,
-        priceBrandKey: _workingOut.priceBrandKey,
-        systemTitle: _workingOut.systemTitle,
-        patternId: _workingOut.patternId,
-        patternTitle: _workingOut.patternTitle,
-        selectedOptions: _workingOut.selectedOptions,
+        brandTitle: outToSave.brandTitle,
+        priceBrandKey: outToSave.priceBrandKey,
+        systemTitle: outToSave.systemTitle,
+        patternId: outToSave.patternId,
+        patternTitle: outToSave.patternTitle,
+        selectedOptions: outToSave.selectedOptions,
         sizeRows: widget.sizeRows,
-        evaluatedSets: _workingOut.sets,
-        hardware: _workingOut.hardware,
+        evaluatedSets: outToSave.sets,
+        hardware: outToSave.hardware,
       ),
     );
     if (!mounted) return;
@@ -390,6 +441,10 @@ class _ResultScreenState extends State<ResultScreen>
                             0.88,
                   ),
                   hardware: out.hardware,
+                  initialSelectedOptions: out.selectedOptions,
+                  onSummaryChanged: (s) {
+                    _latestTab4Summary = s;
+                  },
                   onAddAluminum: () => _openAddAluminumCut(),
                   onEditProfileGroup: _openSwapOrDeleteProfileGroup,
                   onAddGlass: () => _openAddGlass(),
@@ -449,7 +504,7 @@ class _ResultScreenState extends State<ResultScreen>
                               showDialog(
                                 context: context,
                                 builder: (_) => SaveToProjectDialog(
-                                  output: out,
+                                  output: _outputWithSelectedPricingSpecs(),
                                   sizeRows: widget.sizeRows,
                                   preselectedProjectId: widget.targetProjectId,
                                 ),
@@ -1366,9 +1421,13 @@ class PricingWorkspaceWidget extends StatefulWidget {
   final double fallbackOpeningAreaSqM;
   final List<AggregatedHardwareItem> hardware;
   final List<SavedProjectItem>? projectItems;
+  final int? projectId;
+  final Map<String, String>? initialSelectedOptions;
   final ValueChanged<PricingSummary>? onSummaryChanged;
   final ValueChanged<List<ProjectItemPricingBreakdown>>?
       onProjectItemBreakdownsChanged;
+  final void Function(int index, SavedProjectItem updatedItem)?
+      onUpdateProjectItemSpec;
   final VoidCallback? onAddAluminum;
   final ValueChanged<ProfileBarGroup>? onEditProfileGroup;
   final VoidCallback? onAddGlass;
@@ -1384,8 +1443,11 @@ class PricingWorkspaceWidget extends StatefulWidget {
     this.fallbackOpeningAreaSqM = 0.0,
     this.hardware = const [],
     this.projectItems,
+    this.projectId,
+    this.initialSelectedOptions,
     this.onSummaryChanged,
     this.onProjectItemBreakdownsChanged,
+    this.onUpdateProjectItemSpec,
     this.onAddAluminum,
     this.onEditProfileGroup,
     this.onAddGlass,
@@ -1402,6 +1464,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   PricingMode _mode = PricingMode.actualLength;
   double _wastePct = 20.0;
   late final TextEditingController _wasteCtrl;
+  bool _useItemOwnMaterialSpecs = true;
   String _selectedThickness = '';
   String _selectedColor = '';
   bool _includeGlass = false;
@@ -1421,11 +1484,57 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
   Map<String, CustomMaterialRateOverride> _materialOverrides = {};
   bool _loading = true;
 
+  bool get _isProjectMode =>
+      widget.projectItems != null && widget.projectItems!.isNotEmpty;
+
   static String _fmtNumInput(double v) {
     if ((v - v.roundToDouble()).abs() < 0.005) {
       return v.round().toString();
     }
     return v.toStringAsFixed(2);
+  }
+
+  void _seedFromInitialOptions(Map<String, String>? opts) {
+    if (opts == null || opts.isEmpty) return;
+    final rawThick = (opts['pricing_alu_thick']?.trim() ?? '').isNotEmpty
+        ? opts['pricing_alu_thick']!.trim()
+        : ((opts['spec_alu_thick']?.trim() ?? '').isNotEmpty
+            ? opts['spec_alu_thick']!.trim()
+            : (opts['thickness']?.trim() ?? ''));
+    if (rawThick.isNotEmpty && rawThick != 'ไม่ระบุ' && rawThick != 'ตามรายการ') {
+      _selectedThickness =
+          rawThick.endsWith('มม.') ? rawThick : '$rawThick มม.';
+    }
+    final rawColor = (opts['pricing_alu_color']?.trim() ?? '').isNotEmpty
+        ? opts['pricing_alu_color']!.trim()
+        : (opts['spec_alu_color']?.trim() ?? '');
+    if (rawColor.isNotEmpty && rawColor != 'ไม่ระบุ' && rawColor != 'ตามรายการ') {
+      _selectedColor = rawColor;
+    }
+    final rawIncGlass = opts['pricing_include_glass']?.trim() ?? '';
+    final specGType = opts['spec_glass_type']?.trim() ?? '';
+    if (rawIncGlass == 'false' || specGType == 'ไม่รวมกระจก') {
+      _includeGlass = false;
+    } else if (rawIncGlass == 'true') {
+      _includeGlass = true;
+    }
+    final matchedGlass = PricingEngine.matchGlassRateFromSpec(
+      explicitGlassKey: opts['pricing_glass_key'],
+      glassType: specGType,
+      glassThick: opts['spec_glass_thick'],
+      mergedGlassRates: _mergedGlassRates(),
+    );
+    if (matchedGlass != null) {
+      _selectedGlassKey = matchedGlass.rateKey;
+    } else if ((opts['pricing_glass_key']?.trim() ?? '').isNotEmpty) {
+      _selectedGlassKey = opts['pricing_glass_key']!.trim();
+    }
+    final rawIncHw = opts['pricing_include_hw']?.trim() ?? '';
+    if (rawIncHw == 'false') {
+      _includeHardware = false;
+    } else if (rawIncHw == 'true') {
+      _includeHardware = true;
+    }
   }
 
   @override
@@ -1438,12 +1547,23 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
         (widget.glasses.any((g) => !g.siteCut && (g.widthMm ?? 0) > 0) ||
             widget.fallbackOpeningAreaSqM > 0);
     _includeHardware = widget.hardware.any((h) => (h.effectiveQty ?? 0) > 0);
+    _seedFromInitialOptions(
+      widget.initialSelectedOptions ??
+          (widget.projectItems != null && widget.projectItems!.isNotEmpty
+              ? widget.projectItems!.first.selectedOptions
+              : null),
+    );
     _reloadOverrides();
   }
 
   @override
   void didUpdateWidget(covariant PricingWorkspaceWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.projectId != widget.projectId) {
+      _markupLoaded = false;
+      _reloadOverrides();
+      return;
+    }
     if (oldWidget.barGroups != widget.barGroups ||
         oldWidget.glasses != widget.glasses ||
         oldWidget.hardware != widget.hardware ||
@@ -1459,7 +1579,7 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       if (!_loading) {
         _syncValidSelection(_overrides);
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _notifyParent();
+          if (mounted) _notifyParent(persistProject: false);
         });
       }
     }
@@ -1481,13 +1601,35 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       preferredColor: _selectedColor.isNotEmpty ? _selectedColor : null,
     );
     if (avail.availableColors.isEmpty) {
-      _selectedColor = 'ตัวดิบ MILL';
+      _selectedColor = 'อบดำ (8816)';
     } else if (!avail.availableColors.contains(_selectedColor)) {
-      _selectedColor = avail.availableColors.contains('อบดำ (8816)')
-          ? 'อบดำ (8816)'
-          : (avail.availableColors.contains('ตัวดิบ MILL')
-              ? 'ตัวดิบ MILL'
-              : avail.availableColors.first);
+      // Try family match first (e.g. 'สีดำ' -> 'อบดำ (8816)' / 'พ่นดำ ซุปเปอร์แบล็ค')
+      String? famMatch;
+      if (_selectedColor.trim().isNotEmpty) {
+        final fam = PricingEngine.colorFamily(_selectedColor);
+        if (fam != 'other') {
+          for (final c in avail.availableColors) {
+            if (PricingEngine.colorFamily(c) == fam) {
+              famMatch = c;
+              break;
+            }
+          }
+        }
+      }
+      if (famMatch != null) {
+        _selectedColor = famMatch;
+      } else if (avail.availableColors.contains('อบดำ (8816)')) {
+        _selectedColor = 'อบดำ (8816)';
+      } else if (avail.availableColors.contains('พ่นดำ ซุปเปอร์แบล็ค')) {
+        _selectedColor = 'พ่นดำ ซุปเปอร์แบล็ค';
+      } else {
+        final painted = avail.availableColors.where(
+          (c) => !c.contains('MILL') && !c.contains('ตัวดิบ'),
+        );
+        _selectedColor = painted.isNotEmpty
+            ? painted.first
+            : avail.availableColors.first;
+      }
     }
 
     final availForColor = PricingEngine.computeAvailability(
@@ -1509,21 +1651,52 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     final gRates = _mergedGlassRates();
     if (gRates.isNotEmpty &&
         !gRates.any((r) => r.rateKey == _selectedGlassKey)) {
-      _selectedGlassKey = gRates.first.rateKey;
+      final clear6 =
+          gRates.where((r) => r.rateKey == 'GLASS|กระจกใส 6 มม.');
+      _selectedGlassKey =
+          clear6.isNotEmpty ? clear6.first.rateKey : gRates.first.rateKey;
     }
   }
 
   Future<void> _reloadOverrides() async {
     final ov = await AppDatabase.instance.getAllCustomPrices();
     final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
-    final markupDefaults = _markupLoaded
-        ? null
-        : await AppDatabase.instance.getPricingMarkupDefaults();
+    final projCfg = (widget.projectId != null && !_markupLoaded)
+        ? await AppDatabase.instance.getProjectPricingConfig(widget.projectId!)
+        : null;
+    final markupDefaults = (!_markupLoaded && projCfg == null)
+        ? await AppDatabase.instance.getPricingMarkupDefaults()
+        : null;
     if (!mounted) return;
     setState(() {
       _overrides = ov;
       _materialOverrides = matOv;
-      if (markupDefaults != null && !_markupLoaded) {
+      if (projCfg != null && !_markupLoaded) {
+        _mode = projCfg.modeName == 'fullBars'
+            ? PricingMode.fullBars
+            : PricingMode.actualLength;
+        _wastePct = projCfg.wastePercent;
+        _wasteCtrl.text = _fmtNumInput(_wastePct);
+        _useItemOwnMaterialSpecs = projCfg.useItemOwnMaterialSpecs;
+        if (projCfg.selectedThickness.isNotEmpty) {
+          _selectedThickness = projCfg.selectedThickness;
+        }
+        if (projCfg.selectedColor.isNotEmpty) {
+          _selectedColor = projCfg.selectedColor;
+        }
+        _includeGlass = projCfg.includeGlass;
+        if (projCfg.selectedGlassKey.isNotEmpty) {
+          _selectedGlassKey = projCfg.selectedGlassKey;
+        }
+        _includeHardware = projCfg.includeHardware;
+        _profitPct = projCfg.profitPercent;
+        _profitBaseMode = projCfg.profitBaseMode;
+        _laborMode = projCfg.laborMode;
+        _laborRate = projCfg.laborRate;
+        _profitCtrl.text = _fmtNumInput(_profitPct);
+        _laborCtrl.text = _fmtNumInput(_laborRate);
+        _markupLoaded = true;
+      } else if (markupDefaults != null && !_markupLoaded) {
         _profitPct = markupDefaults.profitPercent;
         _profitBaseMode = markupDefaults.profitBaseMode;
         _laborMode = markupDefaults.laborMode;
@@ -1535,7 +1708,29 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       _syncValidSelection(ov);
       _loading = false;
     });
-    _notifyParent();
+    _notifyParent(persistProject: false);
+  }
+
+  Future<void> _persistProjectConfigIfNeeded() async {
+    final pid = widget.projectId;
+    if (pid == null || !_markupLoaded) return;
+    await AppDatabase.instance.saveProjectPricingConfig(
+      pid,
+      ProjectPricingConfig(
+        modeName: _mode.name,
+        wastePercent: _wastePct,
+        useItemOwnMaterialSpecs: _useItemOwnMaterialSpecs,
+        selectedThickness: _selectedThickness,
+        selectedColor: _selectedColor,
+        includeGlass: _includeGlass,
+        selectedGlassKey: _selectedGlassKey,
+        includeHardware: _includeHardware,
+        profitPercent: _profitPct,
+        profitBaseMode: _profitBaseMode,
+        laborMode: _laborMode,
+        laborRate: _laborRate,
+      ),
+    );
   }
 
   Future<void> _saveMarkupAsShopDefault() async {
@@ -1554,7 +1749,10 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
     );
   }
 
-  void _notifyParent() {
+  void _notifyParent({bool persistProject = true}) {
+    if (persistProject) {
+      _persistProjectConfigIfNeeded();
+    }
     if (widget.onSummaryChanged != null ||
         widget.onProjectItemBreakdownsChanged != null) {
       final summary = _computeSummary();
@@ -1577,8 +1775,10 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       projectSummary: summary,
       ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: _overrides,
+      glassCatalog: SeedRepository.instance.glassRates,
       hardwareCatalog: SeedRepository.instance.hardwareRates,
       materialOverrides: _materialOverrides,
+      useItemOwnMaterialSpecs: _useItemOwnMaterialSpecs,
     );
   }
 
@@ -1589,12 +1789,37 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
         ? activeGlass.first.effectivePrice
         : (gRates.isNotEmpty ? gRates.first.effectivePrice : 205.0);
 
+    if (_isProjectMode) {
+      return PricingEngine.evaluateProject(
+        items: widget.projectItems!,
+        mode: _mode,
+        wastePercent: _wastePct,
+        fallbackThickness: _selectedThickness,
+        fallbackColor: _selectedColor,
+        ormCatalog: SeedRepository.instance.allCatalogPrices,
+        customOverrides: _overrides,
+        includeGlass: _includeGlass,
+        fallbackGlassKey: _selectedGlassKey,
+        fallbackGlassRatePerSqM: glassRate,
+        includeHardware: _includeHardware,
+        glassCatalog: SeedRepository.instance.glassRates,
+        hardwareCatalog: SeedRepository.instance.hardwareRates,
+        materialOverrides: _materialOverrides,
+        useItemOwnMaterialSpecs: _useItemOwnMaterialSpecs,
+        laborMode: _laborMode,
+        laborRate: _laborRate,
+        profitPercent: _profitPct,
+        profitBaseMode: _profitBaseMode,
+      );
+    }
+
     return PricingEngine.evaluate(
       barGroups: widget.barGroups,
       mode: _mode,
       wastePercent: _wastePct,
       selectedThickness: _selectedThickness,
       selectedColor: _selectedColor,
+      useGroupSpecs: false,
       ormCatalog: SeedRepository.instance.allCatalogPrices,
       customOverrides: _overrides,
       glasses: widget.glasses,
@@ -1611,6 +1836,187 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
       laborRate: _laborRate,
       profitPercent: _profitPct,
       profitBaseMode: _profitBaseMode,
+    );
+  }
+
+  Future<void> _openPerItemMaterialSpecDialog(
+    int idx,
+    ProjectItemPricingBreakdown b,
+  ) async {
+    final it = b.item;
+    final cb = widget.onUpdateProjectItemSpec;
+    if (cb == null) return;
+    final itemGroups = BinPacker.packSingleCalculation(
+      brandKey: it.priceBrandKey,
+      sets: it.evaluatedSets,
+    );
+    final avail = PricingEngine.computeAvailability(
+      barGroups: itemGroups,
+      ormCatalog: SeedRepository.instance.allCatalogPrices,
+      customOverrides: _overrides,
+      preferredColor: b.effectiveColor,
+    );
+    final gRates = _mergedGlassRates();
+    String selThick = avail.availableThicknesses.contains(b.effectiveThickness)
+        ? b.effectiveThickness
+        : (avail.availableThicknesses.isNotEmpty
+            ? avail.availableThicknesses.first
+            : '1.2 มม.');
+    String selColor = avail.availableColors.contains(b.effectiveColor)
+        ? b.effectiveColor
+        : (avail.availableColors.isNotEmpty
+            ? avail.availableColors.first
+            : 'อบดำ (8816)');
+    final resolved = PricingEngine.resolveItemMaterialSpec(
+      item: it,
+      fallbackThickness: _selectedThickness,
+      fallbackColor: _selectedColor,
+      fallbackIncludeGlass: _includeGlass,
+      fallbackGlassKey: _selectedGlassKey,
+      fallbackGlassRatePerSqM: 205.0,
+      fallbackIncludeHardware: _includeHardware,
+      mergedGlassRates: gRates,
+    );
+    bool incGlass = resolved.includeGlass;
+    String selGlassKey = gRates.any((r) => r.rateKey == resolved.glassKey)
+        ? resolved.glassKey
+        : (gRates.isNotEmpty ? gRates.first.rateKey : _selectedGlassKey);
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: Text('สเปกวัสดุเฉพาะรายการ · ${it.displayOrderTag(idx + 1)}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${it.patternTitle} (${it.brandTitle})',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ToolkitColors.slateDark,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: avail.availableThicknesses.contains(selThick)
+                      ? selThick
+                      : null,
+                  decoration: const InputDecoration(
+                    labelText: 'ความหนาอลูมิเนียมของรายการนี้',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: avail.availableThicknesses
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setModal(() => selThick = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: avail.availableColors.contains(selColor)
+                      ? selColor
+                      : null,
+                  decoration: const InputDecoration(
+                    labelText: 'สีอลูมิเนียมของรายการนี้',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: avail.availableColors
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c, overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setModal(() => selColor = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('รวมกระจกสำหรับรายการนี้'),
+                  value: incGlass,
+                  onChanged: (v) => setModal(() => incGlass = v),
+                ),
+                if (incGlass && gRates.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: gRates.any((r) => r.rateKey == selGlassKey)
+                        ? selGlassKey
+                        : gRates.first.rateKey,
+                    decoration: const InputDecoration(
+                      labelText: 'ชนิดกระจกของรายการนี้',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: gRates
+                        .map((r) => DropdownMenuItem(
+                              value: r.rateKey,
+                              child: Text(
+                                '${r.rateKey.replaceFirst("GLASS|", "")} · ฿${r.effectivePrice.toStringAsFixed(0)}/ตร.ม.',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12.5),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setModal(() => selGlassKey = v);
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('ยกเลิก'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final nextOpts = Map<String, String>.from(it.selectedOptions);
+                nextOpts['pricing_alu_thick'] = selThick;
+                nextOpts['spec_alu_thick'] = selThick;
+                nextOpts['pricing_alu_color'] = selColor;
+                final normCol =
+                    QuotationSpecFormatter.normalizePricingColorForQuotation(
+                  selColor,
+                  brandKey: it.priceBrandKey,
+                );
+                if (normCol != 'ตามรายการ' && normCol != 'ไม่ระบุ') {
+                  nextOpts['spec_alu_color'] = normCol;
+                }
+                nextOpts['pricing_include_glass'] =
+                    incGlass ? 'true' : 'false';
+                if (incGlass) {
+                  nextOpts['pricing_glass_key'] = selGlassKey;
+                  final parsed =
+                      QuotationSpecFormatter.parseGlassRateKey(selGlassKey);
+                  if (parsed.glassType != 'ไม่ระบุ') {
+                    nextOpts['spec_glass_type'] = parsed.glassType;
+                  }
+                  if (parsed.glassThickness != 'ไม่ระบุ') {
+                    nextOpts['spec_glass_thick'] = parsed.glassThickness;
+                  }
+                } else {
+                  nextOpts['spec_glass_type'] = 'ไม่รวมกระจก';
+                }
+                Navigator.pop(ctx);
+                cb(idx, it.copyWith(selectedOptions: nextOpts));
+              },
+              child: const Text('บันทึกเฉพาะรายการนี้'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2113,6 +2519,43 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                 ],
               ),
               const SizedBox(height: 6),
+              if (_isProjectMode) ...[
+                SegmentedButton<bool>(
+                  key: const ValueKey('pricing_item_spec_mode_seg'),
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: true,
+                      label: Text('แยกสเปกแต่ละรายการ',
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('ใช้สเปกเดียวทั้งโปรเจกต์',
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                  selected: {_useItemOwnMaterialSpecs},
+                  onSelectionChanged: (sel) {
+                    setState(() => _useItemOwnMaterialSpecs = sel.first);
+                    _notifyParent();
+                  },
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _useItemOwnMaterialSpecs
+                      ? 'รายการแต่ละชุดใช้อลูมิเนียม/กระจกที่เลือกไว้แยกกัน (ค่าด้านล่างใช้เป็นค่าตั้งต้นเฉพาะรายการที่ยังไม่ระบุ)'
+                      : 'บังคับใช้ความหนา สีอลูมิเนียม และกระจกด้านล่างกับทุกรายการในโปรเจกต์นี้เท่านั้น',
+                  style: const TextStyle(
+                    fontSize: 11.2,
+                    color: ToolkitColors.slateMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               Row(
                 children: [
                   Expanded(
@@ -2124,9 +2567,11 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                               .contains(_selectedThickness)
                           ? _selectedThickness
                           : null,
-                      decoration: const InputDecoration(
-                        labelText: 'ความหนาอลูมิเนียม',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: (_isProjectMode && _useItemOwnMaterialSpecs)
+                            ? 'ความหนาตั้งต้น'
+                            : 'ความหนาอลูมิเนียม',
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       items: avail.availableThicknesses
@@ -2156,9 +2601,11 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                           avail.availableColors.contains(_selectedColor)
                               ? _selectedColor
                               : null,
-                      decoration: const InputDecoration(
-                        labelText: 'สีอลูมิเนียม',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: (_isProjectMode && _useItemOwnMaterialSpecs)
+                            ? 'สีตั้งต้น'
+                            : 'สีอลูมิเนียม',
+                        border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       items: avail.availableColors
@@ -2847,6 +3294,29 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                                         color: ToolkitColors.slateMuted,
                                       ),
                                     ),
+                                    if (b.effectiveThickness.isNotEmpty ||
+                                        b.effectiveColor.isNotEmpty ||
+                                        b.effectiveGlassLabel.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 3),
+                                        child: Text(
+                                          [
+                                            if (b.effectiveThickness.isNotEmpty)
+                                              b.effectiveThickness,
+                                            if (b.effectiveColor.isNotEmpty)
+                                              b.effectiveColor,
+                                            if (b.effectiveGlassLabel.isNotEmpty)
+                                              b.effectiveGlassLabel,
+                                          ].join(' · '),
+                                          key: ValueKey(
+                                              'proj_model_spec_label_$idx'),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: ToolkitColors.deepNavy,
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -2870,6 +3340,27 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                                       color: ToolkitColors.successGreen,
                                     ),
                                   ),
+                                  if (widget.onUpdateProjectItemSpec != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: InkWell(
+                                        key: ValueKey(
+                                            'btn_edit_item_material_$idx'),
+                                        onTap: () =>
+                                            _openPerItemMaterialSpecDialog(
+                                                idx, b),
+                                        child: const Text(
+                                          'แก้สี/กระจก',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: ToolkitColors.royalBlue,
+                                            decoration:
+                                                TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ],

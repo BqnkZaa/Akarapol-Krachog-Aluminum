@@ -185,6 +185,9 @@ class ProjectItemPricingBreakdown {
   final double profitAmount;
   final double suggestedTotalPrice;
   final double unitSellingPrice;
+  final String effectiveThickness;
+  final String effectiveColor;
+  final String effectiveGlassLabel;
 
   const ProjectItemPricingBreakdown({
     required this.item,
@@ -199,11 +202,34 @@ class ProjectItemPricingBreakdown {
     required this.profitAmount,
     required this.suggestedTotalPrice,
     required this.unitSellingPrice,
+    this.effectiveThickness = '',
+    this.effectiveColor = '',
+    this.effectiveGlassLabel = '',
   });
 
   double get materialCostPerUnit => totalUnits > 0
       ? PricingEngine.round2(allocatedMaterialCost / totalUnits)
       : 0.0;
+}
+
+class ResolvedItemMaterialSpec {
+  final String thickness;
+  final String color;
+  final bool includeGlass;
+  final String glassKey;
+  final double glassRatePerSqM;
+  final String glassLabel;
+  final bool includeHardware;
+
+  const ResolvedItemMaterialSpec({
+    required this.thickness,
+    required this.color,
+    required this.includeGlass,
+    required this.glassKey,
+    required this.glassRatePerSqM,
+    required this.glassLabel,
+    required this.includeHardware,
+  });
 }
 
 class PricingEngine {
@@ -229,15 +255,52 @@ class PricingEngine {
     'ไม่ระบุความหนา',
   ];
 
-  static const List<String> standardColors = [
+  /// Official 19 ALUMET Thailand color codes (ALUMET Hub 010867 & 110569).
+  static const List<String> alumetColors = [
     'ตัวดิบ MILL',
-    'ชุบขาว',
+    'ชุบขาว (E&A)',
+    'ชุบชา (512)',
+    'ชุบน้ำตาล (514)',
+    'ชุบดำ (518)',
+    'แพลทินั่ม (502)',
+    'แชมเปญ (504)',
+    'ชุบชาเข้ม (510)',
     'อบขาว (8911)',
     'อบดำ (8816)',
     'เทาซาฮาร่า (8820)',
+    'อบดำเงา (8815)',
+    'อบเทา (8859)',
+    'อบน้ำตาล (8823)',
+    'น้ำตาลซาฮาร่า (8825)',
+    'ดำซาฮาร่า (8819)',
+    'ทรายซาฮาร่า (8515)',
+    'ลายไม้สักน้ำตาล (15656)',
+    'ลายไม้วอลนัท (15659)',
+  ];
+
+  static const List<String> standardColors = [
+    'ตัวดิบ MILL',
+    'ชุบขาว',
+    'ชุบขาว (E&A)',
+    'ชุบชา (512)',
+    'ชุบน้ำตาล (514)',
+    'ชุบดำ (518)',
+    'แพลทินั่ม (502)',
+    'แชมเปญ (504)',
+    'ชุบชาเข้ม (510)',
+    'อบขาว (8911)',
+    'อบดำ (8816)',
+    'เทาซาฮาร่า (8820)',
+    'อบดำเงา (8815)',
+    'อบเทา (8859)',
+    'อบน้ำตาล (8823)',
+    'น้ำตาลซาฮาร่า (8825)',
+    'ดำซาฮาร่า (8819)',
     'ทรายซาฮาร่า (8515)',
     'สีชา',
     'ลายไม้ (15656 / 15659)',
+    'ลายไม้สักน้ำตาล (15656)',
+    'ลายไม้วอลนัท (15659)',
     'พ่นขาว คอตตอน ไวท์',
     'พ่นดำ ซุปเปอร์แบล็ค',
     'พ่นเทา แชมเปญเกรย์ (สีใหม่)',
@@ -416,19 +479,303 @@ class PricingEngine {
     );
   }
 
-  /// Evaluates each [SavedProjectItem] individually using the exact same
-  /// pricing settings as [projectSummary], reconciles bar-packing savings
-  /// proportionally so allocated material sums match [projectSummary.totalCost],
-  /// and computes accurate per-model labor, profit, and unit selling prices.
+  /// Resolves a catalog glass rate entry from `(glassType, glassThick)` or explicit `glassKey`.
+  static MaterialRateItem? matchGlassRateFromSpec({
+    String? explicitGlassKey,
+    String? glassType,
+    String? glassThick,
+    required List<MaterialRateItem> mergedGlassRates,
+  }) {
+    if (mergedGlassRates.isEmpty) return null;
+    final expKey = explicitGlassKey?.trim() ?? '';
+    if (expKey.isNotEmpty) {
+      for (final r in mergedGlassRates) {
+        if (r.rateKey == expKey) return r;
+      }
+    }
+    final gType = glassType?.trim() ?? '';
+    final gThick = glassThick?.trim() ?? '';
+    if (gType.isEmpty || gType == 'ไม่ระบุ' || gType == 'ตามรายการ') {
+      if (gThick.isNotEmpty && gThick != 'ไม่ระบุ' && gThick != 'ตามรายการ') {
+        for (final r in mergedGlassRates) {
+          if (r.rateKey.contains('กระจกใส') && r.rateKey.contains(gThick)) {
+            return r;
+          }
+        }
+      }
+      return null;
+    }
+    if (gType == 'ไม่รวมกระจก') return null;
+
+    if (gThick.isNotEmpty && gThick != 'ไม่ระบุ' && gThick != 'ตามรายการ') {
+      final exactKey = 'GLASS|$gType $gThick';
+      for (final r in mergedGlassRates) {
+        if (r.rateKey == exactKey) return r;
+      }
+      for (final r in mergedGlassRates) {
+        if (r.rateKey.contains(gType) && r.rateKey.contains(gThick)) {
+          return r;
+        }
+      }
+    }
+    // Type-only match (e.g., กระจกลามิเนต -> GLASS|กระจกลามิเนต 6+6 มม.)
+    for (final r in mergedGlassRates) {
+      if (r.rateKey.contains(gType) || r.name.contains(gType)) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  /// Resolves a single [SavedProjectItem]'s effective aluminum & glass specs
+  /// (falling back gracefully to project-level defaults only when the item has
+  /// no saved spec of its own).
+  static ResolvedItemMaterialSpec resolveItemMaterialSpec({
+    required SavedProjectItem item,
+    required String fallbackThickness,
+    required String fallbackColor,
+    required bool fallbackIncludeGlass,
+    required String fallbackGlassKey,
+    required double fallbackGlassRatePerSqM,
+    required bool fallbackIncludeHardware,
+    List<MaterialRateItem> mergedGlassRates = const [],
+  }) {
+    final opts = item.selectedOptions;
+    String pickValid(List<String?> cands, String fb) {
+      for (final c in cands) {
+        final t = c?.trim() ?? '';
+        if (t.isNotEmpty && t != 'ไม่ระบุ' && t != 'ตามรายการ') {
+          return t;
+        }
+      }
+      return fb;
+    }
+
+    final rawThickOpt = opts['thickness']?.trim() ?? '';
+    final normThickOpt = rawThickOpt.isNotEmpty
+        ? (rawThickOpt.endsWith('มม.') ? rawThickOpt : '$rawThickOpt มม.')
+        : '';
+
+    final effThick = pickValid(
+      [opts['pricing_alu_thick'], opts['spec_alu_thick'], normThickOpt],
+      fallbackThickness,
+    );
+    final effColor = pickValid(
+      [opts['pricing_alu_color'], opts['spec_alu_color']],
+      fallbackColor,
+    );
+
+    final specGlassType = opts['spec_glass_type']?.trim() ?? '';
+    final specGlassThick = opts['spec_glass_thick']?.trim() ?? '';
+    final rawIncGlass = opts['pricing_include_glass']?.trim() ?? '';
+    bool effIncludeGlass = fallbackIncludeGlass;
+    if (rawIncGlass == 'false' || specGlassType == 'ไม่รวมกระจก') {
+      effIncludeGlass = false;
+    } else if (rawIncGlass == 'true') {
+      effIncludeGlass = true;
+    }
+
+    final matchedGlass = matchGlassRateFromSpec(
+      explicitGlassKey: opts['pricing_glass_key'],
+      glassType: specGlassType,
+      glassThick: specGlassThick,
+      mergedGlassRates: mergedGlassRates,
+    );
+
+    final effGlassKey = matchedGlass?.rateKey ??
+        ((opts['pricing_glass_key']?.trim() ?? '').isNotEmpty
+            ? opts['pricing_glass_key']!.trim()
+            : fallbackGlassKey);
+    final effGlassRate = matchedGlass?.effectivePrice ?? fallbackGlassRatePerSqM;
+    final effGlassLabel = !effIncludeGlass
+        ? 'ไม่รวมกระจก'
+        : (matchedGlass != null
+            ? matchedGlass.rateKey.replaceFirst('GLASS|', '')
+            : (effGlassKey.replaceFirst('GLASS|', '').isNotEmpty
+                ? effGlassKey.replaceFirst('GLASS|', '')
+                : 'กระจกใส 6 มม.'));
+
+    final rawIncHw = opts['pricing_include_hw']?.trim() ?? '';
+    final effIncludeHw = rawIncHw == 'false'
+        ? false
+        : (rawIncHw == 'true' ? true : fallbackIncludeHardware);
+
+    return ResolvedItemMaterialSpec(
+      thickness: effThick,
+      color: effColor,
+      includeGlass: effIncludeGlass,
+      glassKey: effGlassKey,
+      glassRatePerSqM: effGlassRate,
+      glassLabel: effGlassLabel,
+      includeHardware: effIncludeHw,
+    );
+  }
+
+  /// Evaluates a multi-item project accurately, preserving each item's own
+  /// selected aluminum `(thickness, color)` and glass rate when
+  /// [useItemOwnMaterialSpecs] is true (default), while still allowing
+  /// cross-item bar packing ONLY among cuts sharing the exact same
+  /// `(brand, code, stockMm, thickness, color)`.
+  static PricingSummary evaluateProject({
+    required List<SavedProjectItem> items,
+    required PricingMode mode,
+    required double wastePercent,
+    required String fallbackThickness,
+    required String fallbackColor,
+    required List<OrmPriceSku> ormCatalog,
+    required Map<String, CustomPriceOverride> customOverrides,
+    required bool includeGlass,
+    required String fallbackGlassKey,
+    required double fallbackGlassRatePerSqM,
+    required bool includeHardware,
+    List<MaterialRateItem> glassCatalog = const [],
+    List<MaterialRateItem> hardwareCatalog = const [],
+    Map<String, CustomMaterialRateOverride> materialOverrides = const {},
+    bool useItemOwnMaterialSpecs = true,
+    LaborCostMode laborMode = LaborCostMode.perSqM,
+    double laborRate = 0.0,
+    double profitPercent = 0.0,
+    ProfitBaseMode profitBaseMode = ProfitBaseMode.materialOnly,
+  }) {
+    final mergedGlass = mergeMaterialRates(
+      glassCatalog,
+      materialOverrides,
+      category: 'GLASS',
+    );
+    final packedGroups = BinPacker.packProjectItems(
+      items,
+      separateByItemMaterialSpec: useItemOwnMaterialSpecs,
+    );
+
+    final perItemGlassEntries = <({
+      EvaluatedGlassItem glass,
+      double ratePerSqM,
+      String glassLabel,
+      double fallbackOpeningSqM,
+    })>[];
+
+    final mergedHardwareMap = <String, AggregatedHardwareItem>{};
+    double totalOpeningArea = 0.0;
+    double totalFallbackGlassArea = 0.0;
+
+    for (final it in items) {
+      final itemArea = it.totalOpeningAreaSqM;
+      totalOpeningArea += itemArea;
+      final spec = useItemOwnMaterialSpecs
+          ? resolveItemMaterialSpec(
+              item: it,
+              fallbackThickness: fallbackThickness,
+              fallbackColor: fallbackColor,
+              fallbackIncludeGlass: includeGlass,
+              fallbackGlassKey: fallbackGlassKey,
+              fallbackGlassRatePerSqM: fallbackGlassRatePerSqM,
+              fallbackIncludeHardware: includeHardware,
+              mergedGlassRates: mergedGlass,
+            )
+          : ResolvedItemMaterialSpec(
+              thickness: fallbackThickness,
+              color: fallbackColor,
+              includeGlass: includeGlass,
+              glassKey: fallbackGlassKey,
+              glassRatePerSqM: fallbackGlassRatePerSqM,
+              glassLabel: fallbackGlassKey.replaceFirst('GLASS|', ''),
+              includeHardware: includeHardware,
+            );
+
+      final itemGlasses = it.evaluatedSets.expand((s) => s.glasses).toList();
+      if (includeGlass && spec.includeGlass) {
+        final sitePanels = itemGlasses
+            .where((g) => g.siteCut || (g.widthMm ?? 0) <= 0 || (g.heightMm ?? 0) <= 0)
+            .fold<int>(0, (s, g) => s + g.totalPanels);
+        final itemFallbackSqM = itemArea * 0.88;
+        if (sitePanels > 0) totalFallbackGlassArea += itemFallbackSqM;
+        for (final g in itemGlasses) {
+          final isSite = g.siteCut || (g.widthMm ?? 0) <= 0 || (g.heightMm ?? 0) <= 0;
+          perItemGlassEntries.add((
+            glass: g,
+            ratePerSqM: spec.glassRatePerSqM,
+            glassLabel: spec.glassLabel,
+            fallbackOpeningSqM: (isSite && sitePanels > 0)
+                ? (itemFallbackSqM * (g.totalPanels / sitePanels))
+                : 0.0,
+          ));
+        }
+      }
+
+      if (includeHardware && spec.includeHardware) {
+        for (final h in it.hardware) {
+          final key = '${h.code}|${h.name}|${h.unitOrNote}';
+          final ex = mergedHardwareMap[key];
+          if (ex == null) {
+            mergedHardwareMap[key] = h;
+          } else if (ex.decimalQty != null && h.decimalQty != null) {
+            mergedHardwareMap[key] = AggregatedHardwareItem(
+              code: ex.code,
+              name: ex.name,
+              decimalQty: round2(ex.decimalQty! + h.decimalQty!),
+              unitOrNote: ex.unitOrNote,
+            );
+          } else if (ex.numericQty != null && h.numericQty != null) {
+            mergedHardwareMap[key] = AggregatedHardwareItem(
+              code: ex.code,
+              name: ex.name,
+              numericQty: ex.numericQty! + h.numericQty!,
+              unitOrNote: ex.unitOrNote,
+            );
+          }
+        }
+      }
+    }
+
+    return evaluate(
+      barGroups: packedGroups,
+      mode: mode,
+      wastePercent: wastePercent,
+      selectedThickness: fallbackThickness,
+      selectedColor: fallbackColor,
+      useGroupSpecs: useItemOwnMaterialSpecs,
+      ormCatalog: ormCatalog,
+      customOverrides: customOverrides,
+      glasses: perItemGlassEntries.map((e) => e.glass).toList(),
+      perItemGlassEntries: perItemGlassEntries,
+      openingAreaSqM: totalOpeningArea,
+      fallbackOpeningAreaSqM: totalFallbackGlassArea,
+      hardware: mergedHardwareMap.values.toList(),
+      includeGlass: includeGlass,
+      selectedGlassKey: fallbackGlassKey,
+      glassRatePerSqM: fallbackGlassRatePerSqM,
+      includeHardware: includeHardware,
+      hardwareCatalog: hardwareCatalog,
+      materialOverrides: materialOverrides,
+      laborMode: laborMode,
+      laborRate: laborRate,
+      profitPercent: profitPercent,
+      profitBaseMode: profitBaseMode,
+    );
+  }
+
+  /// Evaluates each [SavedProjectItem] individually using either its own saved
+  /// material specs (when [useItemOwnMaterialSpecs] is true) or [projectSummary]
+  /// global specs, reconciles bar-packing savings proportionally so allocated
+  /// material sums match [projectSummary.totalCost], and computes accurate
+  /// per-model labor, profit, and unit selling prices.
   static List<ProjectItemPricingBreakdown> evaluateProjectItems({
     required List<SavedProjectItem> items,
     required PricingSummary projectSummary,
     required List<OrmPriceSku> ormCatalog,
     required Map<String, CustomPriceOverride> customOverrides,
+    List<MaterialRateItem> glassCatalog = const [],
     List<MaterialRateItem> hardwareCatalog = const [],
     Map<String, CustomMaterialRateOverride> materialOverrides = const {},
+    bool useItemOwnMaterialSpecs = true,
   }) {
     if (items.isEmpty) return const [];
+
+    final mergedGlass = mergeMaterialRates(
+      glassCatalog,
+      materialOverrides,
+      category: 'GLASS',
+    );
 
     final standaloneEvals = <({
       SavedProjectItem item,
@@ -438,33 +785,63 @@ class PricingEngine {
       double glass,
       double hw,
       double totalMat,
+      String effThick,
+      String effColor,
+      String effGlassLabel,
     })>[];
 
     for (final it in items) {
+      final spec = useItemOwnMaterialSpecs
+          ? resolveItemMaterialSpec(
+              item: it,
+              fallbackThickness: projectSummary.selectedThickness,
+              fallbackColor: projectSummary.selectedColor,
+              fallbackIncludeGlass: projectSummary.includeGlass,
+              fallbackGlassKey: projectSummary.selectedGlassKey,
+              fallbackGlassRatePerSqM: projectSummary.glassRatePerSqM,
+              fallbackIncludeHardware: projectSummary.includeHardware,
+              mergedGlassRates: mergedGlass,
+            )
+          : ResolvedItemMaterialSpec(
+              thickness: projectSummary.selectedThickness,
+              color: projectSummary.selectedColor,
+              includeGlass: projectSummary.includeGlass,
+              glassKey: projectSummary.selectedGlassKey,
+              glassRatePerSqM: projectSummary.glassRatePerSqM,
+              glassLabel:
+                  projectSummary.selectedGlassKey.replaceFirst('GLASS|', ''),
+              includeHardware: projectSummary.includeHardware,
+            );
+
       final itemGroups = BinPacker.packSingleCalculation(
         brandKey: it.priceBrandKey,
         sets: it.evaluatedSets,
+        specThickness: spec.thickness,
+        specColor: spec.color,
       );
       final itemGlasses =
           it.evaluatedSets.expand((s) => s.glasses).toList();
       final itemArea = it.totalOpeningAreaSqM;
+      final effIncGlass = projectSummary.includeGlass && spec.includeGlass;
+      final effIncHw = projectSummary.includeHardware && spec.includeHardware;
 
       final ev = evaluate(
         barGroups: itemGroups,
         mode: projectSummary.mode,
         wastePercent: projectSummary.wastePercent,
-        selectedThickness: projectSummary.selectedThickness,
-        selectedColor: projectSummary.selectedColor,
+        selectedThickness: spec.thickness,
+        selectedColor: spec.color,
+        useGroupSpecs: useItemOwnMaterialSpecs,
         ormCatalog: ormCatalog,
         customOverrides: customOverrides,
         glasses: itemGlasses,
         openingAreaSqM: itemArea,
         fallbackOpeningAreaSqM: itemArea * 0.88,
         hardware: it.hardware,
-        includeGlass: projectSummary.includeGlass,
-        selectedGlassKey: projectSummary.selectedGlassKey,
-        glassRatePerSqM: projectSummary.glassRatePerSqM,
-        includeHardware: projectSummary.includeHardware,
+        includeGlass: effIncGlass,
+        selectedGlassKey: spec.glassKey,
+        glassRatePerSqM: spec.glassRatePerSqM,
+        includeHardware: effIncHw,
         hardwareCatalog: hardwareCatalog,
         materialOverrides: materialOverrides,
         laborMode: LaborCostMode.perSqM,
@@ -478,9 +855,12 @@ class PricingEngine {
         qty: it.totalUnits > 0 ? it.totalUnits : 1,
         areaSqM: itemArea,
         alu: ev.aluminumCost,
-        glass: projectSummary.includeGlass ? ev.glassCost : 0.0,
-        hw: projectSummary.includeHardware ? ev.hardwareCost : 0.0,
+        glass: effIncGlass ? ev.glassCost : 0.0,
+        hw: effIncHw ? ev.hardwareCost : 0.0,
         totalMat: ev.totalCost,
+        effThick: spec.thickness,
+        effColor: spec.color,
+        effGlassLabel: effIncGlass ? spec.glassLabel : 'ไม่รวมกระจก',
       ));
     }
 
@@ -582,6 +962,9 @@ class PricingEngine {
           profitAmount: itemProfit,
           suggestedTotalPrice: lineTotal,
           unitSellingPrice: uPrice,
+          effectiveThickness: e.effThick,
+          effectiveColor: e.effColor,
+          effectiveGlassLabel: e.effGlassLabel,
         ),
       );
     }
@@ -591,23 +974,56 @@ class PricingEngine {
   static String colorFamily(String rawColor) {
     final c = rawColor.trim().toLowerCase();
     if (c.contains('mill') || c.contains('ตัวดิบ')) return 'mill';
-    if (c.contains('ชุบขาว')) return 'na';
-    if (c.contains('อบขาว') || c.contains('คอตตอน') || c.contains('ไวท์')) {
+    if (c.contains('ชุบขาว') || c.contains('e&a') || c.contains('(na)')) {
+      return 'na';
+    }
+    if (c.contains('อบขาว') ||
+        c.contains('8911') ||
+        c.contains('คอตตอน') ||
+        c.contains('ไวท์') ||
+        c.contains('สีขาว')) {
       return 'white';
     }
-    if (c.contains('อบดำ') || c.contains('แบล็ค') || c == 'สีดำ') {
+    if (c.contains('อบดำ') ||
+        c.contains('ชุบดำ') ||
+        c.contains('ดำซาฮาร่า') ||
+        c.contains('8816') ||
+        c.contains('8815') ||
+        c.contains('8819') ||
+        c.contains('518') ||
+        c.contains('แบล็ค') ||
+        c == 'สีดำ') {
       return 'black';
     }
     if (c.contains('เทาซาฮาร่า') ||
+        c.contains('อบเทา') ||
+        c.contains('แพลทินั่ม') ||
         c.contains('แชมเปญ') ||
         c.contains('เมทัลลิค') ||
-        c.contains('กาแล็คซี่')) {
+        c.contains('กาแล็คซี่') ||
+        c.contains('8820') ||
+        c.contains('8859') ||
+        c.contains('502') ||
+        c.contains('504')) {
       return 'grey_sahara';
     }
-    if (c.contains('ทรายซาฮาร่า') || c.contains('สีชา') || c.contains('ชุบชา')) {
+    if (c.contains('ทรายซาฮาร่า') ||
+        c.contains('น้ำตาล') ||
+        c.contains('สีชา') ||
+        c.contains('ชุบชา') ||
+        c.contains('8515') ||
+        c.contains('8823') ||
+        c.contains('8825') ||
+        c.contains('510') ||
+        c.contains('512') ||
+        c.contains('514')) {
       return 'sand_bronze';
     }
-    if (c.contains('ลายไม้')) return 'wood';
+    if (c.contains('ลายไม้') ||
+        c.contains('15656') ||
+        c.contains('15659')) {
+      return 'wood';
+    }
     return 'other';
   }
 
@@ -929,9 +1345,16 @@ class PricingEngine {
     required double wastePercent,
     required String selectedThickness,
     required String selectedColor,
+    bool useGroupSpecs = true,
     required List<OrmPriceSku> ormCatalog,
     required Map<String, CustomPriceOverride> customOverrides,
     List<EvaluatedGlassItem> glasses = const [],
+    List<({
+      EvaluatedGlassItem glass,
+      double ratePerSqM,
+      String glassLabel,
+      double fallbackOpeningSqM,
+    })>? perItemGlassEntries,
     double fallbackOpeningAreaSqM = 0.0,
     double? openingAreaSqM,
     List<AggregatedHardwareItem> hardware = const [],
@@ -951,11 +1374,21 @@ class PricingEngine {
     double aluSum = 0.0;
 
     for (final grp in barGroups) {
+      final effThick = (useGroupSpecs &&
+              grp.specThickness != null &&
+              grp.specThickness!.trim().isNotEmpty)
+          ? grp.specThickness!.trim()
+          : selectedThickness;
+      final effColor = (useGroupSpecs &&
+              grp.specColor != null &&
+              grp.specColor!.trim().isNotEmpty)
+          ? grp.specColor!.trim()
+          : selectedColor;
       final sku = matchSku(
         brand: grp.brand,
         code: grp.code,
-        selectedThickness: selectedThickness,
-        selectedColor: selectedColor,
+        selectedThickness: effThick,
+        selectedColor: effColor,
         catalog: ormCatalog,
         overrides: customOverrides,
       );
@@ -1005,63 +1438,120 @@ class PricingEngine {
       );
     }
 
-    // Evaluate Glass Cost Lines
+    // Evaluate Glass Cost Lines (supports per-item distinct glass specs!)
     final glassLines = <GlassCostLine>[];
     double glassAreaSum = 0.0;
     double glassSum = 0.0;
-    final siteCutItems = glasses
-        .where((g) => g.siteCut || (g.widthMm ?? 0) <= 0 || (g.heightMm ?? 0) <= 0)
-        .toList();
-    final totalSitePanels =
-        siteCutItems.fold<int>(0, (s, g) => s + g.totalPanels);
 
-    for (final g in glasses) {
-      final w = g.widthMm ?? 0.0;
-      final h = g.heightMm ?? 0.0;
-      if (g.siteCut || w <= 0 || h <= 0) {
-        if (fallbackOpeningAreaSqM > 0 && totalSitePanels > 0) {
-          final estSqM =
-              fallbackOpeningAreaSqM * (g.totalPanels / totalSitePanels);
-          final cost = round2(estSqM * glassRatePerSqM);
-          glassAreaSum = round2(glassAreaSum + estSqM);
+    if (perItemGlassEntries != null) {
+      for (final entry in perItemGlassEntries) {
+        final g = entry.glass;
+        final rate = entry.ratePerSqM;
+        final labelTag = entry.glassLabel.trim().isNotEmpty
+            ? ' · ${entry.glassLabel.trim()}'
+            : '';
+        final w = g.widthMm ?? 0.0;
+        final h = g.heightMm ?? 0.0;
+        if (g.siteCut || w <= 0 || h <= 0) {
+          if (entry.fallbackOpeningSqM > 0) {
+            final estSqM = entry.fallbackOpeningSqM;
+            final cost = round2(estSqM * rate);
+            glassAreaSum = round2(glassAreaSum + estSqM);
+            glassSum = round2(glassSum + cost);
+            glassLines.add(
+              GlassCostLine(
+                item: g,
+                areaSqM: round2(estSqM),
+                ratePerSqM: rate,
+                lineCost: cost,
+                note:
+                    'ประมาณการ ~${estSqM.toStringAsFixed(2)} ตร.ม. (${g.totalPanels} แผ่น · วัดตัดหน้างาน)$labelTag',
+              ),
+            );
+          } else {
+            glassLines.add(
+              GlassCostLine(
+                item: g,
+                areaSqM: 0.0,
+                ratePerSqM: rate,
+                lineCost: null,
+                note: 'วัดตัดหน้างาน (${g.totalPanels} แผ่น)$labelTag',
+              ),
+            );
+          }
+        } else {
+          final singleSqM = (w * h) / 1000000.0;
+          final totalSqM = singleSqM * g.totalPanels;
+          final cost = round2(totalSqM * rate);
+          glassAreaSum = round2(glassAreaSum + totalSqM);
           glassSum = round2(glassSum + cost);
           glassLines.add(
             GlassCostLine(
               item: g,
-              areaSqM: round2(estSqM),
-              ratePerSqM: glassRatePerSqM,
+              areaSqM: round2(totalSqM),
+              ratePerSqM: rate,
               lineCost: cost,
               note:
-                  'ประมาณการจากช่องเปิด ~${estSqM.toStringAsFixed(2)} ตร.ม. (${g.totalPanels} แผ่น · วัดตัดหน้างาน)',
-            ),
-          );
-        } else {
-          glassLines.add(
-            GlassCostLine(
-              item: g,
-              areaSqM: 0.0,
-              ratePerSqM: glassRatePerSqM,
-              lineCost: null,
-              note: 'วัดตัดหน้างาน (${g.totalPanels} แผ่น)',
+                  '${w.round()} × ${h.round()} มม. × ${g.totalPanels} แผ่น (${totalSqM.toStringAsFixed(2)} ตร.ม.)$labelTag',
             ),
           );
         }
-      } else {
-        final singleSqM = (w * h) / 1000000.0;
-        final totalSqM = singleSqM * g.totalPanels;
-        final cost = round2(totalSqM * glassRatePerSqM);
-        glassAreaSum = round2(glassAreaSum + totalSqM);
-        glassSum = round2(glassSum + cost);
-        glassLines.add(
-          GlassCostLine(
-            item: g,
-            areaSqM: round2(totalSqM),
-            ratePerSqM: glassRatePerSqM,
-            lineCost: cost,
-            note:
-                '${w.round()} × ${h.round()} มม. × ${g.totalPanels} แผ่น (${totalSqM.toStringAsFixed(2)} ตร.ม.)',
-          ),
-        );
+      }
+    } else {
+      final siteCutItems = glasses
+          .where((g) => g.siteCut || (g.widthMm ?? 0) <= 0 || (g.heightMm ?? 0) <= 0)
+          .toList();
+      final totalSitePanels =
+          siteCutItems.fold<int>(0, (s, g) => s + g.totalPanels);
+
+      for (final g in glasses) {
+        final w = g.widthMm ?? 0.0;
+        final h = g.heightMm ?? 0.0;
+        if (g.siteCut || w <= 0 || h <= 0) {
+          if (fallbackOpeningAreaSqM > 0 && totalSitePanels > 0) {
+            final estSqM =
+                fallbackOpeningAreaSqM * (g.totalPanels / totalSitePanels);
+            final cost = round2(estSqM * glassRatePerSqM);
+            glassAreaSum = round2(glassAreaSum + estSqM);
+            glassSum = round2(glassSum + cost);
+            glassLines.add(
+              GlassCostLine(
+                item: g,
+                areaSqM: round2(estSqM),
+                ratePerSqM: glassRatePerSqM,
+                lineCost: cost,
+                note:
+                    'ประมาณการจากช่องเปิด ~${estSqM.toStringAsFixed(2)} ตร.ม. (${g.totalPanels} แผ่น · วัดตัดหน้างาน)',
+              ),
+            );
+          } else {
+            glassLines.add(
+              GlassCostLine(
+                item: g,
+                areaSqM: 0.0,
+                ratePerSqM: glassRatePerSqM,
+                lineCost: null,
+                note: 'วัดตัดหน้างาน (${g.totalPanels} แผ่น)',
+              ),
+            );
+          }
+        } else {
+          final singleSqM = (w * h) / 1000000.0;
+          final totalSqM = singleSqM * g.totalPanels;
+          final cost = round2(totalSqM * glassRatePerSqM);
+          glassAreaSum = round2(glassAreaSum + totalSqM);
+          glassSum = round2(glassSum + cost);
+          glassLines.add(
+            GlassCostLine(
+              item: g,
+              areaSqM: round2(totalSqM),
+              ratePerSqM: glassRatePerSqM,
+              lineCost: cost,
+              note:
+                  '${w.round()} × ${h.round()} มม. × ${g.totalPanels} แผ่น (${totalSqM.toStringAsFixed(2)} ตร.ม.)',
+            ),
+          );
+        }
       }
     }
 

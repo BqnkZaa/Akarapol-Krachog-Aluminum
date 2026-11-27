@@ -233,7 +233,8 @@ class ParametricSystemResolver {
         final baseN = int.parse(m.group(1)!);
         final unit = m.group(2)!.trim().isEmpty ? 'ชิ้น' : m.group(2)!.trim();
         int sumQty = 0;
-        if (isHydaHeightScaled && h.code == 'HD-641') {
+        if (isHydaHeightScaled &&
+            (h.code == 'HD-641' || h.code == 'AKL-SMBF003')) {
           final axes = pattern.foldingTotalPanels ??
               (baseN == 4 ? 2 : (baseN >= 9 ? (baseN ~/ 3) : 2));
           for (final r in rows) {
@@ -318,7 +319,9 @@ class ParametricSystemResolver {
 
     final base = key.startsWith('alu_ext:')
         ? _resolveAlumetExtendedTable(key, pattern.title)
-        : seed.getFormulaTable(key);
+        : (key.startsWith('smx_hang:')
+            ? _resolveSmartXHangingTable(key, pattern.title, selectedOptions)
+            : seed.getFormulaTable(key));
     if (base == null) {
       throw StateError('Formula table not found for key: $key (${pattern.id})');
     }
@@ -326,6 +329,9 @@ class ParametricSystemResolver {
     var cuts = base.cuts.map((c) => c.copyWith()).toList();
     var glasses = List<GlassPieceSpec>.from(base.glasses);
     var hardware = List<HardwareItemSpec>.from(base.hardware);
+    if (key.startsWith('c4_sch_') && hardware.isEmpty) {
+      hardware = _buildSchimmer240Hardware(key);
+    }
 
     // 3. Apply Exact Option & Pattern Modifiers per System
     if (pattern.id.startsWith('c1_pat_s')) {
@@ -1869,17 +1875,43 @@ class ParametricSystemResolver {
         }
         return c.copyWith();
       }).toList();
+      final hw = swept.hardware.isNotEmpty
+          ? List<HardwareItemSpec>.from(swept.hardware)
+          : _buildHydaFoldingHardware(n, l, r);
+      final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
+      final hasTwoOddLeaves = (l % 2 == 1) && (r % 2 == 1);
+      if (hasOddLeaf && !hw.any((h) => h.name.contains('เสื้อกุญแจ'))) {
+        hw.addAll([
+          const HardwareItemSpec(
+            code: '',
+            name: 'เสื้อกุญแจ 35×85 + ไส้กุญแจ',
+            qtyText: '1 ชุด',
+          ),
+          const HardwareItemSpec(
+            code: '',
+            name: 'มือจับเขาควายมีรูกุญแจ',
+            qtyText: '1 คู่',
+          ),
+          if (hasTwoOddLeaves)
+            const HardwareItemSpec(
+              code: '',
+              name: 'มือจับเขาควายดัมมี่',
+              qtyText: '1 คู่',
+            ),
+        ]);
+      }
       return VerifiedFormulaTable(
         key: exactKey,
         header: 'ORM Euro Folding | บานเฟี้ยม $n-$l-$r',
         cuts: adaptedCuts,
         glasses: List<GlassPieceSpec>.from(swept.glasses),
-        hardware: List<HardwareItemSpec>.from(swept.hardware),
+        hardware: hw,
       );
     }
 
     // Closed-form exact ORM Euro Folding formula for un-swept (n, l, r)
     final isEvenEven = l > 0 && r > 0 && (l % 2 == 0) && (r % 2 == 0);
+    final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
     final sashDed = FormulaEvaluator.formatMm(
         (isEvenEven ? 80.0 : 52.0) + 8.0 * n);
     final beadDed = FormulaEvaluator.formatMm(
@@ -1953,15 +1985,26 @@ class ParametricSystemResolver {
           qtyText: '${4 * n} ชิ้น',
           angle: '90° / 90°',
           formula: '(W - $beadDed) / $n'),
-      CutPieceSpec(
-          section: 'เส้นเฉพาะ Layout',
-          code: isEvenEven ? '805-11' : '805-06',
-          name: 'โปรไฟล์ปิดชนกลาง',
-          stockMm: 6400,
-          qty: isEvenEven ? 2 : 1,
-          qtyText: isEvenEven ? '2 ชิ้น' : '1 ชิ้น',
-          angle: '90° / 90°',
-          formula: 'H - 85'),
+      if (isEvenEven)
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '805-11',
+            name: 'โปรไฟล์ปิดชนกลาง',
+            stockMm: 6400,
+            qty: 2,
+            qtyText: '2 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 85')
+      else if (hasOddLeaf)
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '805-06',
+            name: 'โปรไฟล์ปิดชนกลาง',
+            stockMm: 6400,
+            qty: 1,
+            qtyText: '1 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 85'),
       CutPieceSpec(
           section: 'เส้น C-กรุ๊ฟ',
           code: 'เส้น C-กรุ๊ฟ',
@@ -2103,15 +2146,16 @@ class ParametricSystemResolver {
           qtyText: '2 ชิ้น',
           angle: '90° / 90°',
           formula: subJambExpr),
-      CutPieceSpec(
-          section: 'เส้นเฉพาะ Layout',
-          code: 'F7975',
-          name: 'บังใบ',
-          stockMm: 6400,
-          qty: (l > 0 && r > 0) ? 2 : 1,
-          qtyText: (l > 0 && r > 0) ? '2 ชิ้น' : '1 ชิ้น',
-          angle: '90° / 90°',
-          formula: sashHExpr),
+      if ((l % 2 == 1) || (r % 2 == 1))
+        CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: 'F7975',
+            name: 'บังใบ',
+            stockMm: 6400,
+            qty: ((l % 2 == 1) ? 1 : 0) + ((r % 2 == 1) ? 1 : 0),
+            qtyText: '${((l % 2 == 1) ? 1 : 0) + ((r % 2 == 1) ? 1 : 0)} ชิ้น',
+            angle: '90° / 90°',
+            formula: sashHExpr),
       CutPieceSpec(
           section: 'กรอบบานเฟี้ยม',
           code: 'F7972',
@@ -2150,23 +2194,38 @@ class ParametricSystemResolver {
           formula: '(W - $beadDed) / $n'),
     ];
 
+    final pairs = ((l ~/ 2) + (r ~/ 2)) > 0 ? ((l ~/ 2) + (r ~/ 2)) : 1;
+    final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
+    final isSplitMeeting = l > 0 && r > 0;
     final hw = <HardwareItemSpec>[
       HardwareItemSpec(
           code: 'HD-640',
           name: 'HD-640 · บานพับกรอบบน',
-          qtyText: '${(n ~/ 2)} ชิ้น'),
+          qtyText: '$pairs ชิ้น'),
       HardwareItemSpec(
           code: 'HD-641',
           name: 'HD-641 · บานพับกลาง',
-          qtyText: '${3 * (n - 1)} ชิ้น'),
+          qtyText: '${2 * n + 3} ชิ้น'),
       HardwareItemSpec(
           code: 'HD-642',
           name: 'HD-642 · บานพับพร้อมมือจับ',
-          qtyText: '${(n ~/ 2)} ชิ้น'),
+          qtyText: '$pairs ชิ้น'),
       HardwareItemSpec(
           code: 'HD-643',
           name: 'HD-643 · บานพับไกด์ล่าง',
-          qtyText: '${(n ~/ 2)} ชิ้น'),
+          qtyText: '$pairs ชิ้น'),
+      HardwareItemSpec(
+          code: 'HD-474',
+          name: 'HD-474 · มือจับตอนเลื่อนบาน',
+          qtyText: '$pairs ชิ้น'),
+      HardwareItemSpec(
+          code: 'HD-312',
+          name: 'HD-312 · ตัวล็อกกลางบาน',
+          qtyText: '$pairs ชิ้น'),
+      HardwareItemSpec(
+          code: 'HD-1180',
+          name: 'HD-1180 · ปลายกลอน',
+          qtyText: '${2 * pairs} ชิ้น'),
       HardwareItemSpec(
           code: 'HD-214',
           name: 'HD-214 · ฉากเข้ามุมปรับได้',
@@ -2175,6 +2234,29 @@ class ParametricSystemResolver {
           code: 'HD-200',
           name: 'HD-200 · ฉากประคองบาน',
           qtyText: '${12 * n} ชิ้น'),
+      if (hasOddLeaf) ...[
+        const HardwareItemSpec(
+            code: 'HD-481A',
+            name: 'HD-481A · มือจับเขาควาย',
+            qtyText: '1 ชิ้น'),
+        const HardwareItemSpec(
+            code: 'HD-1115',
+            name: 'HD-1115 · เสื้อกุญแจ',
+            qtyText: '1 ชิ้น'),
+        const HardwareItemSpec(
+            code: 'HD-851',
+            name: 'HD-851 · ไส้กุญแจ',
+            qtyText: '1 ชิ้น'),
+        const HardwareItemSpec(
+            code: 'HD-801',
+            name: 'HD-801 · เพลทรับกลอน',
+            qtyText: '1 ชิ้น'),
+        if (isSplitMeeting)
+          const HardwareItemSpec(
+              code: 'HD-305',
+              name: 'HD-305 · ตัวล็อกเสริมบานเปิดคู่',
+              qtyText: '2 ชิ้น'),
+      ],
     ];
 
     return VerifiedFormulaTable(
@@ -2216,10 +2298,19 @@ class ParametricSystemResolver {
       );
     }
 
+    final isSingleDir = l == 0 || r == 0;
     final isEvenEven = l > 0 && r > 0 && (l % 2 == 0) && (r % 2 == 0);
-    final sashDed = FormulaEvaluator.formatMm((isEvenEven ? 88.0 : 60.0) + 9.7 * n);
-    final beadDed = FormulaEvaluator.formatMm((isEvenEven ? 88.0 : 60.0) + 169.7 * n);
-    final glassDed = FormulaEvaluator.formatMm((isEvenEven ? 88.0 : 60.0) + 149.7 * n);
+    final isOddOdd = l > 0 && r > 0 && (l % 2 == 1) && (r % 2 == 1);
+    final isEvenOdd = l > 0 && r > 0 && !isEvenEven && !isOddOdd;
+    final baseDed = isSingleDir
+        ? (48.0 + 8.0 * n)
+        : (isEvenEven
+            ? (80.0 + 10.0 * n)
+            : (isOddOdd ? (86.0 + 8.0 * n) : (113.0 + 8.0 * n)));
+    final sashDed = FormulaEvaluator.formatMm(baseDed);
+    final beadDed = FormulaEvaluator.formatMm(baseDed + 160.0 * n);
+    final glassDed = FormulaEvaluator.formatMm(baseDed + 140.0 * n);
+    final cGrooveQty = ((l ~/ 2) + (r ~/ 2)) > 0 ? ((l ~/ 2) + (r ~/ 2)) : 1;
 
     final cuts = <CutPieceSpec>[
       const CutPieceSpec(
@@ -2267,15 +2358,46 @@ class ParametricSystemResolver {
           qtyText: '${2 * n} ชิ้น',
           angle: '45° / 45°',
           formula: '(W - $sashDed) / $n'),
-      CutPieceSpec(
-          section: 'เส้นเฉพาะ Layout',
-          code: isEvenEven ? '15178' : '15181',
-          name: isEvenEven ? 'แกนกลางเฟี้ยม' : 'แกนกลางบังใบเฟี้ยม',
-          stockMm: 6400,
-          qty: 2,
-          qtyText: '2 ชิ้น',
-          angle: '90° / 90°',
-          formula: 'H - 78'),
+      if (isEvenEven)
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '15178',
+            name: 'แกนกลางเฟี้ยม',
+            stockMm: 6400,
+            qty: 2,
+            qtyText: '2 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 78')
+      else if (isOddOdd)
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '15181',
+            name: 'แกนกลางบังใบเฟี้ยม',
+            stockMm: 6400,
+            qty: 2,
+            qtyText: '2 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 78')
+      else if (isEvenOdd) ...[
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '15181',
+            name: 'แกนกลางบังใบเฟี้ยม',
+            stockMm: 6400,
+            qty: 2,
+            qtyText: '2 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 78'),
+        const CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: '15178',
+            name: 'แกนกลางเฟี้ยม',
+            stockMm: 6400,
+            qty: 1,
+            qtyText: '1 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'H - 78'),
+      ],
       const CutPieceSpec(
           section: 'เส้นเฉพาะ Layout',
           code: '15156',
@@ -2290,8 +2412,8 @@ class ParametricSystemResolver {
           code: 'เส้น C-กรุ๊ฟ',
           name: 'เส้น C-กรุ๊ฟ · ชุดล็อกกลางบาน',
           stockMm: 6400,
-          qty: isEvenEven ? 2 : 1,
-          qtyText: isEvenEven ? '2 ชิ้น' : '1 ชิ้น',
+          qty: cGrooveQty,
+          qtyText: '$cGrooveQty ชิ้น',
           angle: '90° / 90°',
           formula: 'H - 85'),
       CutPieceSpec(
@@ -2363,34 +2485,46 @@ class ParametricSystemResolver {
         ? 'เฟรมล่างบานเฟี้ยมภายนอก'
         : (sillCode == 'SB-0115' ? 'เฟรมยูฝังพื้น' : 'เฟรมล่างบานเฟี้ยมภายใน');
 
+    // Exact 3-way vertical deduction from ALUMET Smart X 2026 Shop Drawings (pp. 51–55):
+    //   SB-0115 (recessed U, 0 mm):   sash H - 67, bead H - 191, glass H - 201
+    //   SB-0116 (interior, 15 mm):    sash H - 82, bead H - 206, glass H - 216
+    //   SB-0103 (exterior, 22 mm):    sash H - 89, bead H - 213, glass H - 223
+    final targetSashH = sillCode == 'SB-0115'
+        ? 'H - 67'
+        : (sillCode == 'SB-0103' ? 'H - 89' : 'H - 82');
+    final targetBeadH = sillCode == 'SB-0115'
+        ? 'H - 191'
+        : (sillCode == 'SB-0103' ? 'H - 213' : 'H - 206');
+    final targetGlassH = sillCode == 'SB-0115'
+        ? 'H - 201'
+        : (sillCode == 'SB-0103' ? 'H - 223' : 'H - 216');
+
     String exactKey = 'c4_alu_$n$l$r';
     if (n == 4 && l == 4 && r == 0) exactKey = 'c4_alu_440_nothresh';
     if (n == 6 && l == 3 && r == 3) exactKey = 'c4_alu_633_nogroove';
 
     final swept = seed.getFormulaTable(exactKey);
     if (swept != null) {
-      final isRecessedU = sillCode == 'SB-0115';
-      final baseWasRecessedU = exactKey == 'c4_alu_440_nothresh';
       final adaptedCuts = swept.cuts.map((c) {
         var next = c.copyWith();
         if (c.code == 'SB-0116' || c.code == 'SB-0103' || c.code == 'SB-0115') {
           next = next.copyWith(code: sillCode, name: sillName);
         }
-        if (isRecessedU && !baseWasRecessedU) {
-          if (c.formula == 'H - 206') next = next.copyWith(formula: 'H - 191');
-          if (c.formula == 'H - 82') next = next.copyWith(formula: 'H - 67');
-        } else if (!isRecessedU && baseWasRecessedU) {
-          if (c.formula == 'H - 191') next = next.copyWith(formula: 'H - 206');
-          if (c.formula == 'H - 67') next = next.copyWith(formula: 'H - 82');
+        if (c.formula == 'H - 191' ||
+            c.formula == 'H - 206' ||
+            c.formula == 'H - 213') {
+          next = next.copyWith(formula: targetBeadH);
+        } else if (c.formula == 'H - 67' ||
+            c.formula == 'H - 82' ||
+            c.formula == 'H - 89') {
+          next = next.copyWith(formula: targetSashH);
         }
         return next;
       }).toList();
       final adaptedGlasses = swept.glasses.map((g) {
         var hF = g.hFormula;
-        if (isRecessedU && !baseWasRecessedU && hF == 'H - 216') {
-          hF = 'H - 201';
-        } else if (!isRecessedU && baseWasRecessedU && hF == 'H - 201') {
-          hF = 'H - 216';
+        if (hF == 'H - 201' || hF == 'H - 216' || hF == 'H - 223') {
+          hF = targetGlassH;
         }
         return GlassPieceSpec(
           name: g.name,
@@ -2406,16 +2540,49 @@ class ParametricSystemResolver {
         header: 'ALUMET Smart X Folding | $n-$l-$r',
         cuts: adaptedCuts,
         glasses: adaptedGlasses,
-        hardware: swept.hardware.isNotEmpty
-            ? List<HardwareItemSpec>.from(swept.hardware)
-            : _buildHydaFoldingHardware(n, l, r),
+        hardware: _buildAlumetFoldingHardware(n, l, r),
       );
     }
 
-    // Parametric ALUMET Smart X Folding for remaining 7-5-2 & 7-4-3
-    final sashDed = FormulaEvaluator.formatMm(93.6 + 10.0 * n);
-    final beadDed = FormulaEvaluator.formatMm(93.6 + 174.0 * n);
-    final glassDed = FormulaEvaluator.formatMm(93.6 + 144.0 * n);
+    // Closed-form exact 5-case geometry from ALUMET Smart X 2026 Catalog (p. 57):
+    //   Case 1 (single-dir odd,  e.g. 5-5-0):   sashDed = 45.6 + 7.5*N, SB-0113=0, SB-0117=1
+    //   Case 2 (single-dir even, e.g. 6-6-0):   sashDed = 96.0 + 7.5*N, SB-0113=1, SB-0117=0
+    //   Case 3 (odd + odd,       e.g. 8-7-1):   sashDed = 70.8 + 7.5*N, SB-0113=0, SB-0117=2
+    //   Case 4 (even + even,     e.g. 8-4-4):   sashDed = 120.0 + 7.5*N, SB-0113=2, SB-0117=0
+    //   Case 5 (even + odd, e.g. 7-5-2, 7-4-3): sashDed = 101.0 + 7.5*N, SB-0113=1, SB-0117=1
+    final isSingleDir = l == 0 || r == 0;
+    final singleSide = l > 0 ? l : r;
+    final double baseSashDed;
+    final int sb0113Qty;
+    final int sb0117Qty;
+    if (isSingleDir) {
+      if (singleSide % 2 == 1) {
+        baseSashDed = 45.6 + 7.5 * n;
+        sb0113Qty = 0;
+        sb0117Qty = 1;
+      } else {
+        baseSashDed = 96.0 + 7.5 * n;
+        sb0113Qty = 1;
+        sb0117Qty = 0;
+      }
+    } else if ((l % 2 == 0) && (r % 2 == 0)) {
+      baseSashDed = 120.0 + 7.5 * n;
+      sb0113Qty = 2;
+      sb0117Qty = 0;
+    } else if ((l % 2 == 1) && (r % 2 == 1)) {
+      baseSashDed = 70.8 + 7.5 * n;
+      sb0113Qty = 0;
+      sb0117Qty = 2;
+    } else {
+      baseSashDed = 101.0 + 7.5 * n;
+      sb0113Qty = 1;
+      sb0117Qty = 1;
+    }
+
+    final sashDed = FormulaEvaluator.formatMm(baseSashDed);
+    final beadDed = FormulaEvaluator.formatMm(baseSashDed + 164.0 * n);
+    final glassDed = FormulaEvaluator.formatMm(baseSashDed + 134.0 * n);
+    final cGrooveQty = ((l ~/ 2) + (r ~/ 2)) > 0 ? ((l ~/ 2) + (r ~/ 2)) : 1;
 
     final cuts = <CutPieceSpec>[
       const CutPieceSpec(
@@ -2453,7 +2620,7 @@ class ParametricSystemResolver {
           qty: 2 * n,
           qtyText: '${2 * n} ชิ้น',
           angle: '90° / 90°',
-          formula: 'H - 206'),
+          formula: targetBeadH),
       CutPieceSpec(
           section: 'คิ้วกระจก',
           code: 'SB-0108',
@@ -2471,7 +2638,7 @@ class ParametricSystemResolver {
           qty: 2 * n,
           qtyText: '${2 * n} ชิ้น',
           angle: '90° / 90°',
-          formula: 'H - 206'),
+          formula: targetBeadH),
       CutPieceSpec(
           section: 'คิ้วกระจก',
           code: 'SB-0109',
@@ -2481,31 +2648,33 @@ class ParametricSystemResolver {
           qtyText: '${2 * n} ชิ้น',
           angle: '90° / 90°',
           formula: '(W - $beadDed) / $n'),
-      const CutPieceSpec(
-          section: 'เส้นเฉพาะ Layout',
-          code: 'SB-0113',
-          name: 'บังใบบานคู่',
-          stockMm: 6400,
-          qty: 1,
-          qtyText: '1 ชิ้น',
-          angle: '90° / 90°',
-          formula: 'H - 82'),
-      const CutPieceSpec(
-          section: 'เส้นเฉพาะ Layout',
-          code: 'SB-0117',
-          name: 'บังใบบานคี่',
-          stockMm: 6400,
-          qty: 1,
-          qtyText: '1 ชิ้น',
-          angle: '90° / 90°',
-          formula: 'H - 82'),
-      const CutPieceSpec(
+      if (sb0113Qty > 0)
+        CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: 'SB-0113',
+            name: 'เสาบานเปิดคู่บานเฟี้ยม',
+            stockMm: 6400,
+            qty: sb0113Qty,
+            qtyText: '$sb0113Qty ชิ้น',
+            angle: '90° / 90°',
+            formula: targetSashH),
+      if (sb0117Qty > 0)
+        CutPieceSpec(
+            section: 'เส้นเฉพาะ Layout',
+            code: 'SB-0117',
+            name: 'เสริมเสาบานเปิดกลาง บานเฟี้ยม',
+            stockMm: 6400,
+            qty: sb0117Qty,
+            qtyText: '$sb0117Qty ชิ้น',
+            angle: '90° / 90°',
+            formula: targetSashH),
+      CutPieceSpec(
           section: 'เส้น C-กรุ๊ฟ',
           code: 'เส้น C-กรุ๊ฟ',
           name: 'เส้น C-กรุ๊ฟ · ชุดล็อกกลางบาน',
           stockMm: 6400,
-          qty: 1,
-          qtyText: '1 ชิ้น',
+          qty: cGrooveQty,
+          qtyText: '$cGrooveQty ชิ้น',
           angle: '90° / 90°',
           formula: 'H - 85'),
       CutPieceSpec(
@@ -2516,7 +2685,7 @@ class ParametricSystemResolver {
           qty: 2 * n,
           qtyText: '${2 * n} ชิ้น',
           angle: '45° / 45°',
-          formula: 'H - 82'),
+          formula: targetSashH),
       CutPieceSpec(
           section: 'กรอบบานเฟี้ยม',
           code: 'SB-0114',
@@ -2539,10 +2708,394 @@ class ParametricSystemResolver {
           qtyText: '$n แผ่น',
           siteCut: false,
           wFormula: '(W - $glassDed) / $n',
-          hFormula: 'H - 216',
+          hFormula: targetGlassH,
         ),
       ],
-      hardware: _buildHydaFoldingHardware(n, l, r),
+      hardware: _buildAlumetFoldingHardware(n, l, r),
+    );
+  }
+
+  /// Authentic ALUMET Smart X Bi-Folding Hardware (Smart X 2026 Catalog p. 50 & Price List 030368).
+  static List<HardwareItemSpec> _buildAlumetFoldingHardware(int n, int l, int r) {
+    int countA = 0; // Even-side terminal carriers (AKL-SMBF019 / AKL-SMBF020)
+    int countB = 0; // Intermediate / odd-side carriers (AKL-SMBF001 / AKL-SMBF002)
+    for (final s in [l, r]) {
+      if (s >= 2) {
+        if (s % 2 == 0) {
+          countA += 1;
+          countB += (s ~/ 2) - 1;
+        } else {
+          countB += (s ~/ 2);
+        }
+      }
+    }
+    final carrierPairs = (l ~/ 2) + (r ~/ 2);
+    final cPairs = carrierPairs > 0 ? carrierPairs : 1;
+    final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
+    final hasTwoOddLeaves = (l % 2 == 1) && (r % 2 == 1);
+
+    final hw = <HardwareItemSpec>[];
+    if (countA > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'AKL-SMBF019',
+        name: 'ล้อบนบานเฟี้ยมคู่ ALUMET',
+        qtyText: '$countA ชิ้น',
+      ));
+    }
+    if (countB > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'AKL-SMBF001',
+        name: 'บานพับล้อบนบานเฟี้ยม ALUMET',
+        qtyText: '$countB ชิ้น',
+      ));
+    }
+    if (countA > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'AKL-SMBF020',
+        name: 'ไกด์ล่างบานเฟี้ยมคู่ ALUMET',
+        qtyText: '$countA ชิ้น',
+      ));
+    }
+    if (countB > 0) {
+      hw.add(HardwareItemSpec(
+        code: 'AKL-SMBF002',
+        name: 'บานพับไกด์ล่างบานเฟี้ยม ALUMET',
+        qtyText: '$countB ชิ้น',
+      ));
+    }
+    hw.addAll([
+      HardwareItemSpec(
+        code: 'AKL-SMBF003',
+        name: 'บานพับบานเฟี้ยม ALUMET',
+        qtyText: '${n == 2 ? 4 : 3 * n} ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-SMBF004',
+        name: 'บานพับมือจับบานเฟี้ยม ALUMET',
+        qtyText: '${(n + 1) ~/ 2} ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-SMBF005',
+        name: 'CDQ 20 สองทาง ALUMET',
+        qtyText: '$cPairs ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-SMBF030',
+        name: 'ปลายกลอนบานเฟี้ยม ALUMET',
+        qtyText: '${2 * cPairs} ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-SMBF028',
+        name: 'มือจับปากเป็ดบานเฟี้ยม ALUMET',
+        qtyText: '$cPairs ชิ้น',
+      ),
+    ]);
+    if (hasOddLeaf) {
+      hw.addAll([
+        const HardwareItemSpec(
+          code: 'AKL-SMBF018',
+          name: 'เสื้อกุญแจ #32-85 ซิงเกิล ALUMET',
+          qtyText: '1 ชิ้น',
+        ),
+        const HardwareItemSpec(
+          code: 'AKL-SMBF017',
+          name: 'ไส้กุญแจ 2 ทาง (37/37 มม.) ALUMET',
+          qtyText: '1 ชิ้น',
+        ),
+        const HardwareItemSpec(
+          code: 'AKL-SMBF023',
+          name: 'มือจับประตูบานเฟี้ยม ALUMET',
+          qtyText: '1 ชิ้น',
+        ),
+        const HardwareItemSpec(
+          code: 'AKL-SMBF029',
+          name: 'เพลทรับกลอนประตูบานเฟี้ยม ALUMET',
+          qtyText: '1 ชิ้น',
+        ),
+        if (hasTwoOddLeaves)
+          const HardwareItemSpec(
+            code: 'AKL-SMBF024',
+            name: 'มือจับประตูดัมมี่บานเฟี้ยม ALUMET',
+            qtyText: '1 ชิ้น',
+          ),
+      ]);
+    }
+    return hw;
+  }
+
+  /// Completes Schimmer HOMELIFE 240 folding hardware for swept tables with empty HW.
+  static List<HardwareItemSpec> _buildSchimmer240Hardware(String key) {
+    int l = 2, r = 0;
+    if (key == 'c4_sch_3_3l') {
+      l = 3;
+      r = 0;
+    } else if (key == 'c4_sch_4_1l3r') {
+      l = 1;
+      r = 3;
+    } else if (key == 'c4_sch_4_2l2r') {
+      l = 2;
+      r = 2;
+    } else if (key == 'c4_sch_4_4l') {
+      l = 4;
+      r = 0;
+    }
+    final carrierSets = (l ~/ 2) + (r ~/ 2);
+    final hasOdd = (l % 2 == 1) || (r % 2 == 1);
+    final hw = <HardwareItemSpec>[
+      if (l > 0)
+        const HardwareItemSpec(
+          code: '05-006',
+          name: 'LEFT HAND PIVOT SET',
+          qtyText: '1 ชุด',
+        ),
+      if (r > 0)
+        const HardwareItemSpec(
+          code: '05-007',
+          name: 'RIGHT HAND PIVOT SET',
+          qtyText: '1 ชุด',
+        ),
+      if (carrierSets > 0)
+        HardwareItemSpec(
+          code: '05-008',
+          name: 'INTERMEDIATE CARRIER SET',
+          qtyText: '$carrierSets ชุด',
+        ),
+      HardwareItemSpec(
+        code: '05-004',
+        name: 'STANDARD HINGE HANDLE SET',
+        qtyText: '${carrierSets > 0 ? carrierSets : 1} ชุด',
+      ),
+      HardwareItemSpec(
+        code: '00-019',
+        name: 'MORTISE FLUSH BOLT · OPTION 1',
+        qtyText: '${2 * (carrierSets > 0 ? carrierSets : 1)} ชุด',
+      ),
+      if (hasOdd)
+        const HardwareItemSpec(
+          code: '00-024',
+          name: 'MORTISE LOCK HANDLE SET',
+          qtyText: '1 ชุด',
+        ),
+    ];
+    return hw;
+  }
+
+  /// ALUMET Pro Smart X Hanging Sliding Door (Single & Double Leaf)
+  /// Official Spec: Smart X_Catalogue 2026 pp. 08 & 14 (SS-X116/SS-X113, SS-X114, SS-X115).
+  static VerifiedFormulaTable _resolveSmartXHangingTable(
+    String key,
+    String title,
+    Map<String, String> opts,
+  ) {
+    final isDouble = key == 'smx_hang:double';
+    final leaves = isDouble ? 2 : 1;
+    final trackCode = opts['track_type'] ?? 'SS-X116';
+    final isSideMount = trackCode == 'SS-X116';
+    final sashProfile = opts['sash_profile'] ?? '45_12';
+    final isSoftClose = (opts['hang_hw'] ?? 'soft_close') == 'soft_close';
+
+    final String vertCode;
+    final String vertName;
+    final String horizCode;
+    final String horizName;
+    final String sashAngle;
+    switch (sashProfile) {
+      case '45_15':
+        vertCode = 'SS-X219';
+        vertName = 'เสากุญแจเข้ามุม 45° ร่อง 9.5 (1.5 มม.)';
+        horizCode = 'SS-X219';
+        horizName = 'ขวางบน-ล่าง เข้ามุม 45° (1.5 มม.)';
+        sashAngle = '45° / 45°';
+        break;
+      case '90_12':
+        vertCode = 'SS-0138';
+        vertName = 'เสากุญแจมัลติพอยท์ ร่อง 9.5 (1.2 มม.)';
+        horizCode = 'SS-X217';
+        horizName = 'ขวางบน-ล่าง ร่อง 9.5 (1.2 มม.)';
+        sashAngle = '90° / 90°';
+        break;
+      case '90_15':
+        vertCode = 'SS-X209';
+        vertName = 'เสากุญแจมัลติพอยท์ ร่อง 9.5 (1.5 มม.)';
+        horizCode = 'SS-X210';
+        horizName = 'ขวางบน-ล่าง ร่อง 9.5 (1.5 มม.)';
+        sashAngle = '90° / 90°';
+        break;
+      case '45_12':
+      default:
+        vertCode = 'SS-X212';
+        vertName = 'เสากุญแจเข้ามุม 45° ร่อง 9.5 (1.2 มม.)';
+        horizCode = 'SS-X212';
+        horizName = 'ขวางบน-ล่าง เข้ามุม 45° (1.2 มม.)';
+        sashAngle = '45° / 45°';
+        break;
+    }
+
+    // Section A heights from Smart X 2026 p.08:
+    //   SS-X116 (wall-mount above opening): floor gap 7 + top roller gap 15 => H - 22
+    //   SS-X113 (ceiling/head mount inside opening): track 41.5 + gaps 21.5 => H - 63
+    final sashHExpr = isSideMount ? 'H - 22' : 'H - 63';
+    final glassHExpr = isSideMount ? 'H - 144' : 'H - 185';
+    final sashWExpr = isDouble ? '(W + 24) / 2' : 'W';
+    final glassWExpr = isDouble ? '(W - 220) / 2' : 'W - 122';
+
+    final cuts = <CutPieceSpec>[
+      CutPieceSpec(
+        section: 'ชุดรางแขวนบน',
+        code: trackCode,
+        name: isSideMount
+            ? 'รางแขวนยึดผนังด้านข้าง สมาร์ท เอ็กซ์'
+            : 'รางแขวนยึดผนังด้านบน สมาร์ท เอ็กซ์',
+        stockMm: 6400,
+        qty: 1,
+        qtyText: '1 ชิ้น',
+        angle: '90° / 90°',
+        formula: '2 * W',
+      ),
+      const CutPieceSpec(
+        section: 'ชุดรางแขวนบน',
+        code: 'SS-X114',
+        name: 'ฝาครอบปิดรางแขวน สมาร์ท เอ็กซ์',
+        stockMm: 6400,
+        qty: 1,
+        qtyText: '1 ชิ้น',
+        angle: '90° / 90°',
+        formula: '2 * W',
+      ),
+      CutPieceSpec(
+        section: 'ชุดรางแขวนบน',
+        code: 'SS-X115',
+        name: 'เสริมยึดล้อรางแขวน สมาร์ท เอ็กซ์ (หัวกรอบบาน)',
+        stockMm: 6400,
+        qty: leaves,
+        qtyText: '$leaves ชิ้น',
+        angle: '90° / 90°',
+        formula: sashWExpr,
+      ),
+      if (isSideMount)
+        const CutPieceSpec(
+          section: 'ชุดรางแขวนบน',
+          code: 'iS-0209',
+          name: 'ฝาปิดสกรูรางแขวนยึดผนังข้าง',
+          stockMm: 6400,
+          qty: 1,
+          qtyText: '1 ชิ้น',
+          angle: '90° / 90°',
+          formula: '2 * W',
+        ),
+      CutPieceSpec(
+        section: 'กรอบบานเลื่อน',
+        code: vertCode,
+        name: '$vertName (แนวตั้ง)',
+        stockMm: 6400,
+        qty: 2 * leaves,
+        qtyText: '${2 * leaves} ชิ้น',
+        angle: sashAngle,
+        formula: sashHExpr,
+      ),
+      CutPieceSpec(
+        section: 'กรอบบานเลื่อน',
+        code: horizCode,
+        name: '$horizName (แนวนอน)',
+        stockMm: 6400,
+        qty: 2 * leaves,
+        qtyText: '${2 * leaves} ชิ้น',
+        angle: sashAngle,
+        formula: sashWExpr,
+      ),
+      CutPieceSpec(
+        section: 'เสริมกรอบและกันช่องว่าง',
+        code: 'SS-X216',
+        name: 'ตบเกี่ยว/บังใบปิดช่องว่างข้างบาน',
+        stockMm: 6400,
+        qty: leaves,
+        qtyText: '$leaves ชิ้น',
+        angle: '90° / 90°',
+        formula: sashHExpr,
+      ),
+      if (!isDouble) ...[
+        CutPieceSpec(
+          section: 'เสริมกรอบและกันช่องว่าง',
+          code: 'SS-0120',
+          name: 'เสริมปีกเฟรมข้างรับบาน',
+          stockMm: 6400,
+          qty: 1,
+          qtyText: '1 ชิ้น',
+          angle: '90° / 90°',
+          formula: 'H',
+        ),
+        CutPieceSpec(
+          section: 'เสริมกรอบและกันช่องว่าง',
+          code: 'SS-0117',
+          name: 'ฝาปิดเสริมเสากุญแจตัวผู้',
+          stockMm: 6400,
+          qty: 1,
+          qtyText: '1 ชิ้น',
+          angle: '90° / 90°',
+          formula: 'H',
+        ),
+      ],
+    ];
+
+    final glasses = <GlassPieceSpec>[
+      GlassPieceSpec(
+        name: isDouble
+            ? 'กระจกบานเลื่อนรางแขวนบานคู่ (ร่อง 9.5 มม.)'
+            : 'กระจกบานเลื่อนรางแขวนบานเดี่ยว (ร่อง 9.5 มม.)',
+        qty: leaves,
+        qtyText: '$leaves แผ่น',
+        siteCut: false,
+        wFormula: glassWExpr,
+        hFormula: glassHExpr,
+      ),
+    ];
+
+    final hardware = <HardwareItemSpec>[
+      HardwareItemSpec(
+        code: isSoftClose ? 'SMX-HANG-SC' : 'SMX-HANG-STD',
+        name: isSoftClose
+            ? 'ชุดล้อรางแขวน Pro Smart X + ซอฟท์โค้ท (Soft Close 120 กก.)'
+            : 'ชุดล้อรางแขวน Pro Smart X มาตรฐาน (120 กก.)',
+        qtyText: '$leaves ชุด',
+      ),
+      HardwareItemSpec(
+        code: 'SMX-HANG-STOP',
+        name: 'ตัวหยุดบานรางแขวน Pro Smart X (Stopper)',
+        qtyText: '${2 * leaves} ตัว',
+      ),
+      HardwareItemSpec(
+        code: 'SMX-HANG-GUIDE',
+        name: 'ไกด์ประคองล่างกันแกว่งรางแขวน Pro Smart X',
+        qtyText: '$leaves ตัว',
+      ),
+      const HardwareItemSpec(
+        code: 'AKL-MTSL025',
+        name: 'มือจับฝังล็อก+กุญแจ ALUMET',
+        qtyText: '1 ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-MTSL027',
+        name: 'มือจับฝังดัมมี่ ALUMET',
+        qtyText: '${isDouble ? 3 : 1} ชิ้น',
+      ),
+      const HardwareItemSpec(
+        code: 'AAL-MTSL022',
+        name: 'ตัวรับกลอน 19 มม. ALUMET',
+        qtyText: '1 ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AAL-MTSL002',
+        name: 'ยางกันชนบานเลื่อน ALUMET',
+        qtyText: '${2 * leaves} ชิ้น',
+      ),
+    ];
+
+    return VerifiedFormulaTable(
+      key: key,
+      header: 'ALUMET Pro Smart X | $title',
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hardware,
     );
   }
 
@@ -2805,7 +3358,7 @@ class ParametricSystemResolver {
           name: 'มือจับเขาควายมีรูกุญแจ',
           qtyText: '1 คู่',
         ),
-        if (hasTwoOddLeaves || (l >= 3 && r == 1) || (r >= 3 && l == 1))
+        if (hasTwoOddLeaves)
           const HardwareItemSpec(
             code: '',
             name: 'มือจับเขาควายดัมมี่',

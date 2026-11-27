@@ -1146,18 +1146,46 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
       }
       _selectedOpts[g.id] = val;
     }
-    // Preserve optional quotation spec metadata
+    // Preserve optional quotation/material spec metadata or populate sensible defaults
     if (carryOver != null) {
       for (final k in const [
         'spec_alu_thick',
         'spec_alu_color',
         'spec_glass_type',
         'spec_glass_thick',
+        'pricing_alu_thick',
+        'pricing_alu_color',
+        'pricing_glass_key',
+        'pricing_include_glass',
+        'pricing_include_hw',
       ]) {
         if (carryOver.containsKey(k)) {
           _selectedOpts[k] = carryOver[k]!;
         }
       }
+    }
+    final hasOwnThick = groups.any((g) => g.id == 'thickness');
+    final isHeavySeries = pat.id.startsWith('c3_') ||
+        pat.id.startsWith('fold_') ||
+        pat.foldingFamily != null ||
+        _systemTitle.contains('ICONIQ') ||
+        _systemTitle.contains('ยูโร');
+    if (!hasOwnThick &&
+        (_selectedOpts['spec_alu_thick']?.trim().isEmpty ?? true)) {
+      _selectedOpts['spec_alu_thick'] = isHeavySeries ? '1.5 มม.' : '1.2 มม.';
+    }
+    if (_selectedOpts['spec_alu_color']?.trim().isEmpty ?? true) {
+      _selectedOpts['spec_alu_color'] =
+          _priceBrandKey.toUpperCase() == 'ALUMET' ? 'อบดำ (8816)' : 'สีดำ';
+    }
+    if (_selectedOpts['spec_glass_type']?.trim().isEmpty ?? true) {
+      _selectedOpts['spec_glass_type'] = 'กระจกใส';
+    }
+    final hasOwnGlassThick = groups.any((g) => g.id == 'glass_thick');
+    if (!hasOwnGlassThick &&
+        (_selectedOpts['spec_glass_thick']?.trim().isEmpty ?? true)) {
+      _selectedOpts['spec_glass_thick'] =
+          _priceBrandKey.toUpperCase() == 'MARKET' ? '5 มม.' : '6 มม.';
     }
   }
 
@@ -1935,10 +1963,23 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
     final hasOwnThickness = pat.optionGroups.any((g) => g.id == 'thickness');
     final hasOwnGlassThick = pat.optionGroups.any((g) => g.id == 'glass_thick');
 
-    final curAluThick = _selectedOpts['spec_alu_thick'] ?? 'ตามรายการ';
-    final curAluColor = _selectedOpts['spec_alu_color'] ?? 'ไม่ระบุ';
-    final curGlassType = _selectedOpts['spec_glass_type'] ?? 'ไม่ระบุ';
-    final curGlassThick = _selectedOpts['spec_glass_thick'] ?? 'ไม่ระบุ';
+    final curAluThick = _selectedOpts['spec_alu_thick'] ?? '1.2 มม.';
+    final curAluColor = _selectedOpts['spec_alu_color'] ??
+        (_priceBrandKey.toUpperCase() == 'ALUMET' ? 'อบดำ (8816)' : 'สีดำ');
+    final curGlassType = _selectedOpts['spec_glass_type'] ?? 'กระจกใส';
+    final curGlassThick = _selectedOpts['spec_glass_thick'] ??
+        (_priceBrandKey.toUpperCase() == 'MARKET' ? '5 มม.' : '6 มม.');
+    final colorChoices = QuotationSpecFormatter.aluminumColorChoicesForBrand(
+      _priceBrandKey,
+      includePerItemOption: false,
+      includeUnspecifiedOption: true,
+    );
+    final glassTypeInputChoices = QuotationSpecFormatter.glassTypeChoices
+        .where((c) => c != 'ตามรายการ')
+        .toList();
+    final glassThickInputChoices = QuotationSpecFormatter.glassThicknessChoices
+        .where((c) => c != 'ตามรายการ')
+        .toList();
 
     final summaryBadges = <String>[
       if (!hasOwnThickness &&
@@ -2048,21 +2089,23 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               onPick: (v) => setState(() => _selectedOpts['spec_alu_thick'] = v),
             ),
           chipGroup(
-            label: 'สีอลูมิเนียม',
-            choices: QuotationSpecFormatter.aluminumColorChoices,
+            label: _priceBrandKey.toUpperCase() == 'ALUMET'
+                ? 'รหัสสีอลูมิเนียม ALUMET (19 สี)'
+                : 'สีอลูมิเนียม',
+            choices: colorChoices,
             current: curAluColor,
             onPick: (v) => setState(() => _selectedOpts['spec_alu_color'] = v),
           ),
           chipGroup(
             label: 'ประเภทกระจก',
-            choices: QuotationSpecFormatter.glassTypeChoices,
+            choices: glassTypeInputChoices,
             current: curGlassType,
             onPick: (v) => setState(() => _selectedOpts['spec_glass_type'] = v),
           ),
           if (curGlassType != 'ไม่รวมกระจก' && !hasOwnGlassThick)
             chipGroup(
               label: 'ความหนากระจก',
-              choices: QuotationSpecFormatter.glassThicknessChoices,
+              choices: glassThickInputChoices,
               current: curGlassThick,
               onPick: (v) =>
                   setState(() => _selectedOpts['spec_glass_thick'] = v),
