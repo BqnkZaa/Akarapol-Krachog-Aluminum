@@ -145,6 +145,8 @@ class AppDatabase {
   bool? _cachedPricingNoticeSeen;
   PricingMarkupDefaults? _cachedMarkupDefaults;
   Map<int, ProjectPricingConfig>? _cachedProjectPricingConfigs;
+  ShopSelectionDefaults? _cachedShopSelectionDefaults;
+  Map<String, PatternFormulaOverride>? _cachedFormulaOverrides;
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -169,6 +171,8 @@ class AppDatabase {
     _cachedPricingNoticeSeen = false;
     _cachedMarkupDefaults = const PricingMarkupDefaults();
     _cachedProjectPricingConfigs = {};
+    _cachedShopSelectionDefaults = const ShopSelectionDefaults();
+    _cachedFormulaOverrides = {};
     await _ensureAllTables(testDb);
   }
 
@@ -407,6 +411,152 @@ class AppDatabase {
         'flag_value': jsonEncode(config.toJson()),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Shop-Wide Remembered Selection Defaults (stored in app_flags) ---
+  Future<ShopSelectionDefaults> getShopSelectionDefaults() async {
+    if (_cachedShopSelectionDefaults != null) {
+      return _cachedShopSelectionDefaults!;
+    }
+    final db = await database;
+    final rows = await db.query(
+      'app_flags',
+      where: 'flag_key = ?',
+      whereArgs: ['shop_selection_defaults'],
+    );
+    if (rows.isEmpty) {
+      _cachedShopSelectionDefaults = const ShopSelectionDefaults();
+      return _cachedShopSelectionDefaults!;
+    }
+    try {
+      _cachedShopSelectionDefaults = ShopSelectionDefaults.fromJson(
+        jsonDecode(rows.first['flag_value'] as String) as Map<String, dynamic>,
+      );
+    } catch (_) {
+      _cachedShopSelectionDefaults = const ShopSelectionDefaults();
+    }
+    return _cachedShopSelectionDefaults!;
+  }
+
+  Future<void> saveShopSelectionDefaults(ShopSelectionDefaults defaults) async {
+    _cachedShopSelectionDefaults = defaults;
+    final db = await database;
+    await db.insert(
+      'app_flags',
+      {
+        'flag_key': 'shop_selection_defaults',
+        'flag_value': jsonEncode(defaults.toJson()),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Built-in Pattern Formula Overrides (stored in app_flags) ---
+  Future<Map<String, PatternFormulaOverride>> getAllFormulaOverrides() async {
+    if (_cachedFormulaOverrides != null) {
+      return Map<String, PatternFormulaOverride>.from(_cachedFormulaOverrides!);
+    }
+    final db = await database;
+    final rows = await db.query(
+      'app_flags',
+      where: 'flag_key = ?',
+      whereArgs: ['formula_overrides_v1'],
+    );
+    final loaded = <String, PatternFormulaOverride>{};
+    if (rows.isNotEmpty) {
+      try {
+        final raw = jsonDecode(rows.first['flag_value'] as String);
+        if (raw is Map<String, dynamic>) {
+          for (final entry in raw.entries) {
+            if (entry.value is Map<String, dynamic>) {
+              final ov = PatternFormulaOverride.fromJson(
+                entry.value as Map<String, dynamic>,
+              );
+              loaded[ov.patternId] = ov;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    _cachedFormulaOverrides = loaded;
+    return Map<String, PatternFormulaOverride>.from(loaded);
+  }
+
+  Future<PatternFormulaOverride?> getFormulaOverride(String patternId) async {
+    final all = await getAllFormulaOverrides();
+    return all[patternId];
+  }
+
+  Future<void> saveFormulaOverride(PatternFormulaOverride ov) async {
+    final current = await getAllFormulaOverrides();
+    current[ov.patternId] = ov;
+    _cachedFormulaOverrides = current;
+    final db = await database;
+    final encoded = jsonEncode(
+      current.map((k, v) => MapEntry(k, v.toJson())),
+    );
+    await db.insert(
+      'app_flags',
+      {
+        'flag_key': 'formula_overrides_v1',
+        'flag_value': encoded,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteFormulaOverride(String patternId) async {
+    final current = await getAllFormulaOverrides();
+    current.remove(patternId);
+    _cachedFormulaOverrides = current;
+    final db = await database;
+    final encoded = jsonEncode(
+      current.map((k, v) => MapEntry(k, v.toJson())),
+    );
+    await db.insert(
+      'app_flags',
+      {
+        'flag_key': 'formula_overrides_v1',
+        'flag_value': encoded,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --- Export / Import Custom Profile Systems & Formula Overrides JSON ---
+  Future<String> exportFormulasBackupJson() async {
+    final systems = await listCustomProfileSystems();
+    final overrides = await getAllFormulaOverrides();
+    final payload = {
+      'type': 'akkaraphon_formulas_backup',
+      'version': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'customSystems': systems.map((e) => e.toJson()).toList(),
+      'formulaOverrides': overrides.values.map((e) => e.toJson()).toList(),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  Future<({int systemsImported, int overridesImported})>
+      importFormulasBackupJson(String rawJson) async {
+    final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+    final sysList = (decoded['customSystems'] as List<dynamic>? ?? [])
+        .map((e) => CustomProfileSystem.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final ovList = (decoded['formulaOverrides'] as List<dynamic>? ?? [])
+        .map((e) => PatternFormulaOverride.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    for (final s in sysList) {
+      await upsertCustomProfileSystem(s);
+    }
+    for (final o in ovList) {
+      await saveFormulaOverride(o);
+    }
+    return (
+      systemsImported: sysList.length,
+      overridesImported: ovList.length,
     );
   }
 

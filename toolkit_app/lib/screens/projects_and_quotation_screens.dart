@@ -1806,6 +1806,52 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
     }
 
     _populateLinesFromProject(_workingProject, isInit: true);
+    _loadShopQuotationDefaults();
+  }
+
+  Future<void> _loadShopQuotationDefaults() async {
+    if (widget.editingQuotation != null) return;
+    final defs = await AppDatabase.instance.getShopSelectionDefaults();
+    if (!mounted) return;
+    setState(() {
+      if (defs.qtMode == 'ITEMIZED' || defs.qtMode == 'LUMP_SUM') {
+        _mode = defs.qtMode!;
+      }
+      if (defs.qtIncludeImages != null) {
+        _includeImages = defs.qtIncludeImages!;
+      }
+      if (defs.qtVatEnabled != null) {
+        _vatEnabled = defs.qtVatEnabled!;
+      }
+      if (defs.qtPaymentTerms != null && defs.qtPaymentTerms!.trim().isNotEmpty) {
+        _payTermsCtrl.text = defs.qtPaymentTerms!;
+      }
+      if (defs.qtLeadTime != null && defs.qtLeadTime!.trim().isNotEmpty) {
+        _leadTimeCtrl.text = defs.qtLeadTime!;
+      }
+      if (defs.qtWarranty != null && defs.qtWarranty!.trim().isNotEmpty) {
+        _warrantyCtrl.text = defs.qtWarranty!;
+      }
+    });
+  }
+
+  Future<void> _saveQuotationDefaultsAsShopDefault() async {
+    final cur = await AppDatabase.instance.getShopSelectionDefaults();
+    await AppDatabase.instance.saveShopSelectionDefaults(
+      cur.copyWith(
+        qtMode: _mode,
+        qtIncludeImages: _includeImages,
+        qtVatEnabled: _vatEnabled,
+        qtPaymentTerms: _payTermsCtrl.text.trim(),
+        qtLeadTime: _leadTimeCtrl.text.trim(),
+        qtWarranty: _warrantyCtrl.text.trim(),
+      ),
+    );
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'บันทึกค่าตั้งต้นใบเสนอราคา (รูปแบบ/รูปภาพ/VAT/เงื่อนไข) เป็นค่าเริ่มต้นร้านแล้ว',
+    );
   }
 
   List<double> _resolveItemMaterialCosts(
@@ -2903,6 +2949,7 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       required List<String> choices,
       required String current,
       required ValueChanged<String> onSelected,
+      bool showAlumetSwatches = false,
     }) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -2925,7 +2972,10 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
                 final sel = current == ch;
                 return ChoiceChip(
                   visualDensity: VisualDensity.compact,
-                  label: Text(ch),
+                  label: AlumetColorLabelRow(
+                    colorName: ch,
+                    showSwatch: showAlumetSwatches,
+                  ),
                   selected: sel,
                   selectedColor: ToolkitColors.softBlueBg,
                   labelStyle: TextStyle(
@@ -2949,6 +2999,9 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
       );
     }
 
+    final hasAlumetInProject = _workingProject.items
+        .any((it) => it.priceBrandKey.toUpperCase() == 'ALUMET');
+
     return _card(
       title: 'สเปกโปรไฟล์ ความหนา และประเภทกระจก (แสดงในช่องรายการ)',
       children: [
@@ -2971,15 +3024,13 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
           }),
         ),
         specRow(
-          title: _workingProject.items
-                  .any((it) => it.priceBrandKey.toUpperCase() == 'ALUMET')
-              ? 'สีอลูมิเนียม (รองรับรหัสสี ALUMET)'
+          title: hasAlumetInProject
+              ? 'สีอลูมิเนียม ALUMET (27 รหัสสี พร้อมตัวอย่างเนื้อสี)'
               : 'สีอลูมิเนียม',
+          showAlumetSwatches: hasAlumetInProject,
           choices: () {
-            final hasAlumet = _workingProject.items
-                .any((it) => it.priceBrandKey.toUpperCase() == 'ALUMET');
             final list = List<String>.from(
-              hasAlumet
+              hasAlumetInProject
                   ? QuotationSpecFormatter.aluminumColorChoicesForBrand(
                       'ALUMET',
                       includePerItemOption: true,
@@ -3041,6 +3092,18 @@ class _QuotationBuilderScreenState extends State<QuotationBuilderScreen> {
             style: TextStyle(fontSize: 11.5),
           ),
           onChanged: (v) => setState(() => _includeImages = v),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            key: const ValueKey('btn_qt_save_shop_defaults'),
+            onPressed: _saveQuotationDefaultsAsShopDefault,
+            icon: const Icon(Icons.bookmark_added_outlined, size: 16),
+            label: const Text(
+              'จำค่าตั้งต้นร้าน (รูปแบบ · รูปภาพ · VAT · เงื่อนไข)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
         ),
       ],
     );

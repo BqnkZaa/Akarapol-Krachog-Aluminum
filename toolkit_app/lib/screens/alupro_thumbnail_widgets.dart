@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../data/alupro_image_registry.dart';
+import '../engine/quotation_spec_formatter.dart';
 import 'theme_tokens.dart';
 
 Widget buildAssetOrFileImage(
@@ -289,4 +291,211 @@ class BrandLogoPlate extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Photographed metallic/sahara/woodgrain color swatch thumbnail — rendered
+/// strictly for official ALUMET 2026 color codes (returns empty for all other brands).
+class AlumetColorSwatchBox extends StatelessWidget {
+  final String colorName;
+  final double width;
+  final double height;
+  final double borderRadius;
+
+  const AlumetColorSwatchBox({
+    super.key,
+    required this.colorName,
+    this.width = 22,
+    this.height = 15,
+    this.borderRadius = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = AluproImageRegistry.resolveAlumetColorSwatch(colorName);
+    if (asset == null) return const SizedBox.shrink();
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: const Color(0xFF94A3B8).withValues(alpha: 0.7),
+          width: 0.8,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
+/// Inline Row pairing an ALUMET swatch thumbnail (when [showSwatch] is true
+/// and [colorName] matches one of the 27 ALUMET color codes) with its text label.
+class AlumetColorLabelRow extends StatelessWidget {
+  final String colorName;
+  final bool showSwatch;
+  final TextStyle? style;
+
+  const AlumetColorLabelRow({
+    super.key,
+    required this.colorName,
+    required this.showSwatch,
+    this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = showSwatch
+        ? AluproImageRegistry.resolveAlumetColorSwatch(colorName)
+        : null;
+    if (asset == null) {
+      return Text(
+        colorName,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AlumetColorSwatchBox(colorName: colorName),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            colorName,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Full visual 27-color ALUMET 2026 swatch chart dialog with 1-tap selection.
+Future<void> showAlumetColorChartDialog(
+  BuildContext context, {
+  required String selectedColor,
+  required ValueChanged<String> onPick,
+}) async {
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ตารางสี ALUMET 2026 (27 รหัสสี)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: ToolkitColors.slateDark,
+                          ),
+                        ),
+                        Text(
+                          'แตะสีที่ต้องการเพื่อเลือกใช้งานทันที',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const Divider(height: 12),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 2.35,
+                  ),
+                  itemCount: QuotationSpecFormatter.alumetColorChoices.length,
+                  itemBuilder: (_, idx) {
+                    final col = QuotationSpecFormatter.alumetColorChoices[idx];
+                    final isSel = col == selectedColor;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        onPick(col);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: isSel ? ToolkitColors.softBlueBg : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSel
+                                ? ToolkitColors.royalBlue
+                                : ToolkitColors.cardBorder,
+                            width: isSel ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            AlumetColorSwatchBox(
+                              colorName: col,
+                              width: 44,
+                              height: 36,
+                              borderRadius: 6,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                col,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight:
+                                      isSel ? FontWeight.w800 : FontWeight.w600,
+                                  color: isSel
+                                      ? ToolkitColors.royalBlue
+                                      : ToolkitColors.slateDark,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }

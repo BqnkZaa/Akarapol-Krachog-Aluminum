@@ -25,8 +25,22 @@ class AluproImageRegistry {
   final Map<String, String> _userBrandImages = {};
   final Map<String, String> _userPatternImages = {};
   final Map<String, String> _userProfileImages = {}; // 'BRAND|CODE' -> path
+  // Official v0.1.14 extracted hardware catalog photos (ALUMET, VVP, RP Steel Glass)
+  final Map<String, String> _catalogHardwareImages = {};
 
   bool get isLoaded => _patterns.isNotEmpty || _profiles.isNotEmpty;
+
+  void syncHardwareCatalogImages(List<MaterialRateItem> rates) {
+    _catalogHardwareImages.clear();
+    for (final r in rates) {
+      final path = r.imageAssetPath?.trim() ?? '';
+      final code = r.code.trim();
+      if (path.isNotEmpty && code.isNotEmpty) {
+        _catalogHardwareImages[code] = path;
+        _catalogHardwareImages[code.toUpperCase()] = path;
+      }
+    }
+  }
 
   void loadFromJson(Map<String, dynamic> json) {
     _glassFile = json['glass'] as String?;
@@ -119,9 +133,11 @@ class AluproImageRegistry {
     'c4_smartplus_fold': 'assets/brands/brand_smartplus.png',
     'c4_alumet_fold': 'assets/brands/brand_alumet.png',
     'c4_uai_fold_dis': 'assets/brands/brand_uai.png',
+    'c5_vvp': 'assets/brands/brand_vvp.png',
+    'c5_rp': 'assets/brands/brand_rp_steelglass.png',
     'c5_pbm_dis': 'assets/brands/brand_pbm.png',
     'c5_hyda_dis': 'assets/brands/brand_hyda.png',
-    'c5_rp_dis': 'assets/brands/brand_rp.png',
+    'c5_rp_dis': 'assets/brands/brand_rp_steelglass.png',
   };
 
   static const Map<String, String> _customPatternOverrides = {
@@ -375,9 +391,73 @@ class AluproImageRegistry {
     return null;
   }
 
+  static final RegExp _cat5ShowerRe = RegExp(r'^c5_(?:vvp|rp)_shw_(\d{2})$');
+  static final RegExp _cat5FramelessRe = RegExp(r'^c5_(?:vvp|rp)_fl_(\d{2})$');
+
+  static String? _resolveCat5PatternAsset(String patternId) {
+    final mShw = _cat5ShowerRe.firstMatch(patternId);
+    if (mShw != null) {
+      return 'assets/profiles/shower_${mShw.group(1)!}.png';
+    }
+    final mFl = _cat5FramelessRe.firstMatch(patternId);
+    if (mFl != null) {
+      return 'assets/profiles/frameless_${mFl.group(1)!}.png';
+    }
+    return null;
+  }
+
+  /// Resolves the official photographed color swatch thumbnail for any of the
+  /// 27 ALUMET 2026 color codes (strictly ALUMET only — returns null for
+  /// generic/other-brand colors).
+  static String? resolveAlumetColorSwatch(String colorName) {
+    final c = colorName.trim();
+    if (c.isEmpty) return null;
+    final lower = c.toLowerCase();
+    if (lower.contains('mill') || lower.contains('ตัวดิบ')) {
+      return 'assets/colors/alumet_mill.png';
+    }
+    if (lower.contains('e&a') || lower == 'ชุบขาว (e&a)') {
+      return 'assets/colors/alumet_ea.png';
+    }
+    const codeSlugs = <String, String>{
+      '502': '502',
+      '504': '504',
+      '510': '510',
+      '512': '512',
+      '514': '514',
+      '518': '518',
+      '8515': '8515',
+      '8802': '8802',
+      '8815': '8815',
+      '8816': '8816',
+      '8819': '8819',
+      '8820': '8820',
+      '8823': '8823',
+      '8825': '8825',
+      '8849': '8849',
+      '8859': '8859',
+      '8911': '8911',
+      '8919': '8919',
+      '15622': '15622',
+      '15656': '15656',
+      '15659': '15659',
+      '23005': '23005',
+      '23007': '23007',
+      '59010': '59010',
+      '59011': '59011',
+    };
+    final m = RegExp(r'\((\d{3,5})\)').firstMatch(c);
+    if (m != null) {
+      final slug = codeSlugs[m.group(1)!];
+      if (slug != null) return 'assets/colors/alumet_$slug.png';
+    }
+    return null;
+  }
+
   String? resolvePatternAsset(String patternId) => _toAsset(
       _userPatternImages[patternId] ??
           _customPatternOverrides[patternId] ??
+          _resolveCat5PatternAsset(patternId) ??
           _resolveAlumetPatternAsset(patternId) ??
           _patterns[patternId]);
 
@@ -414,6 +494,9 @@ class AluproImageRegistry {
   String? resolveHardwareAsset({required String code, String name = ''}) {
     final clean = code.trim();
     if (clean.isNotEmpty) {
+      final catImg = _catalogHardwareImages[clean] ??
+          _catalogHardwareImages[clean.toUpperCase()];
+      if (catImg != null) return _toAsset(catImg);
       final direct = _hardwareCodes[clean];
       if (direct != null) return _toAsset(direct);
     }

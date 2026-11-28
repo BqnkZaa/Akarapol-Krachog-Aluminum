@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import '../data/alupro_image_registry.dart';
+import '../data/app_database.dart';
 import '../data/seed_repository.dart';
+import '../engine/pricing_engine.dart';
+import '../models/app_models.dart';
+import 'alupro_thumbnail_widgets.dart';
 import 'catalog_and_input_screens.dart';
 import 'custom_system_studio_screens.dart';
 import 'projects_and_quotation_screens.dart';
@@ -351,6 +357,19 @@ class HomeScreen extends StatelessWidget {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const CustomPriceScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _ShortcutChip(
+                              icon: Icons.handyman_outlined,
+                              label: 'คลังอุปกรณ์ (ALUMET · VVP · RP)',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const HardwareCatalogScreen(),
                                   ),
                                 );
                               },
@@ -810,11 +829,11 @@ class KnowledgeHubScreen extends StatelessWidget {
             icon: Icons.handyman_outlined,
             iconColor: const Color(0xFF0D9488),
             title: 'รู้จักฮาร์ดแวร์ & แคตตาล็อก',
-            subtitle: 'ข้อมูลอุปกรณ์ประกอบและแคตตาล็อกโปรไฟล์',
+            subtitle: 'คลังอุปกรณ์ ALUMET · VVP · RP Steel Glass (258 รายการ พร้อมรูป)',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const HardwareEmptyScreen()),
+                MaterialPageRoute(builder: (_) => const HardwareCatalogScreen()),
               );
             },
           ),
@@ -887,26 +906,537 @@ class TrickListScreen extends StatelessWidget {
   }
 }
 
-class HardwareEmptyScreen extends StatelessWidget {
+class HardwareEmptyScreen extends HardwareCatalogScreen {
   const HardwareEmptyScreen({super.key});
+}
+
+class HardwareCatalogScreen extends StatefulWidget {
+  final String initialBrand;
+
+  const HardwareCatalogScreen({super.key, this.initialBrand = 'ALUMET'});
+
+  @override
+  State<HardwareCatalogScreen> createState() => _HardwareCatalogScreenState();
+}
+
+class _HardwareCatalogScreenState extends State<HardwareCatalogScreen> {
+  static final NumberFormat _bahtFmt = NumberFormat('#,##0.##', 'en_US');
+
+  final TextEditingController _searchCtrl = TextEditingController();
+  late String _selectedBrand; // 'ทั้งหมด' | 'ALUMET' | 'VVP' | 'RP'
+  String _selectedSubCat = 'ทั้งหมด';
+  Map<String, CustomMaterialRateOverride> _overrides = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedBrand = widget.initialBrand;
+    _loadOverrides();
+  }
+
+  Future<void> _loadOverrides() async {
+    final map = await AppDatabase.instance.getAllCustomMaterialRates();
+    if (!mounted) return;
+    setState(() {
+      _overrides = map;
+      _loading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<MaterialRateItem> _mergedVisibleHardware() {
+    return PricingEngine.mergeMaterialRates(
+      SeedRepository.instance.visibleHardwareRates,
+      _overrides,
+      category: 'HARDWARE',
+    );
+  }
+
+  List<String> _subCategoriesFor(List<MaterialRateItem> all) {
+    final set = <String>{};
+    for (final h in all) {
+      if (_selectedBrand != 'ทั้งหมด' && h.brand != _selectedBrand) continue;
+      if (h.subCategory.trim().isNotEmpty) set.add(h.subCategory.trim());
+    }
+    const preferredOrder = [
+      'บานเลื่อน',
+      'บานเปิด',
+      'บานกระทุ้ง',
+      'บานเฟี้ยม',
+      'สกรู / ทั่วไป',
+      'โช้คประตู (บานเปลือย)',
+      'ตัวหนีบกระจก (บานเปลือย)',
+      'บานพับชาวเวอร์',
+      'ตัวหนีบกระจกชาวเวอร์',
+      'มือจับ & ตัวยึดกันแกว่ง',
+      'ตัวยึดกันแกว่ง & แป๊ป',
+      'มือจับประตูห้องน้ำ',
+      'กุญแจล็อค & ยางกันน้ำ',
+    ];
+    final out = <String>['ทั้งหมด'];
+    for (final p in preferredOrder) {
+      if (set.contains(p)) out.add(p);
+    }
+    for (final c in set) {
+      if (!out.contains(c)) out.add(c);
+    }
+    return out;
+  }
+
+  Future<void> _editPriceDialog(MaterialRateItem item) async {
+    final ctrl =
+        TextEditingController(text: item.effectivePrice.toStringAsFixed(2));
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item.code.isNotEmpty ? '${item.code} · ${item.brand}' : item.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${item.name}\nหมวด: ${item.subCategory.isNotEmpty ? item.subCategory : 'อุปกรณ์ทั่วไป'} · หน่วย: ${item.unit}',
+              style: const TextStyle(fontSize: 12.5, color: ToolkitColors.slateMuted),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'ราคาต่อ ${item.unit} (บาท)',
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (item.customPrice != null)
+            TextButton(
+              onPressed: () async {
+                await AppDatabase.instance.deleteCustomMaterialRate(item.rateKey);
+                if (ctx.mounted) Navigator.pop(ctx);
+                _loadOverrides();
+              },
+              child: const Text('คืนค่าราคาตั้งต้น'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final val = double.tryParse(ctrl.text.trim());
+              if (val == null || val < 0) return;
+              await AppDatabase.instance.upsertCustomMaterialRate(
+                CustomMaterialRateOverride(
+                  rateKey: item.rateKey,
+                  category: 'HARDWARE',
+                  code: item.code,
+                  name: item.name,
+                  unit: item.unit,
+                  price: val,
+                ),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              _loadOverrides();
+            },
+            child: const Text('บันทึกราคา'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final all = _mergedVisibleHardware();
+    final aluCount = all.where((e) => e.brand == 'ALUMET').length;
+    final vvpCount = all.where((e) => e.brand == 'VVP').length;
+    final rpCount = all.where((e) => e.brand == 'RP').length;
+
+    final subCats = _subCategoriesFor(all);
+    if (!subCats.contains(_selectedSubCat)) {
+      _selectedSubCat = 'ทั้งหมด';
+    }
+
+    final q = _searchCtrl.text.trim().toLowerCase();
+    final filtered = all.where((h) {
+      if (_selectedBrand != 'ทั้งหมด' && h.brand != _selectedBrand) {
+        return false;
+      }
+      if (_selectedSubCat != 'ทั้งหมด' && h.subCategory != _selectedSubCat) {
+        return false;
+      }
+      if (q.isEmpty) return true;
+      return h.code.toLowerCase().contains(q) ||
+          h.name.toLowerCase().contains(q) ||
+          h.subCategory.toLowerCase().contains(q) ||
+          (h.colorNote?.toLowerCase().contains(q) ?? false);
+    }).toList();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('ฮาร์ดแวร์ & แคตตาล็อก')),
-      body: const Center(
-        child: Column(
+      backgroundColor: ToolkitColors.bgScaffold,
+      appBar: AppBar(
+        title: const Text('คลังอุปกรณ์ & แคตตาล็อก'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: ToolkitColors.softBlueBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${filtered.length} รายการ',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: ToolkitColors.royalBlue,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Brand Selector Strip with official logos
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _BrandCatalogTab(
+                        label: 'ALUMET ($aluCount)',
+                        logoAsset: 'assets/brands/brand_alumet.png',
+                        selected: _selectedBrand == 'ALUMET',
+                        onTap: () => setState(() {
+                          _selectedBrand = 'ALUMET';
+                          _selectedSubCat = 'ทั้งหมด';
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      _BrandCatalogTab(
+                        label: 'VVP ($vvpCount)',
+                        logoAsset: 'assets/brands/brand_vvp.png',
+                        selected: _selectedBrand == 'VVP',
+                        onTap: () => setState(() {
+                          _selectedBrand = 'VVP';
+                          _selectedSubCat = 'ทั้งหมด';
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      _BrandCatalogTab(
+                        label: 'RP Steel Glass ($rpCount)',
+                        logoAsset: 'assets/brands/brand_rp_steelglass.png',
+                        selected: _selectedBrand == 'RP',
+                        onTap: () => setState(() {
+                          _selectedBrand = 'RP';
+                          _selectedSubCat = 'ทั้งหมด';
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      _BrandCatalogTab(
+                        label: 'ทั้งหมด (${all.length})',
+                        selected: _selectedBrand == 'ทั้งหมด',
+                        onTap: () => setState(() {
+                          _selectedBrand = 'ทั้งหมด';
+                          _selectedSubCat = 'ทั้งหมด';
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('hw_catalog_search'),
+                  controller: _searchCtrl,
+                  decoration: InputDecoration(
+                    hintText: 'ค้นหารหัสหรือชื่ออุปกรณ์ เช่น AKL, FC 34, RP-303, ล้อ, มือจับ...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                    suffixIcon: _searchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.clear_rounded, size: 18),
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 34,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: subCats.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 6),
+                    itemBuilder: (_, idx) {
+                      final cat = subCats[idx];
+                      final isSel = _selectedSubCat == cat;
+                      return ChoiceChip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text(cat, style: const TextStyle(fontSize: 12)),
+                        selected: isSel,
+                        selectedColor: ToolkitColors.softBlueBg,
+                        onSelected: (_) =>
+                            setState(() => _selectedSubCat = cat),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'ไม่พบอุปกรณ์ในหมวดที่ค้นหา',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(14),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (_, i) {
+                          final item = filtered[i];
+                          final imgPath = item.imageAssetPath ??
+                              AluproImageRegistry.instance.resolveHardwareAsset(
+                                code: item.code,
+                                name: item.name,
+                              );
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _editPriceDialog(item),
+                            child: Container(
+                              padding: const EdgeInsets.all(11),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border:
+                                    Border.all(color: ToolkitColors.cardBorder),
+                              ),
+                              child: Row(
+                                children: [
+                                  if (imgPath != null)
+                                    AluproThumbnail(
+                                      assetPath: imgPath,
+                                      width: 64,
+                                      height: 56,
+                                      zoomTitle:
+                                          '${item.code} · ${item.name}',
+                                    )
+                                  else
+                                    Container(
+                                      width: 64,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: ToolkitColors.softBlueBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.handyman_outlined,
+                                        color: ToolkitColors.royalBlue,
+                                      ),
+                                    ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 3,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            Text(
+                                              item.code,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w800,
+                                                color: ToolkitColors.royalBlue,
+                                              ),
+                                            ),
+                                            if (item.subCategory.isNotEmpty)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 7,
+                                                  vertical: 2,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: item.brand == 'VVP'
+                                                      ? const Color(0xFFE0F2FE)
+                                                      : (item.brand == 'RP'
+                                                          ? const Color(
+                                                              0xFFF1F5F9)
+                                                          : ToolkitColors
+                                                              .softBlueBg),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  item.subCategory,
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        ToolkitColors.slateDark,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          item.name,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: ToolkitColors.slateDark,
+                                          ),
+                                        ),
+                                        if (item.colorNote != null &&
+                                            item.colorNote!.trim().isNotEmpty)
+                                          Text(
+                                            'สี/รุ่น: ${item.colorNote}',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: ToolkitColors.slateMuted,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '฿${_bahtFmt.format(item.effectivePrice)}',
+                                        style: const TextStyle(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: ToolkitColors.slateDark,
+                                        ),
+                                      ),
+                                      Text(
+                                        'ต่อ ${item.unit}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: ToolkitColors.slateMuted,
+                                        ),
+                                      ),
+                                      if (item.customPrice != null)
+                                        const Text(
+                                          'ราคาแก้เอง',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: ToolkitColors.vipGoldText,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandCatalogTab extends StatelessWidget {
+  final String label;
+  final String? logoAsset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _BrandCatalogTab({
+    required this.label,
+    this.logoAsset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? ToolkitColors.softBlueBg : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? ToolkitColors.royalBlue
+                : ToolkitColors.cardBorder,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.menu_book_outlined,
-                size: 52, color: ToolkitColors.slateMuted),
-            SizedBox(height: 12),
+            if (logoAsset != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Image.asset(
+                  logoAsset!,
+                  width: 24,
+                  height: 20,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             Text(
-              'ยังไม่มีแคตตาล็อกที่เผยแพร่',
+              label,
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: ToolkitColors.slateMuted,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: selected
+                    ? ToolkitColors.royalBlue
+                    : ToolkitColors.slateDark,
               ),
             ),
           ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../data/alupro_image_registry.dart';
+import '../data/app_database.dart';
 import '../data/catalog_definitions.dart';
+import '../data/seed_repository.dart';
 import '../engine/parametric_system_resolver.dart';
 import '../engine/quotation_spec_formatter.dart';
 import '../models/app_models.dart';
@@ -1196,15 +1198,118 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
         _selectedOpts.remove('pricing_alu_color');
       }
     }
+    final isCat5Frameless = _priceBrandKey.toUpperCase() == 'VVP' ||
+        _priceBrandKey.toUpperCase() == 'RP' ||
+        pat.id.startsWith('c5_');
     if (_selectedOpts['spec_glass_type']?.trim().isEmpty ?? true) {
-      _selectedOpts['spec_glass_type'] = 'กระจกใส';
+      _selectedOpts['spec_glass_type'] =
+          isCat5Frameless ? 'กระจกเทมเปอร์ใส' : 'กระจกใส';
     }
     final hasOwnGlassThick = groups.any((g) => g.id == 'glass_thick');
     if (!hasOwnGlassThick &&
         (_selectedOpts['spec_glass_thick']?.trim().isEmpty ?? true)) {
-      _selectedOpts['spec_glass_thick'] =
-          _priceBrandKey.toUpperCase() == 'MARKET' ? '5 มม.' : '6 มม.';
+      _selectedOpts['spec_glass_thick'] = isCat5Frameless
+          ? '10 มม.'
+          : (_priceBrandKey.toUpperCase() == 'MARKET' ? '5 มม.' : '6 มม.');
     }
+  }
+
+  Future<void> _applySavedShopSelectionDefaults() async {
+    if (widget.editingProjectItem != null) return;
+    final defs = await AppDatabase.instance.getShopSelectionDefaults();
+    if (!mounted) return;
+    final bKey = _priceBrandKey.trim().toUpperCase();
+    final groups = _effectiveOptionGroups;
+    setState(() {
+      for (final g in groups) {
+        final saved = defs.optionDefaults[g.id];
+        if (saved != null &&
+            g.choices.any((c) => c.id == saved && c.enabled)) {
+          _selectedOpts[g.id] = saved;
+        }
+      }
+      final savedThick = defs.brandAluThicknesses[bKey];
+      if (savedThick != null && savedThick.isNotEmpty) {
+        _selectedOpts['spec_alu_thick'] = savedThick;
+        if (savedThick != 'ไม่ระบุ') {
+          _selectedOpts['pricing_alu_thick'] = savedThick;
+        }
+      }
+      final savedColor = defs.brandAluColors[bKey];
+      if (savedColor != null && savedColor.isNotEmpty) {
+        final validColors = QuotationSpecFormatter.aluminumColorChoicesForBrand(
+          bKey,
+          includePerItemOption: false,
+          includeUnspecifiedOption: true,
+        );
+        if (validColors.contains(savedColor)) {
+          _selectedOpts['spec_alu_color'] = savedColor;
+          if (savedColor != 'ไม่ระบุ') {
+            _selectedOpts['pricing_alu_color'] = savedColor;
+          }
+        }
+      }
+      final savedGlassType = defs.brandGlassTypes[bKey];
+      if (savedGlassType != null && savedGlassType.isNotEmpty) {
+        _selectedOpts['spec_glass_type'] = savedGlassType;
+        _selectedOpts['pricing_include_glass'] =
+            savedGlassType == 'ไม่รวมกระจก' ? 'false' : 'true';
+      }
+      final savedGlassThick = defs.brandGlassThicknesses[bKey];
+      if (savedGlassThick != null && savedGlassThick.isNotEmpty) {
+        _selectedOpts['spec_glass_thick'] = savedGlassThick;
+      }
+    });
+  }
+
+  Future<void> _saveCurrentOptionsAsShopDefault() async {
+    final cur = await AppDatabase.instance.getShopSelectionDefaults();
+    final nextOpts = Map<String, String>.from(cur.optionDefaults);
+    for (final g in _effectiveOptionGroups) {
+      final v = _selectedOpts[g.id];
+      if (v != null && v.isNotEmpty) nextOpts[g.id] = v;
+    }
+    await AppDatabase.instance.saveShopSelectionDefaults(
+      cur.copyWith(optionDefaults: nextOpts),
+    );
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'จำค่าตั้งต้นร้านสำหรับตัวเลือกสเปกและอุปกรณ์เรียบร้อยแล้ว',
+    );
+  }
+
+  Future<void> _saveMaterialSpecAsShopDefault() async {
+    final bKey = _priceBrandKey.trim().toUpperCase();
+    final cur = await AppDatabase.instance.getShopSelectionDefaults();
+    final nextThicks = Map<String, String>.from(cur.brandAluThicknesses);
+    final nextColors = Map<String, String>.from(cur.brandAluColors);
+    final nextGTypes = Map<String, String>.from(cur.brandGlassTypes);
+    final nextGThicks = Map<String, String>.from(cur.brandGlassThicknesses);
+
+    final aThick = _selectedOpts['spec_alu_thick']?.trim() ?? '';
+    final aColor = _selectedOpts['spec_alu_color']?.trim() ?? '';
+    final gType = _selectedOpts['spec_glass_type']?.trim() ?? '';
+    final gThick = _selectedOpts['spec_glass_thick']?.trim() ?? '';
+
+    if (aThick.isNotEmpty) nextThicks[bKey] = aThick;
+    if (aColor.isNotEmpty) nextColors[bKey] = aColor;
+    if (gType.isNotEmpty) nextGTypes[bKey] = gType;
+    if (gThick.isNotEmpty) nextGThicks[bKey] = gThick;
+
+    await AppDatabase.instance.saveShopSelectionDefaults(
+      cur.copyWith(
+        brandAluThicknesses: nextThicks,
+        brandAluColors: nextColors,
+        brandGlassTypes: nextGTypes,
+        brandGlassThicknesses: nextGThicks,
+      ),
+    );
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'จำค่าตั้งต้นร้าน ($bKey · $aColor · $gType $gThick) เรียบร้อยแล้ว',
+    );
   }
 
   @override
@@ -1217,6 +1322,9 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
 
     final edit = widget.editingProjectItem;
     _initOptionsForPattern(_pattern, carryOver: edit?.selectedOptions);
+    if (edit == null) {
+      _applySavedShopSelectionDefaults();
+    }
 
     if (edit != null && edit.sizeRows.isNotEmpty) {
       for (final r in edit.sizeRows) {
@@ -1464,31 +1572,92 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              key: const ValueKey('btn_change_pattern'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: ToolkitColors.royalBlue,
-                                side: BorderSide(
-                                  color: ToolkitColors.royalBlue
-                                      .withValues(alpha: 0.4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  key: const ValueKey('btn_change_pattern'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: ToolkitColors.royalBlue,
+                                    side: BorderSide(
+                                      color: ToolkitColors.royalBlue
+                                          .withValues(alpha: 0.4),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 8),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: _onPickAnotherPattern,
+                                  icon: const Icon(Icons.swap_horiz_rounded,
+                                      size: 16),
+                                  label: const Text(
+                                    'เปลี่ยนแบบบาน',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                visualDensity: VisualDensity.compact,
                               ),
-                              onPressed: _onPickAnotherPattern,
-                              icon:
-                                  const Icon(Icons.swap_horiz_rounded, size: 17),
-                              label: const Text(
-                                'เปลี่ยนแบบบาน / เปลี่ยนโปรไฟล์ (เก็บขนาดเดิมไว้)',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              const SizedBox(width: 8),
+                              Builder(
+                                builder: (_) {
+                                  final hasOv = SeedRepository.instance
+                                          .getFormulaOverride(pat.id) !=
+                                      null;
+                                  return OutlinedButton.icon(
+                                    key: const ValueKey(
+                                        'btn_input_edit_formula'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: hasOv
+                                          ? ToolkitColors.vipGoldText
+                                          : ToolkitColors.slateDark,
+                                      backgroundColor: hasOv
+                                          ? ToolkitColors.vipGoldBg
+                                          : null,
+                                      side: BorderSide(
+                                        color: hasOv
+                                            ? ToolkitColors.vipGoldText
+                                                .withValues(alpha: 0.5)
+                                            : ToolkitColors.cardBorder,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 8, horizontal: 10),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () async {
+                                      final changed =
+                                          await Navigator.push<bool>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              FormulaOverrideEditorScreen(
+                                            pattern: pat,
+                                            brandTitle: _brandTitle,
+                                            priceBrandKey: _priceBrandKey,
+                                            systemTitle: _systemTitle,
+                                            selectedOptions: _selectedOpts,
+                                          ),
+                                        ),
+                                      );
+                                      if (changed == true && mounted) {
+                                        setState(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.tune_rounded,
+                                        size: 16),
+                                    label: Text(
+                                      hasOv ? 'สูตรแก้เอง' : 'แก้ไขสูตร',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
@@ -1509,15 +1678,40 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'ตัวเลือกสเปกและอุปกรณ์',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: ToolkitColors.slateDark,
-                          ),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'ตัวเลือกสเปกและอุปกรณ์',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: ToolkitColors.slateDark,
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              key: const ValueKey(
+                                  'btn_input_save_option_defaults'),
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                              ),
+                              onPressed: _saveCurrentOptionsAsShopDefault,
+                              icon: const Icon(Icons.bookmark_added_outlined,
+                                  size: 15),
+                              label: const Text(
+                                'จำค่าตั้งต้นร้าน',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         ...optionGroups.map(_buildOptionControl),
                         if (_showsDripTrayLength) ...[
                           const SizedBox(height: 6),
@@ -2018,24 +2212,35 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
         'กระจก $curGlassThick',
     ];
 
+    final isAlumetBrand = _priceBrandKey.toUpperCase() == 'ALUMET';
+
     Widget chipGroup({
       required String label,
       required List<String> choices,
       required String current,
       required ValueChanged<String> onPick,
+      bool showAlumetSwatches = false,
+      Widget? headerTrailing,
     }) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: ToolkitColors.slateBody,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: ToolkitColors.slateBody,
+                    ),
+                  ),
+                ),
+                ?headerTrailing,
+              ],
             ),
             const SizedBox(height: 6),
             Wrap(
@@ -2045,7 +2250,10 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 final sel = current == ch;
                 return ChoiceChip(
                   visualDensity: VisualDensity.compact,
-                  label: Text(ch),
+                  label: AlumetColorLabelRow(
+                    colorName: ch,
+                    showSwatch: showAlumetSwatches,
+                  ),
                   selected: sel,
                   selectedColor: ToolkitColors.softBlueBg,
                   labelStyle: TextStyle(
@@ -2117,9 +2325,35 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
               }),
             ),
           chipGroup(
-            label: _priceBrandKey.toUpperCase() == 'ALUMET'
-                ? 'รหัสสีอลูมิเนียม ALUMET (19 สี)'
+            label: isAlumetBrand
+                ? 'รหัสสีอลูมิเนียม ALUMET (27 สี · มีตัวอย่างเนื้อสี)'
                 : 'สีอลูมิเนียม',
+            showAlumetSwatches: isAlumetBrand,
+            headerTrailing: isAlumetBrand
+                ? TextButton.icon(
+                    key: const ValueKey('btn_open_alumet_color_chart'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: () => showAlumetColorChartDialog(
+                      context,
+                      selectedColor: curAluColor,
+                      onPick: (v) => setState(() {
+                        _selectedOpts['spec_alu_color'] = v;
+                        _selectedOpts['pricing_alu_color'] = v;
+                      }),
+                    ),
+                    icon: const Icon(Icons.palette_outlined, size: 15),
+                    label: const Text(
+                      'ดูตารางสีใหญ่',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
+                : null,
             choices: colorChoices,
             current: curAluColor,
             onPick: (v) => setState(() {
@@ -2152,6 +2386,22 @@ class _SizeAndSpecInputScreenState extends State<SizeAndSpecInputScreen> {
                 _selectedOpts.remove('pricing_glass_key');
               }),
             ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              key: const ValueKey('btn_input_save_material_defaults'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              onPressed: _saveMaterialSpecAsShopDefault,
+              icon: const Icon(Icons.bookmark_added_outlined, size: 16),
+              label: const Text(
+                'จำค่าตั้งต้นร้าน (ความหนา · สี · กระจก)',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
         ],
       ),
     );

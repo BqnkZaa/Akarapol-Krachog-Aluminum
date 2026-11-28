@@ -132,10 +132,12 @@ void main() {
           .lengthMm!;
       expect(sashH550, closeTo((4000 - 83.1) / 5, 0.2));
       expect(f550.hardware.any((h) => h.code == 'AKL-SMBF001'), isTrue);
-      expect(f550.hardware.any((h) => h.code == 'AKL-SMBF018'), isTrue);
+      expect(f550.hardware.any((h) => h.code == 'AKL-SMBF022'), isTrue);
+      expect(f550.hardware.any((h) => h.code == 'AKL-SMBF031'), isTrue);
+      expect(f550.hardware.any((h) => h.code == 'AKL-SMBF021'), isTrue);
       expect(f550.hardware.any((h) => h.code == 'AKL-SMBF024'), isFalse); // Only 1 odd side
 
-      // 3. Verify exact 8-4-4 (even + even) geometry & authentic AKL-SMBF hardware
+      // 3. Verify exact 8-4-4 (even + even) geometry & authentic ALUMET Hub 2026 AKL-SMBF hardware
       final f844 = ParametricSystemResolver.calculate(
         brandTitle: 'ALUMET (Smart X Folding)',
         priceBrandKey: 'ALUMET',
@@ -152,8 +154,8 @@ void main() {
           .firstWhere((c) => c.code == 'SB-0114' && c.name.contains('แนวนอน'))
           .lengthMm!;
       expect(sashH844, closeTo((6000 - 180.0) / 8, 0.2));
-      expect(f844.hardware.firstWhere((h) => h.code == 'AKL-SMBF019').numericQty, 2);
-      expect(f844.hardware.firstWhere((h) => h.code == 'AKL-SMBF001').numericQty, 2);
+      expect(f844.hardware.firstWhere((h) => h.code == 'AKL-SMBF019').numericQty, 4);
+      expect(f844.hardware.firstWhere((h) => h.code == 'AKL-SMBF020').numericQty, 4);
       // Height == 2200 triggers +1 hinge per axis (24 + 8 = 32)
       expect(f844.hardware.firstWhere((h) => h.code == 'AKL-SMBF003').numericQty, 32);
 
@@ -249,7 +251,7 @@ void main() {
         expect(codesSide.contains('SS-X115'), isTrue);
         expect(codesSide.contains('iS-0209'), isTrue);
         expect(codesSide.contains('SS-X212'), isTrue);
-        expect(outSide.hardware.any((h) => h.code == 'SMX-HANG-SC'), isTrue);
+        expect(outSide.hardware.any((h) => h.code == 'AKL-MTSL062'), isTrue);
 
         // Test ceiling-mount SS-X113 + 90 deg 1.5mm + standard roller
         final outTop = ParametricSystemResolver.calculate(
@@ -291,20 +293,25 @@ void main() {
         expect(price.aluminumCost, greaterThan(0));
         expect(price.glassCost, greaterThan(0));
         expect(price.hardwareCost, greaterThan(1500));
-        expect(price.hardwareLines.every((l) => l.isPriced), isTrue);
+        expect(
+          price.hardwareLines
+              .where((l) => l.item.effectiveQty != null)
+              .every((l) => l.isPriced),
+          isTrue,
+        );
       }
     });
   });
 
-  group('Item 3: Official 19 ALUMET color codes strictly for ALUMET only', () {
-    test('ALUMET seed has all 19 official color codes while all other 7 brands keep original 7 colors untouched', () {
+  group('Item 3: Official 27 ALUMET color codes strictly for ALUMET only', () {
+    test('ALUMET seed has all 27 official color codes while all other 7 brands keep original 7 colors untouched', () {
       final byBrand = <String, Set<String>>{};
       for (final s in SeedRepository.instance.allCatalogPrices) {
         byBrand.putIfAbsent(s.brand.toUpperCase(), () => <String>{}).add(s.color);
       }
 
       final alumetCols = byBrand['ALUMET']!;
-      expect(alumetCols.length, 19);
+      expect(alumetCols.length, 27);
       for (final expected in PricingEngine.alumetColors) {
         expect(alumetCols.contains(expected), isTrue, reason: 'Missing ALUMET color $expected');
       }

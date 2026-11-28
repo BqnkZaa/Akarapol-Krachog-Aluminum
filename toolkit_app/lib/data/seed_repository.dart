@@ -12,6 +12,7 @@ class SeedRepository {
   bool _initialized = false;
   final Map<String, VerifiedFormulaTable> _formulaTables = {};
   final Map<String, VerifiedFormulaTable> _customFormulaTables = {};
+  final Map<String, PatternFormulaOverride> _formulaOverrides = {};
   final List<OrmPriceSku> _ormPrices = [];
   final List<OrmPriceSku> _allCatalogPrices = [];
   final List<MaterialRateItem> _glassRates = [];
@@ -21,11 +22,15 @@ class SeedRepository {
 
   bool get isInitialized => _initialized;
   Map<String, VerifiedFormulaTable> get formulaTables => _formulaTables;
+  Map<String, PatternFormulaOverride> get formulaOverrides =>
+      Map.unmodifiable(_formulaOverrides);
   List<OrmPriceSku> get ormPrices => _ormPrices;
   List<OrmPriceSku> get allCatalogPrices =>
       _allCatalogPrices.isNotEmpty ? _allCatalogPrices : _ormPrices;
   List<MaterialRateItem> get glassRates => _glassRates;
   List<MaterialRateItem> get hardwareRates => _hardwareRates;
+  List<MaterialRateItem> get visibleHardwareRates =>
+      _hardwareRates.where((r) => r.visibleInCatalog).toList();
   List<CustomProfileSystem> get customSystems => _customSystems;
   Map<String, dynamic> get staticContent => _staticContent;
 
@@ -109,7 +114,9 @@ class SeedRepository {
       }
     }
 
+    AluproImageRegistry.instance.syncHardwareCatalogImages(_hardwareRates);
     await reloadCustomSystems();
+    await reloadFormulaOverrides();
     _initialized = true;
   }
 
@@ -121,6 +128,24 @@ class SeedRepository {
       // Ignore when running pure-Dart formula tests without SQLite initialized
     }
   }
+
+  Future<void> reloadFormulaOverrides() async {
+    try {
+      final map = await AppDatabase.instance.getAllFormulaOverrides();
+      setFormulaOverridesInMemory(map);
+    } catch (_) {
+      // Ignore when running pure-Dart formula tests without SQLite initialized
+    }
+  }
+
+  void setFormulaOverridesInMemory(Map<String, PatternFormulaOverride> map) {
+    _formulaOverrides
+      ..clear()
+      ..addAll(map);
+  }
+
+  PatternFormulaOverride? getFormulaOverride(String patternId) =>
+      _formulaOverrides[patternId];
 
   void setCustomSystemsInMemory(List<CustomProfileSystem> list) {
     _customSystems

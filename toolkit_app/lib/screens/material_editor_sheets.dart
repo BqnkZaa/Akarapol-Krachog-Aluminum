@@ -466,15 +466,21 @@ class _HardwareCatalogPickerBodyState
   late final List<MaterialRateItem> _allHw;
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
+  String _brandFilter = 'ทั้งหมด'; // ทั้งหมด | ALUMET | VVP | RP
+  String _subCatFilter = 'ทั้งหมด';
 
   @override
   void initState() {
     super.initState();
     _allHw = PricingEngine.mergeMaterialRates(
-      SeedRepository.instance.hardwareRates,
+      SeedRepository.instance.visibleHardwareRates,
       widget.materialOverrides,
       category: 'HARDWARE',
-    )..sort((a, b) => a.name.compareTo(b.name));
+    )..sort((a, b) {
+        final bc = a.brand.compareTo(b.brand);
+        if (bc != 0) return bc;
+        return a.code.compareTo(b.code);
+      });
   }
 
   @override
@@ -483,17 +489,60 @@ class _HardwareCatalogPickerBodyState
     super.dispose();
   }
 
+  List<String> _availableSubCategories() {
+    final cats = <String>{};
+    for (final h in _allHw) {
+      if (_brandFilter != 'ทั้งหมด' && h.brand != _brandFilter) continue;
+      if (h.subCategory.trim().isNotEmpty) {
+        cats.add(h.subCategory.trim());
+      }
+    }
+    const preferredOrder = [
+      'บานเลื่อน',
+      'บานเปิด',
+      'บานกระทุ้ง',
+      'บานเฟี้ยม',
+      'สกรู / ทั่วไป',
+      'โช้คประตู (บานเปลือย)',
+      'ตัวหนีบกระจก (บานเปลือย)',
+      'บานพับชาวเวอร์',
+      'ตัวหนีบกระจกชาวเวอร์',
+      'มือจับ & ตัวยึดกันแกว่ง',
+      'ตัวยึดกันแกว่ง & แป๊ป',
+      'มือจับประตูห้องน้ำ',
+      'กุญแจล็อค & ยางกันน้ำ',
+    ];
+    final ordered = <String>['ทั้งหมด'];
+    for (final p in preferredOrder) {
+      if (cats.contains(p)) ordered.add(p);
+    }
+    for (final c in cats) {
+      if (!ordered.contains(c)) ordered.add(c);
+    }
+    return ordered;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subCats = _availableSubCategories();
+    if (!subCats.contains(_subCatFilter)) {
+      _subCatFilter = 'ทั้งหมด';
+    }
     final q = _query.trim().toLowerCase();
     final filtered = _allHw.where((h) {
+      if (_brandFilter != 'ทั้งหมด' && h.brand != _brandFilter) return false;
+      if (_subCatFilter != 'ทั้งหมด' && h.subCategory != _subCatFilter) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return h.code.toLowerCase().contains(q) ||
-          h.name.toLowerCase().contains(q);
+          h.name.toLowerCase().contains(q) ||
+          h.subCategory.toLowerCase().contains(q) ||
+          h.brand.toLowerCase().contains(q);
     }).toList();
 
     return SizedBox(
-      height: MediaQuery.sizeOf(context).height * 0.82,
+      height: MediaQuery.sizeOf(context).height * 0.85,
       child: Column(
         children: [
           Padding(
@@ -505,7 +554,7 @@ class _HardwareCatalogPickerBodyState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'เลือกอุปกรณ์ประกอบจากฐานข้อมูล',
+                        'คลังอุปกรณ์ ALUMET · VVP · RP',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -513,7 +562,7 @@ class _HardwareCatalogPickerBodyState
                         ),
                       ),
                       Text(
-                        'พบ ${filtered.length} รายการ (จับคู่ราคาให้อัตโนมัติ)',
+                        'พบ ${filtered.length} รายการ (พร้อมรูปภาพและราคามาตรฐาน)',
                         style: const TextStyle(
                           fontSize: 12,
                           color: ToolkitColors.slateMuted,
@@ -546,13 +595,66 @@ class _HardwareCatalogPickerBodyState
                       )
                     : null,
                 hintText:
-                    'ค้นหารหัสหรือชื่อ เช่น ล้อ, มือจับ, มัลติพอยท์, ยาง...',
+                    'ค้นหารหัสหรือชื่อ เช่น AKL, FC 34, RP-303, ล้อ, มือจับ...',
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              children: [
+                for (final b in const [
+                  ('ทั้งหมด', 'ทั้งหมด'),
+                  ('ALUMET', 'ALUMET'),
+                  ('VVP', 'VVP'),
+                  ('RP', 'RP Steel Glass'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(b.$2, style: const TextStyle(fontSize: 12)),
+                      selected: _brandFilter == b.$1,
+                      selectedColor: ToolkitColors.softBlueBg,
+                      onSelected: (_) => setState(() {
+                        _brandFilter = b.$1;
+                        _subCatFilter = 'ทั้งหมด';
+                      }),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (subCats.length > 1) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 32,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                children: subCats
+                    .map(
+                      (c) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(c, style: const TextStyle(fontSize: 11.5)),
+                          selected: _subCatFilter == c,
+                          selectedColor: const Color(0xFFCCFBF1),
+                          onSelected: (_) => setState(() => _subCatFilter = c),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
           const Divider(height: 14),
           Expanded(
             child: filtered.isEmpty
@@ -568,8 +670,9 @@ class _HardwareCatalogPickerBodyState
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       final hw = filtered[i];
-                      final hwImg = AluproImageRegistry.instance
-                          .resolveHardwareAsset(code: hw.code, name: hw.name);
+                      final hwImg = hw.imageAssetPath ??
+                          AluproImageRegistry.instance
+                              .resolveHardwareAsset(code: hw.code, name: hw.name);
                       return InkWell(
                         borderRadius: BorderRadius.circular(10),
                         onTap: () => Navigator.pop(context, hw),
@@ -581,14 +684,14 @@ class _HardwareCatalogPickerBodyState
                               if (hwImg != null)
                                 AluproThumbnail(
                                   assetPath: hwImg,
-                                  width: 46,
-                                  height: 36,
+                                  width: 50,
+                                  height: 42,
                                   showZoomBadge: false,
                                 )
                               else
                                 Container(
-                                  width: 46,
-                                  height: 36,
+                                  width: 50,
+                                  height: 42,
                                   decoration: BoxDecoration(
                                     color: ToolkitColors.softBlueBg,
                                     borderRadius: BorderRadius.circular(8),
@@ -604,15 +707,48 @@ class _HardwareCatalogPickerBodyState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (hw.code.trim().isNotEmpty)
-                                      Text(
-                                        hw.code,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: ToolkitColors.royalBlue,
-                                        ),
-                                      ),
+                                    Wrap(
+                                      spacing: 6,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        if (hw.code.trim().isNotEmpty)
+                                          Text(
+                                            hw.code,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: ToolkitColors.royalBlue,
+                                            ),
+                                          ),
+                                        if (hw.brand.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 1,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: hw.brand == 'VVP'
+                                                  ? const Color(0xFFE0F2FE)
+                                                  : (hw.brand == 'RP'
+                                                      ? const Color(0xFFF1F5F9)
+                                                      : ToolkitColors.softBlueBg),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              hw.subCategory.isNotEmpty
+                                                  ? '${hw.brand} · ${hw.subCategory}'
+                                                  : hw.brand,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: ToolkitColors.slateDark,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                     Text(
                                       hw.name,
                                       style: const TextStyle(
@@ -891,7 +1027,7 @@ class _AluminumCutEditorBodyState extends State<_AluminumCutEditorBody> {
                         },
                         icon: const Icon(Icons.search_rounded, size: 18),
                         label: const Text(
-                          'เลือก / เปลี่ยนจากแคตตาล็อก (3,924 รายการ)',
+                          'เลือก / เปลี่ยนจากแคตตาล็อกหน้าตัด',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -1563,7 +1699,7 @@ class _HardwareItemEditorBodyState extends State<_HardwareItemEditorBody> {
                         },
                         icon: const Icon(Icons.search_rounded, size: 18),
                         label: const Text(
-                          'เลือก / เปลี่ยนจากฐานอุปกรณ์ (240 รายการ)',
+                          'เลือกจากคลังอุปกรณ์ ALUMET · VVP · RP (258 รายการ)',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),

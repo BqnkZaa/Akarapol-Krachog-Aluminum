@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.13/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.14/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,9 +51,9 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.13 (VIP Offline)",
+      version: "0.1.14 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
-      sizeMb: "44.44",
+      sizeMb: "46.00",
       sha256: "-",
       updatedAt: "-",
     };
@@ -75,23 +75,23 @@ export default async function DownloadLandingPage() {
   const capabilities = [
     {
       icon: Ruler,
-      title: "สูตรบานเฟี้ยม 5 แบรนด์ & บานเลื่อนรางแขวน Pro Smart X ครบตามแคตตาล็อก",
-      desc: "ตรวจสอบและปรับสูตรบานเฟี้ยมพร้อมอุปกรณ์ครบทั้ง 5 ระบบ (ALUMET Smart X Folding รางล่าง 3 แบบ + รหัสอุปกรณ์ AKL-SMBF*, ORM, Fuji, Smart Plus, Schimmer 240) พร้อมเพิ่มบานเลื่อนรางแขวน ALUMET Pro Smart X (บานเดี่ยว/บานคู่ ชุด Soft Close & มาตรฐาน) และค่าตั้งต้นครบทุกช่อง",
+      title: "ปลดล็อกหมวดชุดชาวเวอร์ (4 แบบ) & บานเปลือย (25 แบบ) — VVP และ RP Steel Glass",
+      desc: "ครบทั้งชุดฉากกั้นอาบน้ำ 4 รูปแบบและประตูบานเปลือยฟิตติ้ง 25 รูปแบบ รองรับการคำนวณแบบ 0 เส้นอลูมิเนียม (กระจกเทมเปอร์ + อุปกรณ์ฟิตติ้งแท้ VVP / RP Steel Glass) พร้อมสูตรตัดกระจกและอุปกรณ์ครบพร้อมคิดราคา",
     },
     {
       icon: Layers,
-      title: "รหัสสี ALUMET ครบ 19 รหัสสีมาตรฐานโรงงาน · แยกสเปกวัสดุอิสระรายโครงการ",
-      desc: "เพิ่มรหัสสีอลูเมทครบทั้ง 19 สี (ชุบ 502/504/510/512/514/518/E&A, สีอบ 8815–8911, ซาฮาร่า 8515–8825, ลายไม้ 15656/15659) เฉพาะแบรนด์ ALUMET พร้อมแยกการจัดเส้นและสเปกสี/ความหนา/กระจกอิสระรายโปรเจกต์และรายรายการ ไม่ทับกันเมื่อทำหลายโครงการพร้อมกัน",
+      title: "คลังอุปกรณ์ ALUMET · VVP · RP (258 รายการ พร้อมรูปจริง) แบ่งหมวดหมู่ชัดเจน",
+      desc: "คัดเฉพาะคลังอุปกรณ์ ALUMET 133 รายการ (แบ่ง 5 หมวด: บานเลื่อน, บานเปิด, บานกระทุ้ง, บานเฟี้ยม, สกรู/ทั่วไป), VVP 46 รายการ และ RP Steel Glass 79 รายการ พร้อมรูปถ่ายสินค้าจริงจากแคตตาล็อก 2026 และแตะแก้ราคาได้ทันที",
     },
     {
       icon: Calculator,
-      title: "แยกราคาขายตามต้นทุนจริงรายรุ่น · ฐานราคา 8 แบรนด์ (5,586 รายการ)",
-      desc: "คำนวณราคาต้นทุนตามสี ความหนา และกระจกของแต่ละรายการอย่างแม่นยำตั้งแต่วันแรกที่เลือก ไม่ถูกสเปกชุดล่าสุดเขียนทับ รองรับการจัดท่อนรวมข้ามรายการ (1D Bin-Packing) และตั้งค่าแรง 3 แบบ (บาท/ตร.ม., เหมา, หรือ % ค่าของ)",
+      title: "ระบบแก้ไขสูตรคำนวณทุกแบบ + ปลดล็อก 0 เส้น + สี ALUMET 27 สีพร้อมรูปตัวอย่าง",
+      desc: "กด 'แก้ไขสูตร' ได้ทุกแบบบาน (ปรับสูตรตัด ทดสอบระยะตัดสด ล้างเป็น 0 เส้น หรือคืนค่าสูตรเดิมได้ตลอด) อัปเดตอุปกรณ์บานเฟี้ยม/รางแขวนตรง ALUMET Hub 2026 เพิ่มรหัสสี ALUMET ครบ 27 สีพร้อมตัวอย่างเนื้อสีจริง และปุ่ม 'จำค่าตั้งต้นร้าน' ครบทุกจุด",
     },
     {
       icon: FileText,
       title: "แทรกรูปแบบบานประกอบในใบเสนอราคา PDF มาตรฐาน A4 (แจกแจง / เหมารวม)",
-      desc: "แสดงรูปผังบานประกอบอัตโนมัติในหน้าจัดทำใบเสนอราคาและเอกสาร PDF ทั้งแบบแจกแจงราคาและแบบเหมารวม (เปิด/ปิดแสดงรูปได้ทันที) พร้อมแก้ไขจำนวนชุด แก้ไขแบบเดิม และปรับส่วนลดก่อนออกเอกสาร",
+      desc: "แสดงรูปผังบานประกอบอัตโนมัติในหน้าจัดทำใบเสนอราคาและเอกสาร PDF ทั้งแบบแจกแจงราคาและแบบเหมารวม (เปิด/ปิดแสดงรูปได้ทันที) แยกสเปกสี/ความหนา/กระจกอิสระรายโครงการ และบันทึกค่าตั้งต้นร้านสำหรับใบเสนอราคาได้",
     },
   ];
 
@@ -237,26 +237,26 @@ export default async function DownloadLandingPage() {
                 <div className="pt-6 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-6">
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      196
+                      254
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ตารางสูตรคำนวณมาตรฐาน
+                      แบบคำนวณมาตรฐาน (+ชาวเวอร์/บานเปลือย)
                     </p>
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      138
+                      258
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ผังระบบบานเฟี้ยม
+                      คลังอุปกรณ์ ALUMET · VVP · RP
                     </p>
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      5,586
+                      6,666
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET 19 รหัสสี
+                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET 27 รหัสสี
                     </p>
                   </div>
                   <div>

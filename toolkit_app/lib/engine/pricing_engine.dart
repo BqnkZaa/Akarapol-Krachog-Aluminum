@@ -255,7 +255,7 @@ class PricingEngine {
     'ไม่ระบุความหนา',
   ];
 
-  /// Official 19 ALUMET Thailand color codes (ALUMET Hub 010867 & 110569).
+  /// Official 27 ALUMET Thailand color codes (2026 Color Charts: Std + Wood DP + Wood Sublimation).
   static const List<String> alumetColors = [
     'ตัวดิบ MILL',
     'ชุบขาว (E&A)',
@@ -266,16 +266,24 @@ class PricingEngine {
     'แชมเปญ (504)',
     'ชุบชาเข้ม (510)',
     'อบขาว (8911)',
+    'ขาวซาฮาร่า (8919)',
     'อบดำ (8816)',
-    'เทาซาฮาร่า (8820)',
     'อบดำเงา (8815)',
+    'ดำซาฮาร่า (8819)',
+    'เทาเงา (8802)',
     'อบเทา (8859)',
+    'เทาซาฮาร่า (8820)',
+    'ซาตินซาฮาร่า (8849)',
+    'ทรายซาฮาร่า (8515)',
     'อบน้ำตาล (8823)',
     'น้ำตาลซาฮาร่า (8825)',
-    'ดำซาฮาร่า (8819)',
-    'ทรายซาฮาร่า (8515)',
     'ลายไม้สักน้ำตาล (15656)',
     'ลายไม้วอลนัท (15659)',
+    'ลายไม้มูจิ (15622)',
+    'ลายไม้ Sandy Chiffon (23005)',
+    'ลายไม้ Bracing Tea (23007)',
+    'ลายไม้ Rose Coral (59010)',
+    'ลายไม้ Noble Antique (59011)',
   ];
 
   static const List<String> standardColors = [
@@ -289,18 +297,26 @@ class PricingEngine {
     'แชมเปญ (504)',
     'ชุบชาเข้ม (510)',
     'อบขาว (8911)',
+    'ขาวซาฮาร่า (8919)',
     'อบดำ (8816)',
-    'เทาซาฮาร่า (8820)',
     'อบดำเงา (8815)',
+    'ดำซาฮาร่า (8819)',
+    'เทาเงา (8802)',
     'อบเทา (8859)',
+    'เทาซาฮาร่า (8820)',
+    'ซาตินซาฮาร่า (8849)',
+    'ทรายซาฮาร่า (8515)',
     'อบน้ำตาล (8823)',
     'น้ำตาลซาฮาร่า (8825)',
-    'ดำซาฮาร่า (8819)',
-    'ทรายซาฮาร่า (8515)',
     'สีชา',
     'ลายไม้ (15656 / 15659)',
     'ลายไม้สักน้ำตาล (15656)',
     'ลายไม้วอลนัท (15659)',
+    'ลายไม้มูจิ (15622)',
+    'ลายไม้ Sandy Chiffon (23005)',
+    'ลายไม้ Bracing Tea (23007)',
+    'ลายไม้ Rose Coral (59010)',
+    'ลายไม้ Noble Antique (59011)',
     'พ่นขาว คอตตอน ไวท์',
     'พ่นดำ ซุปเปอร์แบล็ค',
     'พ่นเทา แชมเปญเกรย์ (สีใหม่)',
@@ -1001,7 +1017,9 @@ class PricingEngine {
       return 'na';
     }
     if (c.contains('อบขาว') ||
+        c.contains('ขาวซาฮาร่า') ||
         c.contains('8911') ||
+        c.contains('8919') ||
         c.contains('คอตตอน') ||
         c.contains('ไวท์') ||
         c.contains('สีขาว')) {
@@ -1018,22 +1036,31 @@ class PricingEngine {
         c == 'สีดำ') {
       return 'black';
     }
+    if (c.contains('ลายไม้') ||
+        c.contains('15656') ||
+        c.contains('15659') ||
+        c.contains('15622') ||
+        c.contains('23005') ||
+        c.contains('23007') ||
+        c.contains('59010') ||
+        c.contains('59011')) {
+      return 'wood';
+    }
     if (c.contains('เทาซาฮาร่า') ||
+        c.contains('เทาเงา') ||
         c.contains('อบเทา') ||
+        c.contains('ซาตินซาฮาร่า') ||
         c.contains('แพลทินั่ม') ||
         c.contains('แชมเปญ') ||
         c.contains('เมทัลลิค') ||
         c.contains('กาแล็คซี่') ||
+        c.contains('8802') ||
         c.contains('8820') ||
+        c.contains('8849') ||
         c.contains('8859') ||
         c.contains('502') ||
         c.contains('504')) {
       return 'grey_sahara';
-    }
-    if (c.contains('ลายไม้') ||
-        c.contains('15656') ||
-        c.contains('15659')) {
-      return 'wood';
     }
     if (c.contains('ทรายซาฮาร่า') ||
         c.contains('น้ำตาล') ||

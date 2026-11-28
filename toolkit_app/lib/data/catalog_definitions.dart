@@ -32,7 +32,7 @@ class CatalogDefinitions {
       return true;
     }
     final pid = pattern.id.toLowerCase();
-    if (pid.contains('_fix')) {
+    if (pid.startsWith('c5_') || pid.contains('_fix')) {
       return true;
     }
     final title = pattern.title.toLowerCase();
@@ -3266,38 +3266,236 @@ class CatalogDefinitions {
     ),
 
     // -------------------------------------------------------------------------
-    // CATEGORY 5: บานเปลือย / Shower (All 3 Brands = รอ Open Beta)
+    // CATEGORY 5: บานเปลือย / Shower (VVP + RP Steel Glass — 4 Shower + 25 Frameless)
     // -------------------------------------------------------------------------
-    const CategoryDef(
+    CategoryDef(
       id: 'cat5_shower',
       title: 'บานเปลือย / Shower',
-      subtitle: 'ระบบอุปกรณ์ฟิตติ้งกระจกเปลือยและฉากกั้นอาบน้ำ',
+      subtitle: 'ชุดฉากกั้นอาบน้ำ (4 แบบ) & ประตูบานเปลือย (25 แบบ) — VVP / RP Steel Glass',
       brands: [
         BrandDef(
-          id: 'c5_pbm_dis',
-          title: 'PBM',
-          subtitle: 'ชุดฟิตติ้งบานเปลือยและฉากกั้นอาบน้ำ PBM',
-          priceBrandKey: 'PBM',
-          enabled: false,
-          disabledBadge: 'รอ Open Beta',
+          id: 'c5_vvp',
+          title: 'VVP',
+          subtitle: 'โช้คฝังพื้น · ตัวหนีบกระจก · บานพับชาวเวอร์ VVP (4+25 แบบ)',
+          priceBrandKey: 'VVP',
+          systems: _buildCat5BrandSystems(brandPrefix: 'c5_vvp', brandKey: 'VVP'),
         ),
         BrandDef(
-          id: 'c5_hyda_dis',
-          title: 'HYDA',
-          subtitle: 'ชุดอุปกรณ์ฮาร์ดแวร์บานเปลือย HYDA',
-          priceBrandKey: 'HYDA',
-          enabled: false,
-          disabledBadge: 'รอ Open Beta',
-        ),
-        BrandDef(
-          id: 'c5_rp_dis',
-          title: 'RP Steelglass',
-          subtitle: 'ชุดสเตนเลสและฉากกั้นอาบน้ำ RP Steelglass',
+          id: 'c5_rp',
+          title: 'RP Steel Glass',
+          subtitle: 'อุปกรณ์สเตนเลสชาวเวอร์ & บานเปลือย RP Steel Glass (4+25 แบบ)',
           priceBrandKey: 'RP',
-          enabled: false,
-          disabledBadge: 'รอ Open Beta',
+          systems: _buildCat5BrandSystems(brandPrefix: 'c5_rp', brandKey: 'RP'),
         ),
       ],
     ),
   ];
+
+  static List<OptionGroupDef> _cat5ShowerOptions(String brandKey) {
+    final isRp = brandKey == 'RP';
+    return [
+      if (isRp)
+        const OptionGroupDef(
+          id: 'shower_finish',
+          title: 'สีชุดอุปกรณ์สเตนเลส RP',
+          choices: [
+            OptionChoice(id: 'ss', label: 'สเตนเลสเงา / ด้าน'),
+            OptionChoice(id: 'black', label: 'สีดำด้าน (B)'),
+            OptionChoice(id: 'gold', label: 'สีทองเงา (G)'),
+          ],
+          defaultValue: 'ss',
+        ),
+      const OptionGroupDef(
+        id: 'stabilizer_bar',
+        title: 'คานกันแกว่งบน (ท่อสเตนเลส)',
+        choices: [
+          OptionChoice(id: 'yes', label: 'ใส่คานกันแกว่ง'),
+          OptionChoice(id: 'no', label: 'ไม่ใส่คานกันแกว่ง'),
+        ],
+        defaultValue: 'yes',
+      ),
+      const OptionGroupDef(
+        id: 'u_channel',
+        title: 'การยึดกระจกบานติดตาย',
+        choices: [
+          OptionChoice(id: 'clamps', label: 'ตัวหนีบกระจก (0 เส้นอลูมิเนียม)'),
+          OptionChoice(id: 'u_alu', label: 'เสริมรางอลูมิเนียมตัวยู'),
+        ],
+        defaultValue: 'clamps',
+      ),
+    ];
+  }
+
+  static List<OptionGroupDef> _cat5FramelessOptions(
+    String brandKey, {
+    required bool hasDoor,
+  }) {
+    return [
+      if (hasDoor)
+        const OptionGroupDef(
+          id: 'frameless_closer',
+          title: 'รุ่นโช้คประตูบานเปลือย',
+          choices: [
+            OptionChoice(id: 'FC 34', label: 'โช้คฝังพื้น FC 34 (มาตรฐาน)'),
+            OptionChoice(id: 'FC 49', label: 'โช้คฝังพื้น FC 49 (บานใหญ่ Heavy Duty)'),
+            OptionChoice(id: 'OC 35', label: 'โช้คบนฝังวงกบ OC 35'),
+          ],
+          defaultValue: 'FC 34',
+        ),
+      const OptionGroupDef(
+        id: 'u_channel',
+        title: 'การยึดกระจกบานติดตาย',
+        choices: [
+          OptionChoice(id: 'clamps', label: 'ไม่ใช้รางอลูมิเนียม (0 เส้น)'),
+          OptionChoice(id: 'u_alu', label: 'เสริมรางอลูมิเนียมตัวยู'),
+        ],
+        defaultValue: 'clamps',
+      ),
+    ];
+  }
+
+  static List<SubSystemDef> _buildCat5BrandSystems({
+    required String brandPrefix,
+    required String brandKey,
+  }) {
+    final shwOpts = _cat5ShowerOptions(brandKey);
+    final flDoorOpts = _cat5FramelessOptions(brandKey, hasDoor: true);
+    final flFixedOpts = _cat5FramelessOptions(brandKey, hasDoor: false);
+
+    PatternCardDef shw(String num2, String title, String subtitle) =>
+        PatternCardDef(
+          id: '${brandPrefix}_shw_$num2',
+          title: title,
+          subtitle: subtitle,
+          baseFormulaKey: 'c5_shw:$brandKey:$num2',
+          optionGroups: shwOpts,
+        );
+
+    PatternCardDef fl(
+      String num2,
+      String title,
+      String subtitle, {
+      bool hasTransom = false,
+      bool hasDoor = true,
+    }) =>
+        PatternCardDef(
+          id: '${brandPrefix}_fl_$num2',
+          title: title,
+          subtitle: subtitle,
+          baseFormulaKey: 'c5_fl:$brandKey:$num2',
+          auxType:
+              hasTransom ? AuxDimensionType.refHeightH1 : AuxDimensionType.none,
+          auxLabel: hasTransom ? 'ความสูงบานประตู H1 (มม.)' : null,
+          optionGroups: hasDoor ? flDoorOpts : flFixedOpts,
+        );
+
+    return [
+      SubSystemDef(
+        id: '${brandPrefix}_shower_sys',
+        title: 'ชุดชาวเวอร์ (ฉากกั้นอาบน้ำ · 4 แบบ)',
+        subtitle: 'บานเปิดเดี่ยว · บานติดตาย Walk-in · 2 ช่อง · 3 ช่อง',
+        patterns: [
+          shw('01', 'ฉากกั้นอาบน้ำ 3 ช่อง (ติดตาย + บานเปิดกลาง + ติดตาย)',
+              'F + D + F · บานพับกระจก-กระจก 180° + ตัวหนีบ 8 ตัว'),
+          shw('02', 'ฉากกั้นอาบน้ำบานติดตายเดี่ยว (Walk-in 1 ช่อง)',
+              'Fixed 1 ช่อง · ตัวหนีบผนัง-พื้น 5 ตัว + คานกันแกว่ง'),
+          shw('03', 'ฉากกั้นอาบน้ำ 2 ช่อง (บานเปิด + ติดตาย 1 ข้าง)',
+              'D + F · บานพับผนัง-กระจก + ตัวหนีบ 4 ตัว'),
+          shw('04', 'ประตูห้องอาบน้ำบานเปิดเดี่ยว (เข้าช่องผนัง)',
+              'Door 1 ช่อง · บานพับผนัง-กระจก 2 ตัว + ยางกันน้ำ'),
+        ],
+      ),
+      SubSystemDef(
+        id: '${brandPrefix}_frameless_sys',
+        title: 'ชุดบานเปลือย (ประตูฟิตติ้ง · 25 แบบ)',
+        subtitle: 'ครบทั้ง 25 รูปแบบบานเดี่ยว บานคู่ ช่องแสงบน และผนังกระจกเปลือย',
+        subTabs: [
+          SubSystemDef(
+            id: '${brandPrefix}_fl_tab_basic',
+            title: 'บานเดี่ยว & คู่ (8 แบบ)',
+            subtitle: 'ประตูบานเปลือยเดี่ยว/คู่ และแบบมีช่องแสงบน',
+            patterns: [
+              fl('17', 'ประตูบานเปลือยเดี่ยว (เข้าช่องผนัง · แบบซ้าย)',
+                  '1 บานเปิด · โช้ค 1 ชุด · FT10/FT20/AT190/FL50'),
+              fl('18', 'ประตูบานเปลือยเดี่ยว (เข้าช่องผนัง · แบบขวา)',
+                  '1 บานเปิด · โช้ค 1 ชุด · FT10/FT20/AT190/FL50'),
+              fl('15', 'ประตูบานเปลือยเดี่ยว + ช่องแสงบน (ซ้าย)',
+                  '1 บานเปิด + ช่องแสงบน · ตัวหนีบช่องแสง FT30',
+                  hasTransom: true),
+              fl('16', 'ประตูบานเปลือยเดี่ยว + ช่องแสงบน (ขวา)',
+                  '1 บานเปิด + ช่องแสงบน · FT30 + FT42',
+                  hasTransom: true),
+              fl('03', 'ประตูบานเปลือยคู่ (เข้าช่องผนัง · มาตรฐาน)',
+                  '2 บานเปิด · โช้ค 2 ชุด · FT10/FT20/AT190/FL50'),
+              fl('04', 'ประตูบานเปลือยคู่ (เข้าช่องผนัง · ล็อคพื้นคู่)',
+                  '2 บานเปิด · โช้ค 2 ชุด · ฟิตติ้งเต็มชุด 4 มุม'),
+              fl('02', 'ประตูบานเปลือยคู่ + ช่องแสงบน (FT30)',
+                  '2 บานเปิด + ช่องแสงบน · ตัวหนีบช่องแสง FT30 คู่',
+                  hasTransom: true),
+              fl('25', 'ประตูบานเปลือยคู่ + ช่องแสงบน (FT30 + FT42)',
+                  '2 บานเปิด + ช่องแสงบน · เสริมตัวหนีบมุมบน FT42',
+                  hasTransom: true),
+            ],
+          ),
+          SubSystemDef(
+            id: '${brandPrefix}_fl_tab_single_fix',
+            title: 'เดี่ยว + ติดตาย (11 แบบ)',
+            subtitle: 'ประตูบานเปลือยเดี่ยวร่วมกับบานติดตายข้าง 1–4 ช่อง',
+            patterns: [
+              fl('13', 'ประตูเดี่ยว + บานติดตาย 1 ข้าง (2 ช่อง · ชิดผนัง)',
+                  'D + F · โช้ค 1 ชุด · FT10/FT20/AT190/FL50'),
+              fl('14', 'ประตูเดี่ยว + บานติดตาย 1 ข้าง (2 ช่อง · เปิดชนบานฟิก)',
+                  'D + F · โช้ค 1 ชุด · ยึดบานติดตายข้าง'),
+              fl('10', 'ประตูเดี่ยว + ช่องแสงบน + ติดตาย 1 ข้าง (FT40)',
+                  'D/Top + F · ตัวหนีบ 3 ทาง FT40 กลาง',
+                  hasTransom: true),
+              fl('11', 'ประตูเดี่ยว + ช่องแสงบน + ติดตาย 1 ข้าง (FT30 + FT40)',
+                  'D/Top + F · ตัวหนีบช่องแสงซ้าย-ขวา FT30/FT40',
+                  hasTransom: true),
+              fl('07', 'ประตูเดี่ยวกลาง + ติดตายซ้าย-ขวา (3 ช่อง · แบบ A)',
+                  'F + D + F · ไม่มีช่องแสงบน'),
+              fl('08', 'ประตูเดี่ยวกลาง + ติดตายซ้าย-ขวา (3 ช่อง · แบบ B)',
+                  'F + D + F · เสริมตัวหนีบยึดบานติดตายข้าง'),
+              fl('09', 'ประตูเดี่ยวกลาง + ติดตายซ้าย-ขวา (3 ช่อง · บานเปิดขวา)',
+                  'F + D + F · บานพับโช้คฝั่งขวา'),
+              fl('05', 'ประตูเดี่ยวกลาง + ช่องแสงบน + ติดตายซ้าย-ขวา (FT40)',
+                  'F + D/Top + F · ตัวหนีบ FT40 + FT42',
+                  hasTransom: true),
+              fl('06', 'ประตูเดี่ยวกลาง + ช่องแสงบน + ติดตายซ้าย-ขวา (FT41 มีครีบ)',
+                  'F + D/Top + F · ตัวหนีบมีครีบกันแกว่ง FT41',
+                  hasTransom: true),
+              fl('01', 'ประตูเดี่ยวริมขวา + ช่องแสงบน + ติดตายซ้าย 2 ช่อง (3 ช่อง)',
+                  '2F + D/Top · FT30 + FT40',
+                  hasTransom: true),
+              fl('12', 'ประตูเดี่ยวกลาง + ช่องแสงบน + ติดตายซ้าย 2 ขวา 2 (5 ช่อง)',
+                  '2F + D/Top + 2F · ผนังร้านค้าหน้ากว้าง 5 ช่อง',
+                  hasTransom: true),
+            ],
+          ),
+          SubSystemDef(
+            id: '${brandPrefix}_fl_tab_double_part',
+            title: 'คู่ + ติดตาย / ผนัง (6 แบบ)',
+            subtitle: 'ประตูบานเปิดคู่พร้อมบานข้าง และผนังกระจกเปลือยหลายช่อง',
+            patterns: [
+              fl('23', 'ประตูคู่กลาง + ติดตายซ้าย-ขวา (4 ช่อง · มาตรฐาน)',
+                  'F + DD + F · โช้ค 2 ชุด · ไม่มีช่องแสงบน'),
+              fl('24', 'ประตูคู่กลาง + ติดตายซ้าย-ขวา (4 ช่อง · เสริมตัวยึดข้าง)',
+                  'F + DD + F · โช้ค 2 ชุด + ตัวหนีบยึดกระจกข้าง'),
+              fl('21', 'ประตูคู่กลาง + ช่องแสงบน + ติดตายซ้าย-ขวา (FT40 คู่)',
+                  'F + DD/Top + F · โช้ค 2 ชุด + ตัวหนีบ FT40 คู่',
+                  hasTransom: true),
+              fl('22', 'ประตูคู่กลาง + ช่องแสงบน + ติดตายซ้าย-ขวา (FT41 มีครีบคู่)',
+                  'F + DD/Top + F · โช้ค 2 ชุด + ตัวหนีบมีครีบ FT41 คู่',
+                  hasTransom: true),
+              fl('19', 'ผนังกระจกเปลือยติดตาย 6 ช่อง (Partition 6F)',
+                  '6 บานติดตาย · ไม่มีประตู · ยึดตัวหนีบกระจก 12 ตัว',
+                  hasDoor: false),
+              fl('20', 'ผนังกระจกเปลือย 7 ช่อง (ติดตาย 1 + ประตูเดี่ยว + ติดตาย 5)',
+                  'F + D + 5F · โช้ค 1 ชุด + ตัวหนีบยึดผนังกระจก 12 ตัว'),
+            ],
+          ),
+        ],
+      ),
+    ];
+  }
 }

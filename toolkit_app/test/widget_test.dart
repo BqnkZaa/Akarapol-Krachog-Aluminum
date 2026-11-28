@@ -132,12 +132,18 @@ void main() {
         );
 
         expect(out.sets, hasLength(1));
-        expect(out.sets.first.cuts, isNotEmpty, reason: 'Pattern ${p.id} produced 0 cuts');
-        if (p.id == 'c2_orm_fix1_card') {
-          // Toolkit v0.1.7 c2_orm_fix1 is 100% site-measured (0 stock bars in Tab 2/3)
-          expect(out.barGroups, isEmpty);
+        if (p.id.startsWith('c5_')) {
+          // Category 5 Frameless Shower & Frameless Doors use 0 aluminum bars by default
+          expect(out.sets.first.glasses, isNotEmpty, reason: 'Pattern ${p.id} produced 0 glasses');
+          expect(out.hardware, isNotEmpty, reason: 'Pattern ${p.id} produced 0 hardware');
         } else {
-          expect(out.barGroups, isNotEmpty, reason: 'Pattern ${p.id} produced 0 barGroups');
+          expect(out.sets.first.cuts, isNotEmpty, reason: 'Pattern ${p.id} produced 0 cuts');
+          if (p.id == 'c2_orm_fix1_card') {
+            // Toolkit v0.1.7 c2_orm_fix1 is 100% site-measured (0 stock bars in Tab 2/3)
+            expect(out.barGroups, isEmpty);
+          } else {
+            expect(out.barGroups, isNotEmpty, reason: 'Pattern ${p.id} produced 0 barGroups');
+          }
         }
       }
     }
@@ -448,6 +454,7 @@ void main() {
       if (brandId.contains('uai')) return 'uai';
       if (brandId.contains('fuji')) return 'fuji';
       if (brandId.contains('aluframe')) return 'aluframe';
+      if (brandId.startsWith('c5_')) return 'cat5_frameless';
       return brandId;
     }
 

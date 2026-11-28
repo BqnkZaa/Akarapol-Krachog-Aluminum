@@ -13,6 +13,7 @@ import '../engine/parametric_system_resolver.dart';
 import '../models/app_models.dart';
 import 'alupro_thumbnail_widgets.dart';
 import 'catalog_and_input_screens.dart';
+import 'material_editor_sheets.dart';
 import 'theme_tokens.dart';
 
 class _TemplateEntry {
@@ -355,7 +356,22 @@ class _CustomSystemListScreenState extends State<CustomSystemListScreen> {
                 final raw = ctrl.text.trim();
                 if (raw.isEmpty) return;
                 final decoded = jsonDecode(raw);
-                if (decoded is List) {
+                if (decoded is Map<String, dynamic> &&
+                    decoded['type'] == 'akkaraphon_formulas_backup') {
+                  final res =
+                      await AppDatabase.instance.importFormulasBackupJson(raw);
+                  await SeedRepository.instance.reloadCustomSystems();
+                  await SeedRepository.instance.reloadFormulaOverrides();
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _reload();
+                  if (mounted) {
+                    showToolkitSnackBar(
+                      context,
+                      'นำเข้าชุดโปรไฟล์ ${res.systemsImported} ชุด และสูตรแก้ไข ${res.overridesImported} สูตรเรียบร้อยแล้ว',
+                    );
+                  }
+                  return;
+                } else if (decoded is List) {
                   for (final item in decoded) {
                     final sys = CustomProfileSystem.fromJson(
                       item as Map<String, dynamic>,
@@ -388,6 +404,16 @@ class _CustomSystemListScreenState extends State<CustomSystemListScreen> {
     );
   }
 
+  Future<void> _exportAllFormulasBackup() async {
+    final jsonStr = await AppDatabase.instance.exportFormulasBackupJson();
+    await Clipboard.setData(ClipboardData(text: jsonStr));
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'คัดลอกข้อมูลชุดโปรไฟล์และสูตรแก้ไขทั้งหมด (JSON) แล้ว นำไปวางที่เครื่องอื่นได้ทันที',
+    );
+  }
+
   String _categoryLabel(String catId) {
     for (int i = 0; i < CatalogDefinitions.categories.length; i++) {
       final c = CatalogDefinitions.categories[i];
@@ -402,6 +428,11 @@ class _CustomSystemListScreenState extends State<CustomSystemListScreen> {
       appBar: AppBar(
         title: const Text('จัดการ / เพิ่มชุดโปรไฟล์ใหม่'),
         actions: [
+          IconButton(
+            tooltip: 'ส่งออก/คัดลอกชุดสูตรทั้งหมด (.json)',
+            onPressed: _exportAllFormulasBackup,
+            icon: const Icon(Icons.ios_share_rounded),
+          ),
           IconButton(
             tooltip: 'นำเข้าชุดโปรไฟล์ (.json)',
             onPressed: _importSystemDialog,
@@ -1097,8 +1128,15 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
       showToolkitSnackBar(context, 'กรุณากรอกชื่อแบรนด์ผู้ผลิต');
       return;
     }
-    if (_cuts.isEmpty || _cuts.every((c) => c.codeCtrl.text.trim().isEmpty)) {
-      showToolkitSnackBar(context, 'กรุณาเพิ่มรายการหน้าตัดอลูมิเนียมอย่างน้อย 1 รายการ');
+    final hasAnyCut = _cuts.any((c) => c.codeCtrl.text.trim().isNotEmpty);
+    final hasAnyGlass = _glasses.any((g) => g.nameCtrl.text.trim().isNotEmpty);
+    final hasAnyHw = _hardware.any((h) =>
+        h.nameCtrl.text.trim().isNotEmpty || h.codeCtrl.text.trim().isNotEmpty);
+    if (!hasAnyCut && !hasAnyGlass && !hasAnyHw) {
+      showToolkitSnackBar(
+        context,
+        'กรุณาเพิ่มรายการอย่างน้อย 1 รายการ (หน้าตัดอลูมิเนียม, กระจก, หรืออุปกรณ์)',
+      );
       return;
     }
 
@@ -1629,6 +1667,60 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
               label: const Text('เพิ่มรหัสเส้น'),
             ),
             children: [
+              if (_cuts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      key: const ValueKey('btn_clear_all_aluminum_cuts'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          for (final c in _cuts) {
+                            c.dispose();
+                          }
+                          _cuts.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.layers_clear_outlined, size: 16),
+                      label: const Text(
+                        'ล้างเส้นอลูมิเนียมทั้งหมด (0 เส้น · บานเปลือย/ชาวเวอร์)',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_cuts.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF99F6E4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.check_circle_outline_rounded,
+                          size: 18, color: Color(0xFF0D9488)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'ไม่ใช้เส้นอลูมิเนียม (0 เส้น) — เหมาะสำหรับงานบานเปลือยและฉากกั้นอาบน้ำ (คำนวณเฉพาะกระจกและอุปกรณ์)',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F766E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               for (int i = 0; i < _cuts.length; i++) ...[
                 if (i > 0) const Divider(height: 22),
                 _buildCutEditorItem(i, _cuts[i], vars),
@@ -1781,14 +1873,12 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
             IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: 'ลบรายการนี้',
-              onPressed: _cuts.length <= 1
-                  ? null
-                  : () {
-                      setState(() {
-                        final removed = _cuts.removeAt(idx);
-                        removed.dispose();
-                      });
-                    },
+              onPressed: () {
+                setState(() {
+                  final removed = _cuts.removeAt(idx);
+                  removed.dispose();
+                });
+              },
               icon: const Icon(
                 Icons.delete_outline_rounded,
                 size: 19,
@@ -2269,6 +2359,866 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
             ],
           ),
           const Divider(height: 18),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Built-in Pattern Formula Override Editor (Edit ANY built-in formula + 0-bar!)
+// =============================================================================
+class FormulaOverrideEditorScreen extends StatefulWidget {
+  final PatternCardDef pattern;
+  final String brandTitle;
+  final String priceBrandKey;
+  final String systemTitle;
+  final Map<String, String> selectedOptions;
+
+  const FormulaOverrideEditorScreen({
+    super.key,
+    required this.pattern,
+    required this.brandTitle,
+    required this.priceBrandKey,
+    required this.systemTitle,
+    this.selectedOptions = const {},
+  });
+
+  @override
+  State<FormulaOverrideEditorScreen> createState() =>
+      _FormulaOverrideEditorScreenState();
+}
+
+class _FormulaOverrideEditorScreenState
+    extends State<FormulaOverrideEditorScreen> {
+  final TextEditingController _testWCtrl = TextEditingController(text: '2000');
+  final TextEditingController _testHCtrl = TextEditingController(text: '2100');
+  final TextEditingController _testH1Ctrl = TextEditingController(text: '1700');
+
+  final List<_EditableCutRow> _cuts = [];
+  final List<_EditableGlassRow> _glasses = [];
+  final List<_EditableHwRow> _hardware = [];
+
+  bool _hasActiveOverride = false;
+  late String _tableKey;
+  late String _tableHeader;
+
+  bool get _usesH1 =>
+      widget.pattern.auxType == AuxDimensionType.refHeightH1 ||
+      widget.pattern.auxType == AuxDimensionType.transomHeightHt ||
+      widget.pattern.tableMode == InputTableMode.smartPlus90FourCol;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasActiveOverride =
+        SeedRepository.instance.getFormulaOverride(widget.pattern.id) != null;
+    final table = ParametricSystemResolver.resolveFormulaTable(
+      pattern: widget.pattern,
+      selectedOptions: widget.selectedOptions,
+      seed: SeedRepository.instance,
+    );
+    _loadFromTable(table);
+  }
+
+  void _loadFromTable(VerifiedFormulaTable table) {
+    for (final c in _cuts) {
+      c.dispose();
+    }
+    for (final g in _glasses) {
+      g.dispose();
+    }
+    for (final h in _hardware) {
+      h.dispose();
+    }
+    _cuts.clear();
+    _glasses.clear();
+    _hardware.clear();
+
+    _tableKey = table.key;
+    _tableHeader = table.header;
+
+    for (final c in table.cuts) {
+      _cuts.add(
+        _EditableCutRow(
+          section: c.section,
+          code: c.code,
+          name: c.name,
+          formula: c.formula,
+          qty: c.qty,
+          stockMm: c.stockMm,
+          angle: c.angle,
+        ),
+      );
+    }
+    for (final g in table.glasses) {
+      _glasses.add(
+        _EditableGlassRow(
+          name: g.name,
+          qty: g.qty,
+          siteCut: g.siteCut,
+          wFormula: g.wFormula,
+          hFormula: g.hFormula,
+        ),
+      );
+    }
+    for (final h in table.hardware) {
+      _hardware.add(
+        _EditableHwRow(
+          code: h.code,
+          name: h.name,
+          qtyText: h.qtyText,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _testWCtrl.dispose();
+    _testHCtrl.dispose();
+    _testH1Ctrl.dispose();
+    for (final c in _cuts) {
+      c.dispose();
+    }
+    for (final g in _glasses) {
+      g.dispose();
+    }
+    for (final h in _hardware) {
+      h.dispose();
+    }
+    super.dispose();
+  }
+
+  Map<String, double> _testVars() {
+    final w = double.tryParse(_testWCtrl.text.trim()) ?? 2000.0;
+    final h = double.tryParse(_testHCtrl.text.trim()) ?? 2100.0;
+    final h1 = double.tryParse(_testH1Ctrl.text.trim()) ?? (h - 400.0);
+    return {
+      'W': w,
+      'H': h,
+      'W1': w,
+      'W2': w,
+      'H1': h1,
+      'H_t': (h - h1).clamp(0.0, h),
+      'W_f': w * 0.35,
+      'N': (widget.pattern.foldingTotalPanels ?? 2).toDouble(),
+    };
+  }
+
+  Future<void> _saveOverride() async {
+    final cutSpecs = <CutPieceSpec>[];
+    for (final c in _cuts) {
+      final code = c.codeCtrl.text.trim();
+      final name = c.nameCtrl.text.trim();
+      if (code.isEmpty && name.isEmpty) continue;
+      final qty = (int.tryParse(c.qtyCtrl.text.trim()) ?? 1).clamp(1, 999);
+      final stockMm =
+          (int.tryParse(c.stockMmCtrl.text.trim()) ?? 6400).clamp(500, 12000);
+      cutSpecs.add(
+        CutPieceSpec(
+          section: c.section,
+          code: code.isEmpty ? name : code,
+          name: name.isEmpty ? code : name,
+          stockMm: stockMm,
+          qty: qty,
+          qtyText: '$qty ชิ้น',
+          angle: c.angle,
+          formula: c.formulaCtrl.text.trim().isEmpty
+              ? 'วัดตามจริง'
+              : c.formulaCtrl.text.trim(),
+        ),
+      );
+    }
+
+    final glassSpecs = <GlassPieceSpec>[];
+    for (final g in _glasses) {
+      final name = g.nameCtrl.text.trim();
+      if (name.isEmpty) continue;
+      final qty = (int.tryParse(g.qtyCtrl.text.trim()) ?? 1).clamp(1, 99);
+      glassSpecs.add(
+        GlassPieceSpec(
+          name: name,
+          qty: qty,
+          qtyText: '$qty แผ่น',
+          siteCut: g.siteCut,
+          wFormula: g.siteCut ? '' : g.wFormulaCtrl.text.trim(),
+          hFormula: g.siteCut ? '' : g.hFormulaCtrl.text.trim(),
+        ),
+      );
+    }
+
+    final hwSpecs = <HardwareItemSpec>[];
+    for (final h in _hardware) {
+      final code = h.codeCtrl.text.trim();
+      final name = h.nameCtrl.text.trim();
+      if (code.isEmpty && name.isEmpty) continue;
+      hwSpecs.add(
+        HardwareItemSpec(
+          code: code,
+          name: name.isEmpty ? code : name,
+          qtyText: h.qtyTextCtrl.text.trim().isEmpty
+              ? '1 ชิ้น'
+              : h.qtyTextCtrl.text.trim(),
+        ),
+      );
+    }
+
+    if (cutSpecs.isEmpty && glassSpecs.isEmpty && hwSpecs.isEmpty) {
+      showToolkitSnackBar(
+        context,
+        'กรุณามีรายการอย่างน้อย 1 รายการ (อลูมิเนียม, กระจก หรืออุปกรณ์)',
+      );
+      return;
+    }
+
+    final ov = PatternFormulaOverride(
+      patternId: widget.pattern.id,
+      formulaTable: VerifiedFormulaTable(
+        key: _tableKey,
+        header: _tableHeader,
+        cuts: cutSpecs,
+        glasses: glassSpecs,
+        hardware: hwSpecs,
+      ),
+      updatedAt: DateTime.now(),
+    );
+
+    await AppDatabase.instance.saveFormulaOverride(ov);
+    await SeedRepository.instance.reloadFormulaOverrides();
+    if (!mounted) return;
+    showToolkitSnackBar(
+      context,
+      'บันทึกสูตรคำนวณใหม่สำหรับ "${widget.pattern.title}" เรียบร้อยแล้ว',
+    );
+    Navigator.pop(context, true);
+  }
+
+  Future<void> _resetToFactory() async {
+    await AppDatabase.instance.deleteFormulaOverride(widget.pattern.id);
+    await SeedRepository.instance.reloadFormulaOverrides();
+    final factoryTable = ParametricSystemResolver.resolveFormulaTable(
+      pattern: widget.pattern,
+      selectedOptions: widget.selectedOptions,
+      seed: SeedRepository.instance,
+      ignoreUserOverride: true,
+    );
+    if (!mounted) return;
+    setState(() {
+      _hasActiveOverride = false;
+      _loadFromTable(factoryTable);
+    });
+    showToolkitSnackBar(context, 'คืนค่าสูตรคำนวณมาตรฐานโรงงานเรียบร้อยแล้ว');
+  }
+
+  Future<void> _pickHardwareFromCatalog() async {
+    final matOv = await AppDatabase.instance.getAllCustomMaterialRates();
+    if (!mounted) return;
+    final picked = await showHardwareCatalogPicker(
+      context: context,
+      materialOverrides: matOv,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _hardware.add(
+          _EditableHwRow(
+            code: picked.code,
+            name: picked.name,
+            qtyText: '1 ${picked.unit.isNotEmpty ? picked.unit : "ชิ้น"}',
+          ),
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vars = _testVars();
+    return Scaffold(
+      backgroundColor: ToolkitColors.bgScaffold,
+      appBar: AppBar(
+        title: const Text('แก้ไขสูตรคำนวณ'),
+        actions: [
+          if (_hasActiveOverride)
+            TextButton.icon(
+              key: const ValueKey('btn_reset_formula_override'),
+              onPressed: _resetToFactory,
+              icon: const Icon(Icons.restore_rounded, size: 17),
+              label: const Text(
+                'คืนค่าสูตรเดิม',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+              ),
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+        children: [
+          // Header banner
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ToolkitColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.pattern.title,
+                        style: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: ToolkitColors.slateDark,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _hasActiveOverride
+                            ? ToolkitColors.vipGoldBg
+                            : ToolkitColors.softBlueBg,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _hasActiveOverride ? 'สูตรที่ร้านแก้ไขไว้' : 'สูตรมาตรฐาน',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: _hasActiveOverride
+                              ? ToolkitColors.vipGoldText
+                              : ToolkitColors.royalBlue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${widget.brandTitle} · ${widget.systemTitle}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: ToolkitColors.slateMuted,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _testWCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'ทดสอบกว้าง W (มม.)',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _testHCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'ทดสอบสูง H (มม.)',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    if (_usesH1) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _testH1Ctrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'สูง H1',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 1. Aluminum Cuts (supports 0 bars!)
+          _formulaCard(
+            title: '1. สูตรตัดเส้นอลูมิเนียม (${_cuts.length} รายการ)',
+            trailing: FilledButton.tonalIcon(
+              onPressed: () {
+                setState(() {
+                  _cuts.add(
+                    _EditableCutRow(
+                      section: 'กรอบบาน',
+                      code: 'NEW-${_cuts.length + 1}',
+                      name: 'หน้าตัดเพิ่มเติม',
+                      formula: 'W',
+                      qty: 1,
+                    ),
+                  );
+                });
+              },
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: const Text('เพิ่มเส้น'),
+            ),
+            children: [
+              if (_cuts.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    key: const ValueKey('btn_override_clear_cuts'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        for (final c in _cuts) {
+                          c.dispose();
+                        }
+                        _cuts.clear();
+                      });
+                    },
+                    icon: const Icon(Icons.layers_clear_outlined, size: 16),
+                    label: const Text(
+                      'ล้างเส้นอลูมิเนียมทั้งหมด (0 เส้น)',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              if (_cuts.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDFA),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF99F6E4)),
+                  ),
+                  child: const Text(
+                    '0 เส้นอลูมิเนียม — คำนวณเฉพาะกระจกและอุปกรณ์ (เหมาะสำหรับบานเปลือย / ชาวเวอร์)',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F766E),
+                    ),
+                  ),
+                ),
+              for (int i = 0; i < _cuts.length; i++) ...[
+                if (i > 0) const Divider(height: 20),
+                _buildOverrideCutRow(i, _cuts[i], vars),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 2. Glass Cuts
+          _formulaCard(
+            title: '2. สูตรตัดกระจก (${_glasses.length} รายการ)',
+            trailing: FilledButton.tonalIcon(
+              onPressed: () {
+                setState(() {
+                  _glasses.add(
+                    _EditableGlassRow(
+                      name: 'กระจกชุดที่ ${_glasses.length + 1}',
+                      qty: 1,
+                      siteCut: false,
+                      wFormula: 'W - 10',
+                      hFormula: 'H - 12',
+                    ),
+                  );
+                });
+              },
+              icon: const Icon(Icons.add_rounded, size: 17),
+              label: const Text('เพิ่มกระจก'),
+            ),
+            children: [
+              if (_glasses.isEmpty)
+                const Text(
+                  'ไม่มีรายการกระจก',
+                  style: TextStyle(
+                      fontSize: 12.5, color: ToolkitColors.slateMuted),
+                ),
+              for (int i = 0; i < _glasses.length; i++) ...[
+                if (i > 0) const Divider(height: 20),
+                _buildOverrideGlassRow(i, _glasses[i], vars),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 3. Hardware
+          _formulaCard(
+            title: '3. รายการอุปกรณ์ (${_hardware.length} รายการ)',
+            trailing: FilledButton.tonalIcon(
+              onPressed: _pickHardwareFromCatalog,
+              icon: const Icon(Icons.search_rounded, size: 17),
+              label: const Text('เลือกจากคลัง'),
+            ),
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _hardware.add(
+                        _EditableHwRow(
+                          code: '',
+                          name: 'อุปกรณ์เพิ่มเติม',
+                          qtyText: '1 ชิ้น',
+                        ),
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('เพิ่มรายการพิมพ์เอง',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              for (int i = 0; i < _hardware.length; i++) ...[
+                if (i > 0) const Divider(height: 16),
+                _buildOverrideHwRow(i, _hardware[i]),
+              ],
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              key: const ValueKey('btn_save_formula_override'),
+              style: FilledButton.styleFrom(
+                backgroundColor: ToolkitColors.royalBlue,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _saveOverride,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text(
+                'บันทึกสูตรคำนวณนี้',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverrideCutRow(
+    int idx,
+    _EditableCutRow row,
+    Map<String, double> vars,
+  ) {
+    final res = FormulaEvaluator.evaluate(row.formulaCtrl.text, vars);
+    final preview = row.formulaCtrl.text.contains('วัดตามจริง')
+        ? 'วัดตามจริง'
+        : (res.valueMm != null
+            ? '= ${FormulaEvaluator.formatMm(res.valueMm!)} มม.'
+            : 'ตรวจสอบสูตร');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'เส้น #${idx + 1}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ToolkitColors.royalBlue,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              preview,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: res.valueMm != null
+                    ? const Color(0xFF15803D)
+                    : const Color(0xFFB45309),
+              ),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                setState(() {
+                  final rem = _cuts.removeAt(idx);
+                  rem.dispose();
+                });
+              },
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 18, color: Color(0xFFEF4444)),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: row.codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'รหัสหน้าตัด',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: row.nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'ชื่อชิ้นส่วน',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                key: ValueKey('override_cut_formula_$idx'),
+                controller: row.formulaCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'สูตรระยะตัด (เช่น W - 36, H - 90)',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 1,
+              child: TextField(
+                controller: row.qtyCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'จำนวน',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOverrideGlassRow(
+    int idx,
+    _EditableGlassRow row,
+    Map<String, double> vars,
+  ) {
+    final gw = row.siteCut
+        ? null
+        : FormulaEvaluator.evaluateNumber(row.wFormulaCtrl.text, vars);
+    final gh = row.siteCut
+        ? null
+        : FormulaEvaluator.evaluateNumber(row.hFormulaCtrl.text, vars);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: row.nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'ชื่อรายการกระจก',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 68,
+              child: TextField(
+                controller: row.qtyCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'แผ่น',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                setState(() {
+                  final rem = _glasses.removeAt(idx);
+                  rem.dispose();
+                });
+              },
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 18, color: Color(0xFFEF4444)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: ValueKey('override_glass_w_$idx'),
+                controller: row.wFormulaCtrl,
+                enabled: !row.siteCut,
+                decoration: const InputDecoration(
+                  labelText: 'สูตรกว้างกระจก',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                key: ValueKey('override_glass_h_$idx'),
+                controller: row.hFormulaCtrl,
+                enabled: !row.siteCut,
+                decoration: const InputDecoration(
+                  labelText: 'สูตรสูงกระจก',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+          ],
+        ),
+        if (!row.siteCut && gw != null && gh != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'ขนาดกระจกทดสอบ = ${FormulaEvaluator.formatMm(gw)} × ${FormulaEvaluator.formatMm(gh)} มม.',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF15803D),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildOverrideHwRow(int idx, _EditableHwRow row) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: row.codeCtrl,
+            decoration: const InputDecoration(
+              labelText: 'รหัส',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 3,
+          child: TextField(
+            controller: row.nameCtrl,
+            decoration: const InputDecoration(
+              labelText: 'ชื่ออุปกรณ์',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: row.qtyTextCtrl,
+            decoration: const InputDecoration(
+              labelText: 'จำนวน',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          onPressed: () {
+            setState(() {
+              final rem = _hardware.removeAt(idx);
+              rem.dispose();
+            });
+          },
+          icon: const Icon(Icons.delete_outline_rounded,
+              size: 18, color: Color(0xFFEF4444)),
+        ),
+      ],
+    );
+  }
+
+  Widget _formulaCard({
+    required String title,
+    Widget? trailing,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ToolkitColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: ToolkitColors.slateDark,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          const Divider(height: 16),
           ...children,
         ],
       ),

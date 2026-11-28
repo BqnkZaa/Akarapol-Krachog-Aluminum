@@ -26,13 +26,20 @@ class QuotationSpecFormatter {
     'ไม่ระบุ',
   ];
 
-  /// Official 19 ALUMET Thailand color codes — displayed strictly for ALUMET brand!
+  /// Official 27 ALUMET Thailand color codes (2026 Color Charts) — displayed strictly for ALUMET brand!
   static const List<String> alumetColorChoices = [
     'อบดำ (8816)',
     'อบขาว (8911)',
+    'ขาวซาฮาร่า (8919)',
     'ดำซาฮาร่า (8819)',
     'เทาซาฮาร่า (8820)',
+    'ซาตินซาฮาร่า (8849)',
     'ทรายซาฮาร่า (8515)',
+    'เทาเงา (8802)',
+    'อบเทา (8859)',
+    'อบดำเงา (8815)',
+    'อบน้ำตาล (8823)',
+    'น้ำตาลซาฮาร่า (8825)',
     'ชุบขาว (E&A)',
     'ชุบชา (512)',
     'ชุบน้ำตาล (514)',
@@ -40,12 +47,13 @@ class QuotationSpecFormatter {
     'แพลทินั่ม (502)',
     'แชมเปญ (504)',
     'ชุบชาเข้ม (510)',
-    'อบดำเงา (8815)',
-    'อบเทา (8859)',
-    'อบน้ำตาล (8823)',
-    'น้ำตาลซาฮาร่า (8825)',
     'ลายไม้สักน้ำตาล (15656)',
     'ลายไม้วอลนัท (15659)',
+    'ลายไม้มูจิ (15622)',
+    'ลายไม้ Sandy Chiffon (23005)',
+    'ลายไม้ Bracing Tea (23007)',
+    'ลายไม้ Rose Coral (59010)',
+    'ลายไม้ Noble Antique (59011)',
     'ตัวดิบ MILL',
   ];
 
@@ -222,6 +230,18 @@ class QuotationSpecFormatter {
 
       case 'ALUFRAME':
         return 'โปรไฟล์ยูโร ALUFRAME (อลูเฟรม)';
+
+      case 'VVP':
+        if (sTitle.contains('ชาวเวอร์') || item.patternId.contains('_shw_')) {
+          return 'ชุดฉากกั้นอาบน้ำกระจกเทมเปอร์ VVP';
+        }
+        return 'ชุดประตูบานเปลือยฟิตติ้ง VVP';
+
+      case 'RP':
+        if (sTitle.contains('ชาวเวอร์') || item.patternId.contains('_shw_')) {
+          return 'ชุดฉากกั้นอาบน้ำสเตนเลส RP Steel Glass';
+        }
+        return 'ชุดประตูบานเปลือยฟิตติ้ง RP Steel Glass';
 
       default:
         if (bTitle.isNotEmpty &&

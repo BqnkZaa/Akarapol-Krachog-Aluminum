@@ -1162,6 +1162,11 @@ class MaterialRateItem {
   final double factoryPrice;
   final double? customPrice;
   final bool isEstimated;
+  final String brand; // e.g. 'ALUMET', 'VVP', 'RP', ''
+  final String subCategory; // e.g. 'บานเลื่อน', 'บานเปิด', 'บานกระทุ้ง', 'บานเฟี้ยม', 'สกรู / ทั่วไป', 'บานพับชาวเวอร์'
+  final String? colorNote;
+  final String? imageAssetPath;
+  final bool visibleInCatalog;
 
   const MaterialRateItem({
     required this.rateKey,
@@ -1172,6 +1177,11 @@ class MaterialRateItem {
     required this.factoryPrice,
     this.customPrice,
     this.isEstimated = false,
+    this.brand = '',
+    this.subCategory = '',
+    this.colorNote,
+    this.imageAssetPath,
+    this.visibleInCatalog = true,
   });
 
   double get effectivePrice => customPrice ?? factoryPrice;
@@ -1185,6 +1195,11 @@ class MaterialRateItem {
         factoryPrice: factoryPrice,
         customPrice: overridePrice,
         isEstimated: isEstimated,
+        brand: brand,
+        subCategory: subCategory,
+        colorNote: colorNote,
+        imageAssetPath: imageAssetPath,
+        visibleInCatalog: visibleInCatalog,
       );
 
   factory MaterialRateItem.fromJson(Map<String, dynamic> j) => MaterialRateItem(
@@ -1195,6 +1210,11 @@ class MaterialRateItem {
         unit: j['unit'] as String? ?? 'ชิ้น',
         factoryPrice: (j['price'] as num).toDouble(),
         isEstimated: j['isEstimated'] as bool? ?? false,
+        brand: j['brand'] as String? ?? '',
+        subCategory: j['subCategory'] as String? ?? '',
+        colorNote: j['colorNote'] as String?,
+        imageAssetPath: j['imageAssetPath'] as String?,
+        visibleInCatalog: j['visibleInCatalog'] as bool? ?? true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -1205,6 +1225,12 @@ class MaterialRateItem {
         'unit': unit,
         'price': effectivePrice,
         'isEstimated': isEstimated,
+        if (brand.isNotEmpty) 'brand': brand,
+        if (subCategory.isNotEmpty) 'subCategory': subCategory,
+        if (colorNote != null && colorNote!.isNotEmpty) 'colorNote': colorNote,
+        if (imageAssetPath != null && imageAssetPath!.isNotEmpty)
+          'imageAssetPath': imageAssetPath,
+        'visibleInCatalog': visibleInCatalog,
       };
 }
 
@@ -1510,5 +1536,166 @@ class ProjectPricingConfig {
         ),
         laborRate: ((j['laborRate'] as num?)?.toDouble() ?? 0.0)
             .clamp(0.0, 10000000.0),
+      );
+}
+
+/// Shop-wide remembered selection defaults saved via the "จำค่าตั้งต้นร้าน"
+/// shortcut across input, pricing, and quotation screens (stored in `app_flags`
+/// with zero SQLite schema migration).
+class ShopSelectionDefaults {
+  final Map<String, String> brandAluThicknesses;
+  final Map<String, String> brandAluColors;
+  final Map<String, String> brandGlassTypes;
+  final Map<String, String> brandGlassThicknesses;
+  final Map<String, String> optionDefaults;
+  final String? pricingMode;
+  final double? pricingWastePct;
+  final bool? pricingUseItemOwnSpecs;
+  final bool? pricingIncludeGlass;
+  final bool? pricingIncludeHw;
+  final String? qtMode;
+  final bool? qtIncludeImages;
+  final bool? qtVatEnabled;
+  final String? qtPaymentTerms;
+  final String? qtLeadTime;
+  final String? qtWarranty;
+
+  const ShopSelectionDefaults({
+    this.brandAluThicknesses = const {},
+    this.brandAluColors = const {},
+    this.brandGlassTypes = const {},
+    this.brandGlassThicknesses = const {},
+    this.optionDefaults = const {},
+    this.pricingMode,
+    this.pricingWastePct,
+    this.pricingUseItemOwnSpecs,
+    this.pricingIncludeGlass,
+    this.pricingIncludeHw,
+    this.qtMode,
+    this.qtIncludeImages,
+    this.qtVatEnabled,
+    this.qtPaymentTerms,
+    this.qtLeadTime,
+    this.qtWarranty,
+  });
+
+  ShopSelectionDefaults copyWith({
+    Map<String, String>? brandAluThicknesses,
+    Map<String, String>? brandAluColors,
+    Map<String, String>? brandGlassTypes,
+    Map<String, String>? brandGlassThicknesses,
+    Map<String, String>? optionDefaults,
+    String? pricingMode,
+    double? pricingWastePct,
+    bool? pricingUseItemOwnSpecs,
+    bool? pricingIncludeGlass,
+    bool? pricingIncludeHw,
+    String? qtMode,
+    bool? qtIncludeImages,
+    bool? qtVatEnabled,
+    String? qtPaymentTerms,
+    String? qtLeadTime,
+    String? qtWarranty,
+  }) =>
+      ShopSelectionDefaults(
+        brandAluThicknesses: brandAluThicknesses ?? this.brandAluThicknesses,
+        brandAluColors: brandAluColors ?? this.brandAluColors,
+        brandGlassTypes: brandGlassTypes ?? this.brandGlassTypes,
+        brandGlassThicknesses:
+            brandGlassThicknesses ?? this.brandGlassThicknesses,
+        optionDefaults: optionDefaults ?? this.optionDefaults,
+        pricingMode: pricingMode ?? this.pricingMode,
+        pricingWastePct: pricingWastePct ?? this.pricingWastePct,
+        pricingUseItemOwnSpecs:
+            pricingUseItemOwnSpecs ?? this.pricingUseItemOwnSpecs,
+        pricingIncludeGlass: pricingIncludeGlass ?? this.pricingIncludeGlass,
+        pricingIncludeHw: pricingIncludeHw ?? this.pricingIncludeHw,
+        qtMode: qtMode ?? this.qtMode,
+        qtIncludeImages: qtIncludeImages ?? this.qtIncludeImages,
+        qtVatEnabled: qtVatEnabled ?? this.qtVatEnabled,
+        qtPaymentTerms: qtPaymentTerms ?? this.qtPaymentTerms,
+        qtLeadTime: qtLeadTime ?? this.qtLeadTime,
+        qtWarranty: qtWarranty ?? this.qtWarranty,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'brandAluThicknesses': brandAluThicknesses,
+        'brandAluColors': brandAluColors,
+        'brandGlassTypes': brandGlassTypes,
+        'brandGlassThicknesses': brandGlassThicknesses,
+        'optionDefaults': optionDefaults,
+        if (pricingMode != null) 'pricingMode': pricingMode,
+        if (pricingWastePct != null) 'pricingWastePct': pricingWastePct,
+        if (pricingUseItemOwnSpecs != null)
+          'pricingUseItemOwnSpecs': pricingUseItemOwnSpecs,
+        if (pricingIncludeGlass != null)
+          'pricingIncludeGlass': pricingIncludeGlass,
+        if (pricingIncludeHw != null) 'pricingIncludeHw': pricingIncludeHw,
+        if (qtMode != null) 'qtMode': qtMode,
+        if (qtIncludeImages != null) 'qtIncludeImages': qtIncludeImages,
+        if (qtVatEnabled != null) 'qtVatEnabled': qtVatEnabled,
+        if (qtPaymentTerms != null) 'qtPaymentTerms': qtPaymentTerms,
+        if (qtLeadTime != null) 'qtLeadTime': qtLeadTime,
+        if (qtWarranty != null) 'qtWarranty': qtWarranty,
+      };
+
+  factory ShopSelectionDefaults.fromJson(Map<String, dynamic> j) {
+    Map<String, String> mapOf(Object? raw) {
+      if (raw is Map) {
+        return raw.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+      }
+      return const {};
+    }
+
+    return ShopSelectionDefaults(
+      brandAluThicknesses: mapOf(j['brandAluThicknesses']),
+      brandAluColors: mapOf(j['brandAluColors']),
+      brandGlassTypes: mapOf(j['brandGlassTypes']),
+      brandGlassThicknesses: mapOf(j['brandGlassThicknesses']),
+      optionDefaults: mapOf(j['optionDefaults']),
+      pricingMode: j['pricingMode'] as String?,
+      pricingWastePct: (j['pricingWastePct'] as num?)?.toDouble(),
+      pricingUseItemOwnSpecs: j['pricingUseItemOwnSpecs'] as bool?,
+      pricingIncludeGlass: j['pricingIncludeGlass'] as bool?,
+      pricingIncludeHw: j['pricingIncludeHw'] as bool?,
+      qtMode: j['qtMode'] as String?,
+      qtIncludeImages: j['qtIncludeImages'] as bool?,
+      qtVatEnabled: j['qtVatEnabled'] as bool?,
+      qtPaymentTerms: j['qtPaymentTerms'] as String?,
+      qtLeadTime: j['qtLeadTime'] as String?,
+      qtWarranty: j['qtWarranty'] as String?,
+    );
+  }
+}
+
+/// User-edited formula override for any built-in pattern (allows editing cuts,
+/// glass formulas, hardware, or clearing all aluminum cuts to 0 bars, and
+/// resetting back to factory default at any time).
+class PatternFormulaOverride {
+  final String patternId;
+  final VerifiedFormulaTable formulaTable;
+  final DateTime updatedAt;
+
+  const PatternFormulaOverride({
+    required this.patternId,
+    required this.formulaTable,
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'patternId': patternId,
+        'formulaTable': formulaTable.toJson(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory PatternFormulaOverride.fromJson(Map<String, dynamic> j) =>
+      PatternFormulaOverride(
+        patternId: j['patternId'] as String,
+        formulaTable: VerifiedFormulaTable.fromJson(
+          j['formulaTable'] as Map<String, dynamic>,
+        ),
+        updatedAt: j['updatedAt'] != null
+            ? DateTime.parse(j['updatedAt'] as String)
+            : DateTime.now(),
       );
 }

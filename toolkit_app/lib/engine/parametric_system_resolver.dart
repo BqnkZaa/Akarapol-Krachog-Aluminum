@@ -276,7 +276,15 @@ class ParametricSystemResolver {
     required Map<String, String> selectedOptions,
     double? dripTrayLengthMm,
     required SeedRepository seed,
+    bool ignoreUserOverride = false,
   }) {
+    if (!ignoreUserOverride) {
+      final userOverride = seed.getFormulaOverride(pattern.id);
+      if (userOverride != null) {
+        return userOverride.formulaTable;
+      }
+    }
+
     // 1. Category 4 Parametric Folding Family (136 active cards)
     if (pattern.foldingFamily != null) {
       final foldTable = _resolveFoldingTable(pattern, selectedOptions, seed);
@@ -295,6 +303,14 @@ class ParametricSystemResolver {
         glasses: foldTable.glasses,
         hardware: foldHw,
       );
+    }
+
+    // 1B. Category 5 Shower (4 patterns) & Frameless Door (25 patterns) — VVP / RP
+    if (pattern.baseFormulaKey.startsWith('c5_shw:')) {
+      return _resolveShowerTable(pattern, selectedOptions);
+    }
+    if (pattern.baseFormulaKey.startsWith('c5_fl:')) {
+      return _resolveFramelessDoorTable(pattern, selectedOptions);
     }
 
     // 2. Determine Base Key (accounting for direct variant tables in seed)
@@ -2715,52 +2731,56 @@ class ParametricSystemResolver {
     );
   }
 
-  /// Authentic ALUMET Smart X Bi-Folding Hardware (Smart X 2026 Catalog p. 50 & Price List 030368).
+  /// Authentic ALUMET Smart X Bi-Folding Hardware (ALUMET Hub 2026 Official Sheets: 3-3-0, 4-3-1, 4-4-0, 5-5-0, 6-3-3, 8-4-4).
   static List<HardwareItemSpec> _buildAlumetFoldingHardware(int n, int l, int r) {
-    int countA = 0; // Even-side terminal carriers (AKL-SMBF019 / AKL-SMBF020)
-    int countB = 0; // Intermediate / odd-side carriers (AKL-SMBF001 / AKL-SMBF002)
+    int countEvenCarriers = 0; // Even-side carriers (AKL-SMBF019 / AKL-SMBF020)
+    int countOddCarriers = 0; // Odd-side carriers (AKL-SMBF001 / AKL-SMBF002)
+    int oddSidesCount = 0;
     for (final s in [l, r]) {
-      if (s >= 2) {
-        if (s % 2 == 0) {
-          countA += 1;
-          countB += (s ~/ 2) - 1;
-        } else {
-          countB += (s ~/ 2);
-        }
+      if (s <= 0) continue;
+      if (s % 2 == 0) {
+        countEvenCarriers += s ~/ 2;
+      } else {
+        oddSidesCount += 1;
+        countOddCarriers += s ~/ 2;
       }
     }
     final carrierPairs = (l ~/ 2) + (r ~/ 2);
     final cPairs = carrierPairs > 0 ? carrierPairs : 1;
-    final hasOddLeaf = (l % 2 == 1) || (r % 2 == 1);
-    final hasTwoOddLeaves = (l % 2 == 1) && (r % 2 == 1);
+    final hasOddLeaf = oddSidesCount > 0;
+    final hasTwoOddLeaves = oddSidesCount == 2;
+    final cdqQty = carrierPairs + oddSidesCount;
+    final safeCdq = cdqQty > 0 ? cdqQty : 1;
+    final duckHandleQty =
+        (carrierPairs + (hasTwoOddLeaves ? 1 : 0)).clamp(1, 99);
 
     final hw = <HardwareItemSpec>[];
-    if (countA > 0) {
+    if (countEvenCarriers > 0) {
       hw.add(HardwareItemSpec(
         code: 'AKL-SMBF019',
         name: 'ล้อบนบานเฟี้ยมคู่ ALUMET',
-        qtyText: '$countA ชิ้น',
+        qtyText: '$countEvenCarriers ชิ้น',
       ));
     }
-    if (countB > 0) {
+    if (countOddCarriers > 0) {
       hw.add(HardwareItemSpec(
         code: 'AKL-SMBF001',
         name: 'บานพับล้อบนบานเฟี้ยม ALUMET',
-        qtyText: '$countB ชิ้น',
+        qtyText: '$countOddCarriers ชิ้น',
       ));
     }
-    if (countA > 0) {
+    if (countEvenCarriers > 0) {
       hw.add(HardwareItemSpec(
         code: 'AKL-SMBF020',
         name: 'ไกด์ล่างบานเฟี้ยมคู่ ALUMET',
-        qtyText: '$countA ชิ้น',
+        qtyText: '$countEvenCarriers ชิ้น',
       ));
     }
-    if (countB > 0) {
+    if (countOddCarriers > 0) {
       hw.add(HardwareItemSpec(
         code: 'AKL-SMBF002',
         name: 'บานพับไกด์ล่างบานเฟี้ยม ALUMET',
-        qtyText: '$countB ชิ้น',
+        qtyText: '$countOddCarriers ชิ้น',
       ));
     }
     hw.addAll([
@@ -2772,54 +2792,61 @@ class ParametricSystemResolver {
       HardwareItemSpec(
         code: 'AKL-SMBF004',
         name: 'บานพับมือจับบานเฟี้ยม ALUMET',
-        qtyText: '${(n + 1) ~/ 2} ชิ้น',
+        qtyText: '$cPairs ชิ้น',
       ),
       HardwareItemSpec(
         code: 'AKL-SMBF005',
         name: 'CDQ 20 สองทาง ALUMET',
-        qtyText: '$cPairs ชิ้น',
+        qtyText: '$safeCdq ชิ้น',
+      ),
+      HardwareItemSpec(
+        code: 'AKL-SMBF031',
+        name: 'มือจับปากเป็ดบานเฟี้ยม ALUMET',
+        qtyText: '$duckHandleQty ชิ้น',
       ),
       HardwareItemSpec(
         code: 'AKL-SMBF030',
         name: 'ปลายกลอนบานเฟี้ยม ALUMET',
-        qtyText: '${2 * cPairs} ชิ้น',
-      ),
-      HardwareItemSpec(
-        code: 'AKL-SMBF028',
-        name: 'มือจับปากเป็ดบานเฟี้ยม ALUMET',
-        qtyText: '$cPairs ชิ้น',
+        qtyText: '${2 * safeCdq} ชิ้น',
       ),
     ]);
     if (hasOddLeaf) {
       hw.addAll([
         const HardwareItemSpec(
-          code: 'AKL-SMBF018',
-          name: 'เสื้อกุญแจ #32-85 ซิงเกิล ALUMET',
+          code: 'AKL-SMBF013',
+          name: 'ไส้กุญแจทางเดียว (37/37 มม.) ALUMET',
           qtyText: '1 ชิ้น',
         ),
         const HardwareItemSpec(
-          code: 'AKL-SMBF017',
-          name: 'ไส้กุญแจ 2 ทาง (37/37 มม.) ALUMET',
+          code: 'AKL-SMBF022',
+          name: 'เสื้อกุญแจ #32-85 มัลติพ้อยท์ล็อก ALUMET',
           qtyText: '1 ชิ้น',
         ),
         const HardwareItemSpec(
           code: 'AKL-SMBF023',
           name: 'มือจับประตูบานเฟี้ยม ALUMET',
-          qtyText: '1 ชิ้น',
-        ),
-        const HardwareItemSpec(
-          code: 'AKL-SMBF029',
-          name: 'เพลทรับกลอนประตูบานเฟี้ยม ALUMET',
-          qtyText: '1 ชิ้น',
+          qtyText: '1 ชุด',
         ),
         if (hasTwoOddLeaves)
           const HardwareItemSpec(
             code: 'AKL-SMBF024',
             name: 'มือจับประตูดัมมี่บานเฟี้ยม ALUMET',
-            qtyText: '1 ชิ้น',
+            qtyText: '1 ชุด',
           ),
+        const HardwareItemSpec(
+          code: 'AKL-SMBF029',
+          name: 'เพลทรับกลอนประตูบานเฟี้ยม ALUMET',
+          qtyText: '1 ชิ้น',
+        ),
       ]);
     }
+    hw.add(
+      const HardwareItemSpec(
+        code: 'AKL-SMBF021',
+        name: 'ยางลูกโป่งบานเฟี้ยม (100 เมตร) ALUMET',
+        qtyText: '1 ม้วน',
+      ),
+    );
     return hw;
   }
 
@@ -3052,47 +3079,610 @@ class ParametricSystemResolver {
 
     final hardware = <HardwareItemSpec>[
       HardwareItemSpec(
-        code: isSoftClose ? 'SMX-HANG-SC' : 'SMX-HANG-STD',
+        code: isSoftClose ? 'AKL-MTSL062' : 'SMX-HANG-STD',
         name: isSoftClose
-            ? 'ชุดล้อรางแขวน Pro Smart X + ซอฟท์โค้ท (Soft Close 120 กก.)'
+            ? 'ล้อรางแขวน Soft Close (Set) ALUMET'
             : 'ชุดล้อรางแขวน Pro Smart X มาตรฐาน (120 กก.)',
         qtyText: '$leaves ชุด',
       ),
-      HardwareItemSpec(
-        code: 'SMX-HANG-STOP',
-        name: 'ตัวหยุดบานรางแขวน Pro Smart X (Stopper)',
-        qtyText: '${2 * leaves} ตัว',
+      const HardwareItemSpec(
+        code: 'AHD-ICSL050',
+        name: 'รับล็อกบานเลื่อน (HD-1127) ALUMET',
+        qtyText: '2 ชิ้น',
       ),
       HardwareItemSpec(
-        code: 'SMX-HANG-GUIDE',
-        name: 'ไกด์ประคองล่างกันแกว่งรางแขวน Pro Smart X',
-        qtyText: '$leaves ตัว',
+        code: 'ATP-MTSL060',
+        name: 'สปริกอสบานเลื่อนยูโร สมาร์ท เอ็กซ์ 9.8×22 มม.',
+        qtyText: '${4 * leaves} ชิ้น',
       ),
       const HardwareItemSpec(
-        code: 'AKL-MTSL025',
-        name: 'มือจับฝังล็อก+กุญแจ ALUMET',
+        code: 'ACF-MTSL041',
+        name: 'ตัว T มัลติพ้อยท์ล็อก (ยาว 23 มม.) สีดำ',
         qtyText: '1 ชิ้น',
-      ),
-      HardwareItemSpec(
-        code: 'AKL-MTSL027',
-        name: 'มือจับฝังดัมมี่ ALUMET',
-        qtyText: '${isDouble ? 3 : 1} ชิ้น',
       ),
       const HardwareItemSpec(
-        code: 'AAL-MTSL022',
-        name: 'ตัวรับกลอน 19 มม. ALUMET',
+        code: 'AAL-MTSL024',
+        name: 'ตะขอล็อกบานเลื่อน ALUMET',
+        qtyText: '2 ชิ้น',
+      ),
+      const HardwareItemSpec(
+        code: 'AKL-MTSL026',
+        name: 'มือจับฝังล็อก+ดัมมี่ ALUMET',
         qtyText: '1 ชิ้น',
+      ),
+      if (isDouble)
+        const HardwareItemSpec(
+          code: 'AKL-MTSL027',
+          name: 'มือจับฝังดัมมี่ ALUMET',
+          qtyText: '2 ชิ้น',
+        ),
+      const HardwareItemSpec(
+        code: 'AAL-EUCA034',
+        name: 'ฉากสแตนเลส 6.6 มม.',
+        qtyText: '1 แพค',
       ),
       HardwareItemSpec(
         code: 'AAL-MTSL002',
         name: 'ยางกันชนบานเลื่อน ALUMET',
         qtyText: '${2 * leaves} ชิ้น',
       ),
+      const HardwareItemSpec(
+        code: 'AKL-MTSL036',
+        name: 'สักหลาด 6×4 มม. (300 เมตร)',
+        qtyText: 'ตามหน้างาน',
+      ),
     ];
 
     return VerifiedFormulaTable(
       key: key,
       header: 'ALUMET Pro Smart X | $title',
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hardware,
+    );
+  }
+
+  /// Category 5: Shower Enclosures (4 official patterns × VVP & RP Steel Glass)
+  /// Default uses 0 aluminum bars (pure glass + hardware fittings); optional U-channel adds U-12 cuts.
+  static VerifiedFormulaTable _resolveShowerTable(
+    PatternCardDef pattern,
+    Map<String, String> opts,
+  ) {
+    final parts = pattern.baseFormulaKey.split(':'); // c5_shw:<BRAND>:<NUM2>
+    final brandKey = parts.length > 1 ? parts[1] : 'VVP';
+    final num2 = parts.length > 2 ? parts[2] : '01';
+    final isRp = brandKey == 'RP';
+    final finish = opts['shower_finish'] ?? 'ss'; // ss | black | gold
+    final useStabilizer = (opts['stabilizer_bar'] ?? 'yes') == 'yes';
+    final useUChannel = (opts['u_channel'] ?? 'clamps') == 'u_alu';
+
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hardware = <HardwareItemSpec>[];
+
+    // Helper for RP finish suffix
+    String rpFinishCode(String base) {
+      if (!isRp) return base;
+      if (finish == 'black') return '${base}B';
+      if (finish == 'gold') return '${base}G';
+      return base;
+    }
+
+    int fixedPanels = 0;
+    int clampCount = 0;
+    bool hasDoor = true;
+    bool doorGlassToGlass = false;
+
+    switch (num2) {
+      case '01': // F + D + F (3 sections)
+        fixedPanels = 2;
+        clampCount = 8;
+        doorGlassToGlass = true;
+        glasses.addAll(const [
+          GlassPieceSpec(
+            name: 'กระจกบานเปิดกลาง (เทมเปอร์)',
+            qty: 1,
+            qtyText: '1 แผ่น',
+            siteCut: false,
+            wFormula: 'W / 3 - 8',
+            hFormula: 'H - 12',
+          ),
+          GlassPieceSpec(
+            name: 'กระจกบานติดตายซ้าย-ขวา (เทมเปอร์)',
+            qty: 2,
+            qtyText: '2 แผ่น',
+            siteCut: false,
+            wFormula: 'W / 3 - 4',
+            hFormula: 'H - 4',
+          ),
+        ]);
+        if (useUChannel) {
+          cuts.addAll(const [
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดกระจกติดตาย (แนวตั้งผนัง)',
+              stockMm: 6000,
+              qty: 2,
+              qtyText: '2 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'H',
+            ),
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดกระจกติดตาย (แนวนอนพื้น)',
+              stockMm: 6000,
+              qty: 2,
+              qtyText: '2 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'W / 3',
+            ),
+          ]);
+        }
+        break;
+      case '02': // Walk-in single fixed panel
+        hasDoor = false;
+        fixedPanels = 1;
+        clampCount = 5;
+        glasses.add(
+          const GlassPieceSpec(
+            name: 'กระจกติดตายกั้นอาบน้ำ Walk-in (เทมเปอร์)',
+            qty: 1,
+            qtyText: '1 แผ่น',
+            siteCut: false,
+            wFormula: 'W - 4',
+            hFormula: 'H - 4',
+          ),
+        );
+        if (useUChannel) {
+          cuts.addAll(const [
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดผนัง (แนวตั้ง)',
+              stockMm: 6000,
+              qty: 1,
+              qtyText: '1 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'H',
+            ),
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดพื้น (แนวนอน)',
+              stockMm: 6000,
+              qty: 1,
+              qtyText: '1 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'W',
+            ),
+          ]);
+        }
+        break;
+      case '03': // D + F (2 sections)
+        fixedPanels = 1;
+        clampCount = 4;
+        doorGlassToGlass = false;
+        glasses.addAll(const [
+          GlassPieceSpec(
+            name: 'กระจกบานเปิดห้องอาบน้ำ (เทมเปอร์)',
+            qty: 1,
+            qtyText: '1 แผ่น',
+            siteCut: false,
+            wFormula: 'W / 2 - 8',
+            hFormula: 'H - 12',
+          ),
+          GlassPieceSpec(
+            name: 'กระจกบานติดตายข้าง (เทมเปอร์)',
+            qty: 1,
+            qtyText: '1 แผ่น',
+            siteCut: false,
+            wFormula: 'W / 2 - 4',
+            hFormula: 'H - 4',
+          ),
+        ]);
+        if (useUChannel) {
+          cuts.addAll(const [
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดผนังบานติดตาย (แนวตั้ง)',
+              stockMm: 6000,
+              qty: 1,
+              qtyText: '1 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'H',
+            ),
+            CutPieceSpec(
+              section: 'รางอลูมิเนียมตัวยู (เสริม)',
+              code: 'U-12',
+              name: 'รางตัวยูยึดพื้นบานติดตาย (แนวนอน)',
+              stockMm: 6000,
+              qty: 1,
+              qtyText: '1 ชิ้น',
+              angle: '90° / 90°',
+              formula: 'W / 2',
+            ),
+          ]);
+        }
+        break;
+      case '04': // Single swing shower door in wall opening
+      default:
+        fixedPanels = 0;
+        clampCount = 0;
+        doorGlassToGlass = false;
+        glasses.add(
+          const GlassPieceSpec(
+            name: 'กระจกประตูห้องอาบน้ำบานเปิดเดี่ยว (เทมเปอร์)',
+            qty: 1,
+            qtyText: '1 แผ่น',
+            siteCut: false,
+            wFormula: 'W - 10',
+            hFormula: 'H - 12',
+          ),
+        );
+        break;
+    }
+
+    // Authentic VVP / RP Steel Glass Shower Hardware
+    if (hasDoor) {
+      if (isRp) {
+        final hingeCode = doorGlassToGlass
+            ? rpFinishCode('RP-304')
+            : rpFinishCode('RP-303');
+        final hingeName = doorGlassToGlass
+            ? 'บานพับกระจกยึดกระจก 180° $hingeCode'
+            : 'บานพับยึดผนัง-กระจก $hingeCode';
+        hardware.add(
+          HardwareItemSpec(code: hingeCode, name: hingeName, qtyText: '2 ชิ้น'),
+        );
+        final handleCode = finish == 'black'
+            ? 'RPS-502B'
+            : (finish == 'gold' ? 'RPS-503G' : 'RPS-501');
+        hardware.add(
+          HardwareItemSpec(
+            code: handleCode,
+            name: 'มือจับแขวนผ้าประตูห้องน้ำ RP ($handleCode)',
+            qtyText: '1 ชุด',
+          ),
+        );
+        hardware.addAll(const [
+          HardwareItemSpec(
+            code: 'SS-01',
+            name: 'ยางกันน้ำขอบประตู (เส้นตรง) SS-01',
+            qtyText: '1 เส้น',
+          ),
+          HardwareItemSpec(
+            code: 'SS-07',
+            name: 'ยางกันน้ำล่างประตู (กวาดพื้น) SS-07',
+            qtyText: '1 เส้น',
+          ),
+          HardwareItemSpec(
+            code: 'SS-50',
+            name: 'แถบยางแม่เหล็กกันน้ำ 180° SS-50',
+            qtyText: '1 คู่',
+          ),
+        ]);
+      } else {
+        final hingeCode = doorGlassToGlass ? 'SW 304' : 'SW 303';
+        final hingeName = doorGlassToGlass
+            ? 'บานพับชาวเวอร์คู่ กระจก-กระจก 180° VVP SW 304'
+            : 'บานพับชาวเวอร์เดี่ยว ผนัง-กระจก VVP SW 303';
+        hardware.addAll([
+          HardwareItemSpec(code: hingeCode, name: hingeName, qtyText: '2 ชิ้น'),
+          const HardwareItemSpec(
+            code: 'SK-1',
+            name: 'ปุ่มจับประตูห้องน้ำสเตนเลส VVP SK-1',
+            qtyText: '1 ชิ้น',
+          ),
+          const HardwareItemSpec(
+            code: 'VVP-SEAL',
+            name: 'คิ้วกันน้ำ / ยางแม่เหล็กห้องน้ำ VVP (2.2 ม.)',
+            qtyText: '2 เส้น',
+          ),
+        ]);
+      }
+    }
+
+    if (clampCount > 0 && !useUChannel) {
+      hardware.add(
+        HardwareItemSpec(
+          code: isRp ? 'BL-201' : 'GC-502',
+          name: isRp
+              ? 'ตัวหนีบกระจกผนัง-กระจก RP BL-201'
+              : 'ตัวหนีบกระจกห้องน้ำ ผนัง-กระจก VVP GC-502',
+          qtyText: '$clampCount ชิ้น',
+        ),
+      );
+    }
+
+    if (useStabilizer && fixedPanels > 0) {
+      if (isRp) {
+        final wallBracket = finish == 'black'
+            ? 'BL-900B'
+            : (finish == 'gold' ? 'BL-900G' : 'BL-101');
+        hardware.addAll([
+          HardwareItemSpec(
+            code: wallBracket,
+            name: 'ร้อยท่อยึดผนัง RP $wallBracket (แป๊ป 19 มม.)',
+            qtyText: '${fixedPanels >= 2 ? 2 : 1} ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'BL-102',
+            name: 'ร้อยท่อจับกระจกสเตนเลส RP BL-102',
+            qtyText: '$fixedPanels ชิ้น',
+          ),
+          const HardwareItemSpec(
+            code: 'BL-02',
+            name: 'แป๊ปกลมสเตนเลสกันแกว่ง 19 มม. RP BL-02',
+            qtyText: '1 เส้น',
+          ),
+        ]);
+      } else {
+        hardware.addAll([
+          HardwareItemSpec(
+            code: 'SB 900',
+            name: 'ตัวยึดท่อกันแกว่งผนังทรงกลม VVP SB 900',
+            qtyText: '${fixedPanels >= 2 ? 2 : 1} ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'SB 902',
+            name: 'ตัวยึดท่อกันแกว่งจับกระจก VVP SB 902',
+            qtyText: '$fixedPanels ชิ้น',
+          ),
+        ]);
+      }
+    }
+
+    return VerifiedFormulaTable(
+      key: pattern.baseFormulaKey,
+      header: '${isRp ? 'RP Steel Glass' : 'VVP'} | ${pattern.title}',
+      cuts: cuts,
+      glasses: glasses,
+      hardware: hardware,
+    );
+  }
+
+  /// Category 5: Frameless Glass Doors & Partitions (All 25 official customer album patterns)
+  static VerifiedFormulaTable _resolveFramelessDoorTable(
+    PatternCardDef pattern,
+    Map<String, String> opts,
+  ) {
+    final parts = pattern.baseFormulaKey.split(':'); // c5_fl:<BRAND>:<NUM2>
+    final brandKey = parts.length > 1 ? parts[1] : 'VVP';
+    final num2 = parts.length > 2 ? parts[2] : '17';
+    final isRp = brandKey == 'RP';
+    final closerModel = opts['frameless_closer'] ?? 'FC 34';
+    final isOverheadCloser = closerModel == 'OC 35';
+    final useUChannel = (opts['u_channel'] ?? 'clamps') == 'u_alu';
+
+    // Exact topology specification for all 25 album patterns
+    int doors = 1;
+    int fixedPanels = 0;
+    int totalCols = 1;
+    bool hasTransom = false;
+    int ft30Qty = 0;
+    int ft40Qty = 0;
+    int ft41Qty = 0;
+    int ft42Qty = 0;
+    int extraClamps = 0;
+
+    switch (num2) {
+      case '01': // 2F + D/Top (3 cols)
+        doors = 1; fixedPanels = 2; totalCols = 3; hasTransom = true; ft30Qty = 1; ft40Qty = 1; break;
+      case '02': // DD + Top
+        doors = 2; fixedPanels = 0; totalCols = 2; hasTransom = true; ft30Qty = 2; break;
+      case '03': // DD
+      case '04': // DD alt
+        doors = 2; fixedPanels = 0; totalCols = 2; break;
+      case '05': // F + D/Top + F (FT40 + FT42)
+        doors = 1; fixedPanels = 2; totalCols = 3; hasTransom = true; ft40Qty = 1; ft42Qty = 1; break;
+      case '06': // F + D/Top + F (FT41 fin + FT42)
+        doors = 1; fixedPanels = 2; totalCols = 3; hasTransom = true; ft41Qty = 1; ft42Qty = 1; break;
+      case '07': // F + D + F
+      case '09': // F + D + F right
+        doors = 1; fixedPanels = 2; totalCols = 3; break;
+      case '08': // F + D + F with side clamps
+        doors = 1; fixedPanels = 2; totalCols = 3; extraClamps = 4; break;
+      case '10': // D/Top + F (FT40)
+        doors = 1; fixedPanels = 1; totalCols = 2; hasTransom = true; ft40Qty = 1; break;
+      case '11': // D/Top + F (FT30 + FT40)
+        doors = 1; fixedPanels = 1; totalCols = 2; hasTransom = true; ft30Qty = 1; ft40Qty = 1; break;
+      case '12': // 2F + D/Top + 2F (5 cols)
+        doors = 1; fixedPanels = 4; totalCols = 5; hasTransom = true; ft40Qty = 1; ft42Qty = 1; extraClamps = 4; break;
+      case '13': // D + F
+      case '14': // D + F alt
+        doors = 1; fixedPanels = 1; totalCols = 2; break;
+      case '15': // D + Top
+        doors = 1; fixedPanels = 0; totalCols = 1; hasTransom = true; ft30Qty = 1; break;
+      case '16': // D + Top + FT42
+        doors = 1; fixedPanels = 0; totalCols = 1; hasTransom = true; ft30Qty = 1; ft42Qty = 1; break;
+      case '17': // D single left
+      case '18': // D single right
+        doors = 1; fixedPanels = 0; totalCols = 1; break;
+      case '19': // 6F fixed glass wall partition
+        doors = 0; fixedPanels = 6; totalCols = 6; extraClamps = 12; break;
+      case '20': // F + D + 5F partition (7 cols)
+        doors = 1; fixedPanels = 6; totalCols = 7; extraClamps = 12; break;
+      case '21': // F + DD/Top + F (FT40 x2)
+        doors = 2; fixedPanels = 2; totalCols = 4; hasTransom = true; ft40Qty = 2; break;
+      case '22': // F + DD/Top + F (FT41 x2)
+        doors = 2; fixedPanels = 2; totalCols = 4; hasTransom = true; ft41Qty = 2; break;
+      case '23': // F + DD + F
+        doors = 2; fixedPanels = 2; totalCols = 4; break;
+      case '24': // F + DD + F with side clamps
+        doors = 2; fixedPanels = 2; totalCols = 4; extraClamps = 4; break;
+      case '25': // DD + Top (FT30 x2 + FT42 x2)
+        doors = 2; fixedPanels = 0; totalCols = 2; hasTransom = true; ft30Qty = 2; ft42Qty = 2; break;
+    }
+
+    final cuts = <CutPieceSpec>[];
+    final glasses = <GlassPieceSpec>[];
+    final hardware = <HardwareItemSpec>[];
+
+    final doorHExpr = hasTransom ? 'H1 - 12' : 'H - 12';
+    final doorWExpr = totalCols == 1
+        ? 'W - 6'
+        : (totalCols == 2 && doors == 2
+            ? '(W - 10) / 2'
+            : 'W / $totalCols - 6');
+
+    if (doors > 0) {
+      glasses.add(
+        GlassPieceSpec(
+          name: doors == 2
+              ? 'กระจกประตูบานเปลือยเปิดคู่ (เทมเปอร์)'
+              : 'กระจกประตูบานเปลือยเดี่ยว (เทมเปอร์)',
+          qty: doors,
+          qtyText: '$doors แผ่น',
+          siteCut: false,
+          wFormula: doorWExpr,
+          hFormula: doorHExpr,
+        ),
+      );
+    }
+
+    if (hasTransom) {
+      final transomWExpr = totalCols == doors
+          ? 'W - 4'
+          : (doors == 2 ? 'W * 2 / $totalCols - 4' : 'W / $totalCols - 4');
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกช่องแสงบนเหนือประตู (เทมเปอร์)',
+          qty: 1,
+          qtyText: '1 แผ่น',
+          siteCut: false,
+          wFormula: transomWExpr,
+          hFormula: 'H - H1 - 4',
+        ),
+      );
+    }
+
+    if (fixedPanels > 0) {
+      glasses.add(
+        GlassPieceSpec(
+          name: 'กระจกบานติดตายข้าง / ผนังเปลือย (เทมเปอร์)',
+          qty: fixedPanels,
+          qtyText: '$fixedPanels แผ่น',
+          siteCut: false,
+          wFormula: 'W / $totalCols - 4',
+          hFormula: 'H - 4',
+        ),
+      );
+      if (useUChannel) {
+        cuts.add(
+          CutPieceSpec(
+            section: 'รางอลูมิเนียมตัวยู (เสริม)',
+            code: 'U-12',
+            name: 'รางตัวยูยึดกระจกติดตายบน-ล่าง',
+            stockMm: 6000,
+            qty: 2,
+            qtyText: '2 ชิ้น',
+            angle: '90° / 90°',
+            formula: 'W * $fixedPanels / $totalCols',
+          ),
+        );
+      }
+    }
+
+    // Authentic Hardware BOM (100% matched in VVP / RP catalog_prices_seed.json)
+    if (doors > 0) {
+      final closerName = closerModel == 'FC 49'
+          ? 'โช้คฝังพื้น VVP FC 49 Heavy Duty'
+          : (closerModel == 'OC 35'
+              ? 'โช้คบนฝังในวงกบ VVP OC 35'
+              : 'โช้คฝังพื้น VVP FC 34');
+      hardware.addAll([
+        HardwareItemSpec(
+          code: closerModel,
+          name: closerName,
+          qtyText: '$doors ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'FT 10',
+          name: 'ตัวหนีบล่าง VVP FT 10 (Bottom Patch)',
+          qtyText: '$doors ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: isOverheadCloser ? 'FT 22' : 'FT 20',
+          name: isOverheadCloser
+              ? 'ตัวหนีบโช้คบน VVP FT 22 (Top Patch for OC)'
+              : 'ตัวหนีบบน VVP FT 20 (Top Patch)',
+          qtyText: '$doors ชิ้น',
+        ),
+        if (!hasTransom && !isOverheadCloser)
+          HardwareItemSpec(
+            code: 'AT 190',
+            name: 'แกนหมุนบน VVP AT 190 (Top Pivot)',
+            qtyText: '$doors ชิ้น',
+          ),
+        HardwareItemSpec(
+          code: 'FL 50',
+          name: 'กุญแจล็อคประตูกระจกกับพื้น VVP FL 50',
+          qtyText: '$doors ชุด',
+        ),
+        HardwareItemSpec(
+          code: isRp ? 'RPS-511' : 'VVP-H600',
+          name: isRp
+              ? 'มือจับประตูสเตนเลสตัว H ยาว RP RPS-511'
+              : 'มือจับสเตนเลสตัว H บานเปลือย VVP (60 ซม.)',
+          qtyText: '$doors คู่',
+        ),
+      ]);
+    }
+
+    if (ft30Qty > 0) {
+      hardware.add(
+        HardwareItemSpec(
+          code: 'FT 30',
+          name: 'ตัวหนีบช่องแสงบน VVP FT 30 (Over-panel Pivot)',
+          qtyText: '$ft30Qty ชิ้น',
+        ),
+      );
+    }
+    if (ft40Qty > 0) {
+      hardware.add(
+        HardwareItemSpec(
+          code: 'FT 40',
+          name: 'ตัวหนีบช่องแสงบนและข้างมีแกนหมุน VVP FT 40',
+          qtyText: '$ft40Qty ชิ้น',
+        ),
+      );
+    }
+    if (ft41Qty > 0) {
+      hardware.add(
+        HardwareItemSpec(
+          code: 'FT 41',
+          name: 'ตัวหนีบช่องแสงบนและข้างมีครีบ VVP FT 41',
+          qtyText: '$ft41Qty ชิ้น',
+        ),
+      );
+    }
+    if (ft42Qty > 0) {
+      hardware.add(
+        HardwareItemSpec(
+          code: 'FT 42',
+          name: 'ตัวหนีบช่องแสงบนและข้างเล็ก VVP FT 42',
+          qtyText: '$ft42Qty ชิ้น',
+        ),
+      );
+    }
+    if (extraClamps > 0 && !useUChannel) {
+      hardware.add(
+        HardwareItemSpec(
+          code: isRp ? 'BL-201' : 'GC-502',
+          name: isRp
+              ? 'ตัวหนีบยึดกระจกติดตาย RP BL-201'
+              : 'ตัวหนีบยึดกระจกติดตาย VVP GC-502',
+          qtyText: '$extraClamps ชิ้น',
+        ),
+      );
+    }
+
+    return VerifiedFormulaTable(
+      key: pattern.baseFormulaKey,
+      header: '${isRp ? 'RP Steel Glass' : 'VVP'} | ${pattern.title}',
       cuts: cuts,
       glasses: glasses,
       hardware: hardware,
