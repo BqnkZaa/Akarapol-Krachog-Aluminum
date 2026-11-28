@@ -270,7 +270,7 @@ void main() {
         expect(codesTop.contains('SS-X113'), isTrue);
         expect(codesTop.contains('SS-X209'), isTrue);
         expect(codesTop.contains('SS-X210'), isTrue);
-        expect(outTop.hardware.any((h) => h.code == 'SMX-HANG-STD'), isTrue);
+        expect(outTop.hardware.any((h) => h.code == 'AKL-MTSL062'), isTrue);
 
         // Verify 100% matched non-zero pricing (Aluminum + Glass + Hardware)
         final price = PricingEngine.evaluate(

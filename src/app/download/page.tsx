@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.16/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.17/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,7 +51,7 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.16 (VIP Offline)",
+      version: "0.1.17 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
       sizeMb: "46.00",
       sha256: "-",
@@ -253,10 +253,10 @@ export default async function DownloadLandingPage() {
                   </div>
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      6,666
+                      8,502
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      ฐานข้อมูลราคา 8 แบรนด์ + ALUMET 27 รหัสสี
+                      ฐานข้อมูลราคา 8 แบรนด์ · ALUMET 203 รหัส × 27 สี
                     </p>
                   </div>
                   <div>

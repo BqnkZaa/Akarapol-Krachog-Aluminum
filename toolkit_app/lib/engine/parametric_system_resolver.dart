@@ -1311,8 +1311,8 @@ class ParametricSystemResolver {
       for (int i = 0; i < hardware.length; i++) {
         if (hardware[i].name.contains('ล้อ')) {
           hardware[i] = HardwareItemSpec(
-            code: 'SS-0105',
-            name: 'ล้อตลาด Smart X',
+            code: 'AAL-MTSL040',
+            name: 'ล้อบานเลื่อนตลาด 1622 (30 กก./คู่) ALUMET',
             qtyText: hardware[i].qtyText,
           );
         }
@@ -3118,10 +3118,10 @@ class ParametricSystemResolver {
 
     final hardware = <HardwareItemSpec>[
       HardwareItemSpec(
-        code: isSoftClose ? 'AKL-MTSL062' : 'SMX-HANG-STD',
+        code: 'AKL-MTSL062',
         name: isSoftClose
             ? 'ล้อรางแขวน Soft Close (Set) ALUMET'
-            : 'ชุดล้อรางแขวน Pro Smart X มาตรฐาน (120 กก.)',
+            : 'ชุดล้อรางแขวน Smart X มาตรฐาน ALUMET (120 กก.)',
         qtyText: '$leaves ชุด',
       ),
       const HardwareItemSpec(
@@ -4933,11 +4933,47 @@ class ParametricSystemResolver {
       var name = h.name.trim();
       var qtyText = h.qtyText.trim();
 
-      // Upgrade placeholder non-catalog ICONIQ codes to official ALUMET codes
+      // Upgrade placeholder & legacy non-ALUMET HD-* codes to official ALUMET 2026 codes
       if (code == 'ICONIQ_LOCKING_PINS') {
         code = 'ACF-EUCA045';
       } else if (code == 'ICONIQ_U_RECEIVERS') {
         code = 'ACF-EUCA047';
+      } else if (isAlumet) {
+        switch (code.toUpperCase()) {
+          case 'HD-200A':
+            code = 'AAL-EUCA034';
+            final pcMatch = RegExp(r'^(\d+)').firstMatch(qtyText);
+            final pcs = pcMatch != null ? int.tryParse(pcMatch.group(1)!) : null;
+            name = pcs != null
+                ? 'ฉากสแตนเลส 6.6 มม. ALUMET (ใช้ $pcs ตัว · แพค 100 ชิ้น)'
+                : 'ฉากสแตนเลส 6.6 มม. ALUMET (100 ชิ้น/แพค)';
+            qtyText = '1 แพค';
+            break;
+          case 'HD-214':
+            code = 'AHD-ICSL047';
+            name = 'สปิก็อตบานเลื่อนยูโร 10.5×24 ไอคอนิค';
+            break;
+          case 'HD-1015':
+            code = 'AHD-MTSL048';
+            name = 'ยางกันชนบานเลื่อน ไอคอนิค';
+            break;
+          case 'HD-1021':
+            code = 'AAL-MTSL007';
+            name = 'ฝาปิดน้ำออก ALUMET';
+            break;
+          case 'HD-1025A':
+            code = 'AAL-MTSL006';
+            name = 'ฝาปิดน้ำเข้า ALUMET';
+            break;
+          case 'HD-1030':
+            code = 'AHD-ICSL051';
+            name = 'ฝาปิดเสากุญแจบานเลื่อน ไอคอนิค (HD-1034)';
+            break;
+          case 'HD-1035A':
+            code = 'AHD-MTSL049';
+            name = 'ยางกันลม (HD1035A) ALUMET';
+            break;
+        }
       }
 
       if (code.isEmpty) {

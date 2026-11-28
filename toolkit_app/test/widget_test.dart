@@ -442,8 +442,15 @@ void main() {
     expect(reg.resolveProfileAsset(code: '801-03', brandKey: 'ALUMET'), isNull);
     expect(reg.resolveProfileAsset(code: 'ฉากข้อต่อ', brandKey: 'ALUMET'), isNull);
     expect(reg.resolveProfileAsset(code: 'A1-024-17', brandKey: 'ALUFRAME'), isNull);
-    expect(reg.resolveProfileAsset(code: 'SB-0114', brandKey: 'ALUMET'), isNull);
-    expect(reg.resolveProfileAsset(code: 'SS-X212', brandKey: 'ALUMET'), isNull);
+    expect(reg.resolveProfileAsset(code: 'SS-X999', brandKey: 'ALUMET'), isNull);
+    assertExistingFile(
+      reg.resolveProfileAsset(code: 'SB-0114', brandKey: 'ALUMET'),
+      'alumet_2026_pdf:SB-0114',
+    );
+    assertExistingFile(
+      reg.resolveProfileAsset(code: 'SS-X212', brandKey: 'ALUMET'),
+      'alumet_2026_pdf:SS-X212',
+    );
 
     String familyOf(String brandId) {
       if (brandId == 'market') return 'market';

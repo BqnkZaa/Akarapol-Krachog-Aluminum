@@ -62,6 +62,9 @@ class AluproImageRegistry {
     fillMap(_brands, json['brands']);
     fillMap(_patterns, json['patterns']);
     fillMap(_profiles, json['profiles']);
+    for (final e in _profiles.entries.toList()) {
+      _profiles.putIfAbsent(e.key.toUpperCase(), () => e.value);
+    }
     fillMap(_hardwareCodes, json['hardwareCodes']);
 
     _hardwareKeywords.clear();
@@ -214,6 +217,10 @@ class AluproImageRegistry {
     'A10261',
     '010009',
     '010010',
+    '2044',
+    '310004',
+    'AG659',
+    '434',
   };
 
   bool _codeMatchesBrand(String cleanCode, String? brandKey) {
