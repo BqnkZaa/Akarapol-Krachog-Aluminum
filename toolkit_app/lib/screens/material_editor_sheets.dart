@@ -1822,3 +1822,949 @@ class _HardwareItemEditorBodyState extends State<_HardwareItemEditorBody> {
     );
   }
 }
+
+// =============================================================================
+// Searchable Autocomplete Helpers & Inline Dropdown Widgets (v0.1.15)
+// Supports partial & multi-word search (no need to type full names/codes),
+// prioritizes the active brand, shows CAD/hardware photos, and still allows
+// free custom text entry.
+// =============================================================================
+
+String _normalizeCompact(String s) =>
+    s.toLowerCase().replaceAll(RegExp(r'[\s\-_/]+'), '');
+
+/// Partial / multi-token fuzzy search over deduplicated aluminum profiles.
+/// Empty or placeholder queries (`NEW-...`, `หน้าตัดเพิ่มเติม`, `ชิ้นส่วนใหม่`)
+/// return top profiles for [preferredBrand] so tapping the dropdown immediately
+/// works as a browseable dropdown list!
+List<CatalogProfileOption> searchCatalogProfiles({
+  required List<CatalogProfileOption> options,
+  required String query,
+  String? preferredBrand,
+  int limit = 12,
+}) {
+  final pref = (preferredBrand ?? '').trim().toUpperCase();
+  final raw = query.trim();
+  final isPlaceholder = raw.isEmpty ||
+      raw.toUpperCase().startsWith('NEW-') ||
+      raw == 'หน้าตัดเพิ่มเติม' ||
+      raw == 'ชิ้นส่วนใหม่';
+
+  if (isPlaceholder) {
+    final sorted = List<CatalogProfileOption>.from(options)
+      ..sort((a, b) {
+        final pa = a.brand.toUpperCase() == pref ? 0 : 1;
+        final pb = b.brand.toUpperCase() == pref ? 0 : 1;
+        if (pa != pb) return pa.compareTo(pb);
+        return a.code.compareTo(b.code);
+      });
+    return sorted.take(limit).toList();
+  }
+
+  final tokens = raw
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+  final compactQuery = _normalizeCompact(raw);
+
+  final scored = <({CatalogProfileOption opt, int score})>[];
+  for (final opt in options) {
+    final codeLower = opt.code.toLowerCase();
+    final nameLower = opt.name.toLowerCase();
+    final brandLower = opt.brand.toLowerCase();
+    final hay = '$codeLower $nameLower $brandLower';
+    final compactHay = _normalizeCompact('$codeLower $nameLower');
+
+    final allTokensMatch = tokens.every(
+      (t) => hay.contains(t) || compactHay.contains(_normalizeCompact(t)),
+    );
+    if (!allTokensMatch) continue;
+
+    int score = 10;
+    if (pref.isNotEmpty && opt.brand.toUpperCase() == pref) score += 60;
+    if (codeLower == raw.toLowerCase() ||
+        _normalizeCompact(codeLower) == compactQuery) {
+      score += 80;
+    } else if (codeLower.startsWith(raw.toLowerCase()) ||
+        _normalizeCompact(codeLower).startsWith(compactQuery)) {
+      score += 45;
+    } else if (codeLower.contains(raw.toLowerCase())) {
+      score += 25;
+    }
+    if (nameLower.startsWith(raw.toLowerCase())) score += 20;
+    scored.add((opt: opt, score: score));
+  }
+
+  scored.sort((a, b) {
+    final sc = b.score.compareTo(a.score);
+    if (sc != 0) return sc;
+    return a.opt.code.compareTo(b.opt.code);
+  });
+
+  return scored.take(limit).map((e) => e.opt).toList();
+}
+
+/// Partial / multi-token fuzzy search over visible ALUMET / VVP / RP hardware.
+List<MaterialRateItem> searchCatalogHardware({
+  required List<MaterialRateItem> items,
+  required String query,
+  String? preferredBrand,
+  int limit = 12,
+}) {
+  final pref = (preferredBrand ?? '').trim().toUpperCase();
+  final raw = query.trim();
+  final isPlaceholder = raw.isEmpty ||
+      raw == 'อุปกรณ์เพิ่มเติม' ||
+      raw == 'อุปกรณ์ประกอบ';
+
+  if (isPlaceholder) {
+    final sorted = List<MaterialRateItem>.from(items)
+      ..sort((a, b) {
+        final pa = a.brand.toUpperCase() == pref ? 0 : 1;
+        final pb = b.brand.toUpperCase() == pref ? 0 : 1;
+        if (pa != pb) return pa.compareTo(pb);
+        return a.code.compareTo(b.code);
+      });
+    return sorted.take(limit).toList();
+  }
+
+  final tokens = raw
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+  final compactQuery = _normalizeCompact(raw);
+
+  final scored = <({MaterialRateItem item, int score})>[];
+  for (final h in items) {
+    final codeLower = h.code.toLowerCase();
+    final nameLower = h.name.toLowerCase();
+    final brandLower = h.brand.toLowerCase();
+    final catLower = h.subCategory.toLowerCase();
+    final hay = '$codeLower $nameLower $brandLower $catLower';
+    final compactHay = _normalizeCompact('$codeLower $nameLower');
+
+    final allTokensMatch = tokens.every(
+      (t) => hay.contains(t) || compactHay.contains(_normalizeCompact(t)),
+    );
+    if (!allTokensMatch) continue;
+
+    int score = 10;
+    if (pref.isNotEmpty && h.brand.toUpperCase() == pref) score += 60;
+    if (codeLower == raw.toLowerCase() ||
+        _normalizeCompact(codeLower) == compactQuery) {
+      score += 80;
+    } else if (codeLower.startsWith(raw.toLowerCase()) ||
+        _normalizeCompact(codeLower).startsWith(compactQuery)) {
+      score += 45;
+    } else if (codeLower.contains(raw.toLowerCase())) {
+      score += 25;
+    }
+    if (nameLower.startsWith(raw.toLowerCase())) score += 20;
+    scored.add((item: h, score: score));
+  }
+
+  scored.sort((a, b) {
+    final sc = b.score.compareTo(a.score);
+    if (sc != 0) return sc;
+    return a.item.code.compareTo(b.item.code);
+  });
+
+  return scored.take(limit).map((e) => e.item).toList();
+}
+
+/// Inline searchable autocomplete dropdown for aluminum profile `รหัสหน้าตัด` + `ชื่อชิ้นส่วน`.
+/// Stays anchored smoothly inside scrollable ListViews on phones and tablets.
+class ProfileAutocompleteFields extends StatefulWidget {
+  final TextEditingController codeCtrl;
+  final TextEditingController nameCtrl;
+  final List<CatalogProfileOption> profileOptions;
+  final String preferredBrand;
+  final Map<String, CustomPriceOverride> customPriceOverrides;
+  final ValueChanged<CatalogProfileOption> onProfilePicked;
+  final VoidCallback? onTextChanged;
+  final Key? codeFieldKey;
+  final Key? nameFieldKey;
+  final Key? toggleKey;
+  final String codeLabel;
+  final String nameLabel;
+
+  const ProfileAutocompleteFields({
+    super.key,
+    required this.codeCtrl,
+    required this.nameCtrl,
+    required this.profileOptions,
+    required this.preferredBrand,
+    this.customPriceOverrides = const {},
+    required this.onProfilePicked,
+    this.onTextChanged,
+    this.codeFieldKey,
+    this.nameFieldKey,
+    this.toggleKey,
+    this.codeLabel = 'รหัสหน้าตัด',
+    this.nameLabel = 'ชื่อชิ้นส่วน',
+  });
+
+  @override
+  State<ProfileAutocompleteFields> createState() =>
+      _ProfileAutocompleteFieldsState();
+}
+
+class _ProfileAutocompleteFieldsState extends State<ProfileAutocompleteFields> {
+  final FocusNode _codeFocus = FocusNode();
+  final FocusNode _nameFocus = FocusNode();
+  bool _dropdownOpen = false;
+  String _activeQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _codeFocus.addListener(_onFocusChanged);
+    _nameFocus.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (!mounted) return;
+    if (_codeFocus.hasFocus) {
+      setState(() {
+        _dropdownOpen = true;
+        _activeQuery = widget.codeCtrl.text;
+      });
+    } else if (_nameFocus.hasFocus) {
+      setState(() {
+        _dropdownOpen = true;
+        _activeQuery = widget.nameCtrl.text;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _codeFocus.removeListener(_onFocusChanged);
+    _nameFocus.removeListener(_onFocusChanged);
+    _codeFocus.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  void _selectOption(CatalogProfileOption opt) {
+    widget.codeCtrl.text = opt.code;
+    widget.nameCtrl.text = opt.name;
+    widget.onProfilePicked(opt);
+    _codeFocus.unfocus();
+    _nameFocus.unfocus();
+    setState(() {
+      _dropdownOpen = false;
+      _activeQuery = opt.code;
+    });
+  }
+
+  Future<void> _openFullCatalogPicker() async {
+    _codeFocus.unfocus();
+    _nameFocus.unfocus();
+    setState(() => _dropdownOpen = false);
+    final picked = await showProfileCatalogPicker(
+      context: context,
+      currentBrandKey: widget.preferredBrand,
+      customOverrides: widget.customPriceOverrides,
+    );
+    if (picked != null && mounted) {
+      _selectOption(picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = _dropdownOpen
+        ? searchCatalogProfiles(
+            options: widget.profileOptions,
+            query: _activeQuery,
+            preferredBrand: widget.preferredBrand,
+            limit: 10,
+          )
+        : const <CatalogProfileOption>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                key: widget.codeFieldKey,
+                controller: widget.codeCtrl,
+                focusNode: _codeFocus,
+                decoration: InputDecoration(
+                  labelText: widget.codeLabel,
+                  hintText: 'พิมพ์รหัส เช่น X110',
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  suffixIconConstraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                  suffixIcon: IconButton(
+                    key: widget.toggleKey,
+                    tooltip: _dropdownOpen ? 'ปิดรายการเส้น' : 'เลือกจากรายการเส้น',
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    onPressed: () {
+                      setState(() {
+                        _dropdownOpen = !_dropdownOpen;
+                        if (_dropdownOpen) {
+                          _activeQuery = '';
+                        }
+                      });
+                    },
+                    icon: Icon(
+                      _dropdownOpen
+                          ? Icons.arrow_drop_up_rounded
+                          : Icons.arrow_drop_down_rounded,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                  ),
+                ),
+                onChanged: (v) {
+                  setState(() {
+                    _dropdownOpen = true;
+                    _activeQuery = v;
+                  });
+                  widget.onTextChanged?.call();
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: TextField(
+                key: widget.nameFieldKey,
+                controller: widget.nameCtrl,
+                focusNode: _nameFocus,
+                decoration: InputDecoration(
+                  labelText: widget.nameLabel,
+                  hintText: 'พิมพ์ค้นหาชื่อ เช่น เฟรมบน, เสาเกี่ยว...',
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  suffixIconConstraints:
+                      const BoxConstraints(minWidth: 34, minHeight: 32),
+                  suffixIcon: IconButton(
+                    tooltip: 'เปิดคลังหน้าตัดทั้งหมด',
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    onPressed: _openFullCatalogPicker,
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                  ),
+                ),
+                onChanged: (v) {
+                  setState(() {
+                    _dropdownOpen = true;
+                    _activeQuery = v;
+                  });
+                  widget.onTextChanged?.call();
+                },
+              ),
+            ),
+          ],
+        ),
+        if (_dropdownOpen)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            constraints: const BoxConstraints(maxHeight: 235),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: ToolkitColors.royalBlue.withValues(alpha: 0.4),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: const BoxDecoration(
+                    color: ToolkitColors.softBlueBg,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(9)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.list_alt_rounded,
+                          size: 14, color: ToolkitColors.royalBlue),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          matches.isEmpty
+                              ? 'ไม่พบในคลัง — ใช้รหัส/ชื่อที่พิมพ์เองได้เลย'
+                              : 'เลือกหน้าตัด (${matches.length} รายการแนะนำ · พิมพ์บางคำเพื่อกรอง)',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: ToolkitColors.royalBlue,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          _codeFocus.unfocus();
+                          _nameFocus.unfocus();
+                          setState(() => _dropdownOpen = false);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(Icons.close_rounded,
+                              size: 16, color: ToolkitColors.slateMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (matches.isNotEmpty)
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: matches.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (_, idx) {
+                        final opt = matches[idx];
+                        final img = AluproImageRegistry.instance
+                            .resolveProfileAsset(
+                          code: opt.code,
+                          name: opt.name,
+                          brandKey: opt.brand,
+                        );
+                        final isSameBrand = opt.brand.toUpperCase() ==
+                            widget.preferredBrand.trim().toUpperCase();
+                        return InkWell(
+                          onTap: () => _selectOption(opt),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            child: Row(
+                              children: [
+                                if (img != null)
+                                  AluproThumbnail(
+                                    assetPath: img,
+                                    width: 38,
+                                    height: 30,
+                                    showZoomBadge: false,
+                                  )
+                                else
+                                  Container(
+                                    width: 38,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: ToolkitColors.softBlueBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(
+                                      Icons.view_stream_rounded,
+                                      size: 16,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            opt.code,
+                                            style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: ToolkitColors.royalBlue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 5, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: isSameBrand
+                                                  ? const Color(0xFFDCFCE7)
+                                                  : const Color(0xFFF1F5F9),
+                                              borderRadius:
+                                                  BorderRadius.circular(5),
+                                            ),
+                                            child: Text(
+                                              opt.brand,
+                                              style: TextStyle(
+                                                fontSize: 9.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: isSameBrand
+                                                    ? const Color(0xFF15803D)
+                                                    : ToolkitColors.slateMuted,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        opt.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: ToolkitColors.slateDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '฿${_pickerBahtFmt.format(opt.minPrice)}',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: ToolkitColors.slateDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const Divider(height: 1),
+                InkWell(
+                  onTap: _openFullCatalogPicker,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.open_in_new_rounded,
+                            size: 14, color: ToolkitColors.royalBlue),
+                        SizedBox(width: 5),
+                        Text(
+                          'เปิดคลังหน้าตัดเต็มหน้าจอ (กรองตามแบรนด์ทั้งหมด)',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: ToolkitColors.royalBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Inline searchable autocomplete dropdown for ALUMET / VVP / RP hardware items.
+class HardwareAutocompleteFields extends StatefulWidget {
+  final TextEditingController codeCtrl;
+  final TextEditingController nameCtrl;
+  final List<MaterialRateItem> hardwareItems;
+  final String preferredBrand;
+  final Map<String, CustomMaterialRateOverride> materialOverrides;
+  final ValueChanged<MaterialRateItem> onHardwarePicked;
+  final VoidCallback? onTextChanged;
+  final Key? codeFieldKey;
+  final Key? nameFieldKey;
+  final Key? toggleKey;
+
+  const HardwareAutocompleteFields({
+    super.key,
+    required this.codeCtrl,
+    required this.nameCtrl,
+    required this.hardwareItems,
+    required this.preferredBrand,
+    this.materialOverrides = const {},
+    required this.onHardwarePicked,
+    this.onTextChanged,
+    this.codeFieldKey,
+    this.nameFieldKey,
+    this.toggleKey,
+  });
+
+  @override
+  State<HardwareAutocompleteFields> createState() =>
+      _HardwareAutocompleteFieldsState();
+}
+
+class _HardwareAutocompleteFieldsState
+    extends State<HardwareAutocompleteFields> {
+  final FocusNode _codeFocus = FocusNode();
+  final FocusNode _nameFocus = FocusNode();
+  bool _dropdownOpen = false;
+  String _activeQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _codeFocus.addListener(_onFocusChanged);
+    _nameFocus.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (!mounted) return;
+    if (_codeFocus.hasFocus) {
+      setState(() {
+        _dropdownOpen = true;
+        _activeQuery = widget.codeCtrl.text;
+      });
+    } else if (_nameFocus.hasFocus) {
+      setState(() {
+        _dropdownOpen = true;
+        _activeQuery = widget.nameCtrl.text;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _codeFocus.removeListener(_onFocusChanged);
+    _nameFocus.removeListener(_onFocusChanged);
+    _codeFocus.dispose();
+    _nameFocus.dispose();
+    super.dispose();
+  }
+
+  void _selectItem(MaterialRateItem hw) {
+    widget.codeCtrl.text = hw.code;
+    widget.nameCtrl.text = hw.name;
+    widget.onHardwarePicked(hw);
+    _codeFocus.unfocus();
+    _nameFocus.unfocus();
+    setState(() {
+      _dropdownOpen = false;
+      _activeQuery = hw.code;
+    });
+  }
+
+  Future<void> _openFullHardwarePicker() async {
+    _codeFocus.unfocus();
+    _nameFocus.unfocus();
+    setState(() => _dropdownOpen = false);
+    final picked = await showHardwareCatalogPicker(
+      context: context,
+      materialOverrides: widget.materialOverrides,
+    );
+    if (picked != null && mounted) {
+      _selectItem(picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = _dropdownOpen
+        ? searchCatalogHardware(
+            items: widget.hardwareItems,
+            query: _activeQuery,
+            preferredBrand: widget.preferredBrand,
+            limit: 10,
+          )
+        : const <MaterialRateItem>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: TextField(
+                key: widget.codeFieldKey,
+                controller: widget.codeCtrl,
+                focusNode: _codeFocus,
+                decoration: InputDecoration(
+                  labelText: 'รหัส',
+                  hintText: 'เช่น AKL, FC 34',
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  suffixIconConstraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                  suffixIcon: IconButton(
+                    key: widget.toggleKey,
+                    tooltip:
+                        _dropdownOpen ? 'ปิดรายการอุปกรณ์' : 'เลือกจากรายการอุปกรณ์',
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    onPressed: () {
+                      setState(() {
+                        _dropdownOpen = !_dropdownOpen;
+                        if (_dropdownOpen) _activeQuery = '';
+                      });
+                    },
+                    icon: Icon(
+                      _dropdownOpen
+                          ? Icons.arrow_drop_up_rounded
+                          : Icons.arrow_drop_down_rounded,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                  ),
+                ),
+                onChanged: (v) {
+                  setState(() {
+                    _dropdownOpen = true;
+                    _activeQuery = v;
+                  });
+                  widget.onTextChanged?.call();
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: TextField(
+                key: widget.nameFieldKey,
+                controller: widget.nameCtrl,
+                focusNode: _nameFocus,
+                decoration: InputDecoration(
+                  labelText: 'ชื่ออุปกรณ์',
+                  hintText: 'พิมพ์บางคำ เช่น ล้อ, มือจับ, บานพับ...',
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  suffixIconConstraints:
+                      const BoxConstraints(minWidth: 34, minHeight: 32),
+                  suffixIcon: IconButton(
+                    tooltip: 'เปิดคลังอุปกรณ์ทั้งหมด',
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    onPressed: _openFullHardwarePicker,
+                    icon: const Icon(
+                      Icons.search_rounded,
+                      color: ToolkitColors.royalBlue,
+                    ),
+                  ),
+                ),
+                onChanged: (v) {
+                  setState(() {
+                    _dropdownOpen = true;
+                    _activeQuery = v;
+                  });
+                  widget.onTextChanged?.call();
+                },
+              ),
+            ),
+          ],
+        ),
+        if (_dropdownOpen)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            constraints: const BoxConstraints(maxHeight: 235),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: ToolkitColors.royalBlue.withValues(alpha: 0.4),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: const BoxDecoration(
+                    color: ToolkitColors.softBlueBg,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(9)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.handyman_outlined,
+                          size: 14, color: ToolkitColors.royalBlue),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          matches.isEmpty
+                              ? 'ไม่พบในคลัง — ใช้ชื่อที่พิมพ์เองได้เลย'
+                              : 'เลือกอุปกรณ์ (${matches.length} รายการแนะนำ · พิมพ์บางคำเพื่อกรอง)',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: ToolkitColors.royalBlue,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          _codeFocus.unfocus();
+                          _nameFocus.unfocus();
+                          setState(() => _dropdownOpen = false);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(Icons.close_rounded,
+                              size: 16, color: ToolkitColors.slateMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (matches.isNotEmpty)
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: matches.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (_, idx) {
+                        final hw = matches[idx];
+                        final img = hw.imageAssetPath ??
+                            AluproImageRegistry.instance.resolveHardwareAsset(
+                              code: hw.code,
+                              name: hw.name,
+                            );
+                        return InkWell(
+                          onTap: () => _selectItem(hw),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            child: Row(
+                              children: [
+                                if (img != null)
+                                  AluproThumbnail(
+                                    assetPath: img,
+                                    width: 38,
+                                    height: 32,
+                                    showZoomBadge: false,
+                                  )
+                                else
+                                  Container(
+                                    width: 38,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: ToolkitColors.softBlueBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(
+                                      Icons.hardware_rounded,
+                                      size: 16,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            hw.code,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: ToolkitColors.royalBlue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          if (hw.brand.isNotEmpty)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 5,
+                                                      vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF1F5F9),
+                                                borderRadius:
+                                                    BorderRadius.circular(5),
+                                              ),
+                                              child: Text(
+                                                hw.subCategory.isNotEmpty
+                                                    ? '${hw.brand} · ${hw.subCategory}'
+                                                    : hw.brand,
+                                                style: const TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color:
+                                                      ToolkitColors.slateMuted,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      Text(
+                                        hw.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: ToolkitColors.slateDark,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '฿${_pickerBahtFmt.format(hw.effectivePrice)}/${hw.unit}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: ToolkitColors.slateDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const Divider(height: 1),
+                InkWell(
+                  onTap: _openFullHardwarePicker,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.open_in_new_rounded,
+                            size: 14, color: ToolkitColors.royalBlue),
+                        SizedBox(width: 5),
+                        Text(
+                          'เปิดคลังอุปกรณ์ ALUMET · VVP · RP เต็มหน้าจอ',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: ToolkitColors.royalBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}

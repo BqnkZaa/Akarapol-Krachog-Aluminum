@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.14/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.15/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,7 +51,7 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.14 (VIP Offline)",
+      version: "0.1.15 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
       sizeMb: "46.00",
       sha256: "-",
@@ -85,8 +85,8 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Calculator,
-      title: "ระบบแก้ไขสูตรคำนวณทุกแบบ + ปลดล็อก 0 เส้น + สี ALUMET 27 สีพร้อมรูปตัวอย่าง",
-      desc: "กด 'แก้ไขสูตร' ได้ทุกแบบบาน (ปรับสูตรตัด ทดสอบระยะตัดสด ล้างเป็น 0 เส้น หรือคืนค่าสูตรเดิมได้ตลอด) อัปเดตอุปกรณ์บานเฟี้ยม/รางแขวนตรง ALUMET Hub 2026 เพิ่มรหัสสี ALUMET ครบ 27 สีพร้อมตัวอย่างเนื้อสีจริง และปุ่ม 'จำค่าตั้งต้นร้าน' ครบทุกจุด",
+      title: "แก้ไขสูตรคำนวณพร้อม Dropdown พิมพ์ค้นหาบางคำ + ปลดล็อกสูตรตัดกระจก",
+      desc: "พิมพ์แค่บางคำ (เช่น เฟรม, x116, มือจับ, โช้ค) เด้ง Dropdown หน้าตัด/อุปกรณ์พร้อมรูปให้แตะเลือกเติมรหัส-ชื่ออัตโนมัติ (ใช้ได้ทั้งหน้าแก้ไขสูตรและเพิ่มชุดโปรไฟล์ใหม่) สลับปลดล็อกกรอกสูตรตัดกระจกเองได้ทุกแบบ ล้างเป็น 0 เส้น สี ALUMET 27 สี และปุ่มจำค่าตั้งต้นครบทุกจุด",
     },
     {
       icon: FileText,

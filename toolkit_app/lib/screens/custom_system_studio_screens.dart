@@ -10,6 +10,7 @@ import '../data/catalog_definitions.dart';
 import '../data/seed_repository.dart';
 import '../engine/formula_evaluator.dart';
 import '../engine/parametric_system_resolver.dart';
+import '../engine/pricing_engine.dart';
 import '../models/app_models.dart';
 import 'alupro_thumbnail_widgets.dart';
 import 'catalog_and_input_screens.dart';
@@ -906,9 +907,45 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
   final List<_EditableGlassRow> _glasses = [];
   final List<_EditableHwRow> _hardware = [];
 
+  List<CatalogProfileOption> _catalogProfiles = const [];
+  List<MaterialRateItem> _catalogHardware = const [];
+  Map<String, CustomPriceOverride> _priceOverrides = const {};
+  Map<String, CustomMaterialRateOverride> _matOverrides = const {};
+
+  void _initCatalogCaches() {
+    _catalogProfiles = buildCatalogProfileOptions(
+      catalog: SeedRepository.instance.allCatalogPrices,
+      customOverrides: const {},
+    );
+    _catalogHardware = SeedRepository.instance.visibleHardwareRates;
+    _refreshCatalogCachesFromDb();
+  }
+
+  Future<void> _refreshCatalogCachesFromDb() async {
+    try {
+      final pOv = await AppDatabase.instance.getAllCustomPrices();
+      final mOv = await AppDatabase.instance.getAllCustomMaterialRates();
+      if (!mounted) return;
+      setState(() {
+        _priceOverrides = pOv;
+        _matOverrides = mOv;
+        _catalogProfiles = buildCatalogProfileOptions(
+          catalog: SeedRepository.instance.allCatalogPrices,
+          customOverrides: pOv,
+        );
+        _catalogHardware = PricingEngine.mergeMaterialRates(
+          SeedRepository.instance.visibleHardwareRates,
+          mOv,
+          category: 'HARDWARE',
+        );
+      });
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
+    _initCatalogCaches();
     final init = widget.initialSystem;
     _systemId = init?.id ?? 'cust_sys_${DateTime.now().millisecondsSinceEpoch}';
     _categoryId = init?.categoryId ?? widget.defaultCategoryId;
@@ -1888,34 +1925,28 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
           ],
         ),
         const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextField(
-                controller: row.codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'รหัสหน้าตัด *',
-                  hintText: 'เช่น SS-X110',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: TextField(
-                controller: row.nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'ชื่อชิ้นส่วน *',
-                  hintText: 'เช่น เฟรมบน',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-          ],
+        ProfileAutocompleteFields(
+          codeFieldKey: ValueKey('custom_cut_code_$idx'),
+          nameFieldKey: ValueKey('custom_cut_name_$idx'),
+          toggleKey: ValueKey('custom_cut_toggle_$idx'),
+          codeCtrl: row.codeCtrl,
+          nameCtrl: row.nameCtrl,
+          codeLabel: 'รหัสหน้าตัด *',
+          nameLabel: 'ชื่อชิ้นส่วน *',
+          profileOptions: _catalogProfiles,
+          preferredBrand: _categoryId == 'cat1_market'
+              ? 'MARKET'
+              : _priceBrandKeyCtrl.text.trim(),
+          customPriceOverrides: _priceOverrides,
+          onProfilePicked: (opt) {
+            setState(() {
+              row.stockMmCtrl.text = opt.stockMm.toString();
+              if (row.initPriceCtrl.text.trim().isEmpty && opt.minPrice > 0) {
+                row.initPriceCtrl.text = opt.minPrice.toStringAsFixed(0);
+              }
+            });
+          },
+          onTextChanged: () => setState(() {}),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -2250,31 +2281,15 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
       children: [
         Row(
           children: [
-            Expanded(
-              flex: 2,
-              child: TextField(
-                controller: row.codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'รหัสอุปกรณ์',
-                  hintText: 'เช่น HD-929',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
+            Text(
+              'อุปกรณ์ #${idx + 1}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ToolkitColors.royalBlue,
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: TextField(
-                controller: row.nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'ชื่ออุปกรณ์ *',
-                  hintText: 'เช่น ล้อบานเลื่อนคู่',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
+            const Spacer(),
             IconButton(
               visualDensity: VisualDensity.compact,
               onPressed: () {
@@ -2290,6 +2305,26 @@ class _CustomSystemEditorScreenState extends State<CustomSystemEditorScreen> {
               ),
             ),
           ],
+        ),
+        HardwareAutocompleteFields(
+          codeFieldKey: ValueKey('custom_hw_code_$idx'),
+          nameFieldKey: ValueKey('custom_hw_name_$idx'),
+          toggleKey: ValueKey('custom_hw_toggle_$idx'),
+          codeCtrl: row.codeCtrl,
+          nameCtrl: row.nameCtrl,
+          hardwareItems: _catalogHardware,
+          preferredBrand: _priceBrandKeyCtrl.text.trim(),
+          materialOverrides: _matOverrides,
+          onHardwarePicked: (hw) {
+            setState(() {
+              row.unitPriceCtrl.text = hw.effectivePrice.toStringAsFixed(0);
+              final curQty = row.qtyTextCtrl.text.trim();
+              final m = RegExp(r'^(\d+)').firstMatch(curQty);
+              final numStr = m?.group(1) ?? '1';
+              final unit = hw.unit.trim().isNotEmpty ? hw.unit.trim() : 'ชิ้น';
+              row.qtyTextCtrl.text = '$numStr $unit';
+            });
+          },
         ),
         const SizedBox(height: 8),
         Row(
@@ -2400,6 +2435,11 @@ class _FormulaOverrideEditorScreenState
   final List<_EditableGlassRow> _glasses = [];
   final List<_EditableHwRow> _hardware = [];
 
+  List<CatalogProfileOption> _catalogProfiles = const [];
+  List<MaterialRateItem> _catalogHardware = const [];
+  Map<String, CustomPriceOverride> _priceOverrides = const {};
+  Map<String, CustomMaterialRateOverride> _matOverrides = const {};
+
   bool _hasActiveOverride = false;
   late String _tableKey;
   late String _tableHeader;
@@ -2409,9 +2449,62 @@ class _FormulaOverrideEditorScreenState
       widget.pattern.auxType == AuxDimensionType.transomHeightHt ||
       widget.pattern.tableMode == InputTableMode.smartPlus90FourCol;
 
+  void _initCatalogCaches() {
+    _catalogProfiles = buildCatalogProfileOptions(
+      catalog: SeedRepository.instance.allCatalogPrices,
+      customOverrides: const {},
+    );
+    _catalogHardware = SeedRepository.instance.visibleHardwareRates;
+    _refreshCatalogCachesFromDb();
+  }
+
+  Future<void> _refreshCatalogCachesFromDb() async {
+    try {
+      final pOv = await AppDatabase.instance.getAllCustomPrices();
+      final mOv = await AppDatabase.instance.getAllCustomMaterialRates();
+      if (!mounted) return;
+      setState(() {
+        _priceOverrides = pOv;
+        _matOverrides = mOv;
+        _catalogProfiles = buildCatalogProfileOptions(
+          catalog: SeedRepository.instance.allCatalogPrices,
+          customOverrides: pOv,
+        );
+        _catalogHardware = PricingEngine.mergeMaterialRates(
+          SeedRepository.instance.visibleHardwareRates,
+          mOv,
+          category: 'HARDWARE',
+        );
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _pickProfileFromCatalog() async {
+    final picked = await showProfileCatalogPicker(
+      context: context,
+      currentBrandKey: widget.priceBrandKey,
+      customOverrides: _priceOverrides,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _cuts.add(
+          _EditableCutRow(
+            section: 'กรอบบาน',
+            code: picked.code,
+            name: picked.name,
+            formula: 'W',
+            qty: 1,
+            stockMm: picked.stockMm,
+          ),
+        );
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _initCatalogCaches();
     _hasActiveOverride =
         SeedRepository.instance.getFormulaOverride(widget.pattern.id) != null;
     final table = ParametricSystemResolver.resolveFormulaTable(
@@ -2762,48 +2855,65 @@ class _FormulaOverrideEditorScreenState
           _formulaCard(
             title: '1. สูตรตัดเส้นอลูมิเนียม (${_cuts.length} รายการ)',
             trailing: FilledButton.tonalIcon(
-              onPressed: () {
-                setState(() {
-                  _cuts.add(
-                    _EditableCutRow(
-                      section: 'กรอบบาน',
-                      code: 'NEW-${_cuts.length + 1}',
-                      name: 'หน้าตัดเพิ่มเติม',
-                      formula: 'W',
-                      qty: 1,
-                    ),
-                  );
-                });
-              },
-              icon: const Icon(Icons.add_rounded, size: 17),
-              label: const Text('เพิ่มเส้น'),
+              key: const ValueKey('btn_override_pick_profile'),
+              onPressed: _pickProfileFromCatalog,
+              icon: const Icon(Icons.search_rounded, size: 17),
+              label: const Text('เลือกจากคลัง'),
             ),
             children: [
-              if (_cuts.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    key: const ValueKey('btn_override_clear_cuts'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    key: const ValueKey('btn_override_add_blank_cut'),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFDC2626),
                       visualDensity: VisualDensity.compact,
                     ),
                     onPressed: () {
                       setState(() {
-                        for (final c in _cuts) {
-                          c.dispose();
-                        }
-                        _cuts.clear();
+                        _cuts.add(
+                          _EditableCutRow(
+                            section: 'กรอบบาน',
+                            code: '',
+                            name: '',
+                            formula: 'W',
+                            qty: 1,
+                          ),
+                        );
                       });
                     },
-                    icon: const Icon(Icons.layers_clear_outlined, size: 16),
+                    icon: const Icon(Icons.add_rounded, size: 16),
                     label: const Text(
-                      'ล้างเส้นอลูมิเนียมทั้งหมด (0 เส้น)',
-                      style:
-                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      'เพิ่มเส้นพิมพ์เอง',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),
-                ),
+                  if (_cuts.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    TextButton.icon(
+                      key: const ValueKey('btn_override_clear_cuts'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          for (final c in _cuts) {
+                            c.dispose();
+                          }
+                          _cuts.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.layers_clear_outlined, size: 16),
+                      label: const Text(
+                        'ล้างเป็น 0 เส้น',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               if (_cuts.isEmpty)
                 Container(
                   width: double.infinity,
@@ -2973,32 +3083,21 @@ class _FormulaOverrideEditorScreenState
             ),
           ],
         ),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextField(
-                controller: row.codeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'รหัสหน้าตัด',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: TextField(
-                controller: row.nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'ชื่อชิ้นส่วน',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-          ],
+        ProfileAutocompleteFields(
+          codeFieldKey: ValueKey('override_cut_code_$idx'),
+          nameFieldKey: ValueKey('override_cut_name_$idx'),
+          toggleKey: ValueKey('override_cut_toggle_$idx'),
+          codeCtrl: row.codeCtrl,
+          nameCtrl: row.nameCtrl,
+          profileOptions: _catalogProfiles,
+          preferredBrand: widget.priceBrandKey,
+          customPriceOverrides: _priceOverrides,
+          onProfilePicked: (opt) {
+            setState(() {
+              row.stockMmCtrl.text = opt.stockMm.toString();
+            });
+          },
+          onTextChanged: () => setState(() {}),
         ),
         const SizedBox(height: 6),
         Row(
@@ -3087,102 +3186,144 @@ class _FormulaOverrideEditorScreenState
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                key: ValueKey('override_glass_w_$idx'),
-                controller: row.wFormulaCtrl,
-                enabled: !row.siteCut,
-                decoration: const InputDecoration(
-                  labelText: 'สูตรกว้างกระจก',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                key: ValueKey('override_glass_h_$idx'),
-                controller: row.hFormulaCtrl,
-                enabled: !row.siteCut,
-                decoration: const InputDecoration(
-                  labelText: 'สูตรสูงกระจก',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
-          ],
-        ),
-        if (!row.siteCut && gw != null && gh != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              'ขนาดกระจกทดสอบ = ${FormulaEvaluator.formatMm(gw)} × ${FormulaEvaluator.formatMm(gh)} มม.',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF15803D),
-              ),
+        SwitchListTile(
+          key: ValueKey('override_glass_sitecut_$idx'),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            row.siteCut
+                ? 'วัดตัดหน้างาน (ปิดสวิตช์เพื่อกรอกสูตรกระจกเอง)'
+                : 'คำนวณขนาดกระจกจากสูตรอัตโนมัติ',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: row.siteCut
+                  ? ToolkitColors.slateMuted
+                  : ToolkitColors.royalBlue,
             ),
           ),
+          value: row.siteCut,
+          onChanged: (v) {
+            setState(() {
+              row.siteCut = v;
+              if (!v) {
+                if (row.wFormulaCtrl.text.trim().isEmpty) {
+                  row.wFormulaCtrl.text = 'W - 80';
+                }
+                if (row.hFormulaCtrl.text.trim().isEmpty) {
+                  row.hFormulaCtrl.text = 'H - 140';
+                }
+              }
+            });
+          },
+        ),
+        if (!row.siteCut) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: ValueKey('override_glass_w_$idx'),
+                  controller: row.wFormulaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'สูตรกว้างกระจก',
+                    hintText: 'เช่น (W / 2) - 68',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: ValueKey('override_glass_h_$idx'),
+                  controller: row.hFormulaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'สูตรสูงกระจก',
+                    hintText: 'เช่น H - 140',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+          if (gw != null && gh != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'ขนาดกระจกทดสอบ = ${FormulaEvaluator.formatMm(gw)} × ${FormulaEvaluator.formatMm(gh)} มม.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF15803D),
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
 
   Widget _buildOverrideHwRow(int idx, _EditableHwRow row) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 2,
-          child: TextField(
-            controller: row.codeCtrl,
-            decoration: const InputDecoration(
-              labelText: 'รหัส',
-              isDense: true,
-              border: OutlineInputBorder(),
+        Row(
+          children: [
+            Text(
+              'อุปกรณ์ #${idx + 1}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ToolkitColors.royalBlue,
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          flex: 3,
-          child: TextField(
-            controller: row.nameCtrl,
-            decoration: const InputDecoration(
-              labelText: 'ชื่ออุปกรณ์',
-              isDense: true,
-              border: OutlineInputBorder(),
+            const Spacer(),
+            SizedBox(
+              width: 112,
+              child: TextField(
+                controller: row.qtyTextCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'จำนวน',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          flex: 2,
-          child: TextField(
-            controller: row.qtyTextCtrl,
-            decoration: const InputDecoration(
-              labelText: 'จำนวน',
-              isDense: true,
-              border: OutlineInputBorder(),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                setState(() {
+                  final rem = _hardware.removeAt(idx);
+                  rem.dispose();
+                });
+              },
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 18, color: Color(0xFFEF4444)),
             ),
-          ),
+          ],
         ),
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          onPressed: () {
+        const SizedBox(height: 10),
+        HardwareAutocompleteFields(
+          codeFieldKey: ValueKey('override_hw_code_$idx'),
+          nameFieldKey: ValueKey('override_hw_name_$idx'),
+          toggleKey: ValueKey('override_hw_toggle_$idx'),
+          codeCtrl: row.codeCtrl,
+          nameCtrl: row.nameCtrl,
+          hardwareItems: _catalogHardware,
+          preferredBrand: widget.priceBrandKey,
+          materialOverrides: _matOverrides,
+          onHardwarePicked: (hw) {
             setState(() {
-              final rem = _hardware.removeAt(idx);
-              rem.dispose();
+              final curQty = row.qtyTextCtrl.text.trim();
+              final m = RegExp(r'^(\d+)').firstMatch(curQty);
+              final numStr = m?.group(1) ?? '1';
+              final unit = hw.unit.trim().isNotEmpty ? hw.unit.trim() : 'ชิ้น';
+              row.qtyTextCtrl.text = '$numStr $unit';
             });
           },
-          icon: const Icon(Icons.delete_outline_rounded,
-              size: 18, color: Color(0xFFEF4444)),
         ),
       ],
     );
