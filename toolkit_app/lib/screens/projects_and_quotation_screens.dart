@@ -663,6 +663,17 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     final packedGroups = proj == null
         ? <ProfileBarGroup>[]
         : BinPacker.packProjectItems(proj.items);
+    final projectGlasses = proj == null
+        ? <({String tag, EvaluatedGlassItem glass})>[]
+        : [
+            for (int idx = 0; idx < proj.items.length; idx++)
+              for (final s in proj.items[idx].evaluatedSets)
+                for (final g in s.glasses)
+                  (tag: proj.items[idx].displayOrderTag(idx + 1), glass: g),
+          ];
+    final projectHardware = proj == null
+        ? <AggregatedHardwareItem>[]
+        : _ProjectPricingScreenState._mergeProjectHardware(proj.items);
 
     return Scaffold(
       appBar: AppBar(
@@ -1007,6 +1018,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   children: List.generate(proj.items.length, (idx) {
                     final it = proj.items[idx];
                     final tag = it.displayOrderTag(idx + 1);
+                    final itemCuts =
+                        it.evaluatedSets.expand((s) => s.cuts).toList();
+                    final itemGlasses =
+                        it.evaluatedSets.expand((s) => s.glasses).toList();
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Column(
@@ -1020,34 +1035,108 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                               color: ToolkitColors.royalBlue,
                             ),
                           ),
-                          ...it.evaluatedSets.expand((s) => s.cuts).map(
-                                (c) => Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 2),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          '${c.code} · ${c.name}',
-                                          style:
-                                              const TextStyle(fontSize: 12.5),
-                                        ),
-                                      ),
-                                      Text(
-                                        c.isSiteMeasured
-                                            ? 'วัดตามจริง · ${c.totalQty} ชิ้น'
-                                            : '${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม. × ${c.totalQty} ชิ้น',
-                                        style: const TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                          if (itemCuts.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                'ไม่มีรายการเส้นอลูมิเนียม (บานเปลือย / ชาวเวอร์)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: ToolkitColors.slateMuted,
                                 ),
                               ),
+                            )
+                          else
+                            ...itemCuts.map(
+                              (c) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${c.code} · ${c.name}',
+                                        style: const TextStyle(fontSize: 12.5),
+                                      ),
+                                    ),
+                                    Text(
+                                      c.isSiteMeasured
+                                          ? 'วัดตามจริง · ${c.totalQty} ชิ้น'
+                                          : '${FormulaEvaluator.formatMm(c.lengthMm ?? 0)} มม. × ${c.totalQty} ชิ้น',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (itemGlasses.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            ...itemGlasses.map(
+                              (g) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 1.5),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'กระจก: ${g.name}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: ToolkitColors.slateBody,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      g.siteCut
+                                          ? 'วัดตัดหน้างาน · ${g.totalPanels} แผ่น'
+                                          : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม. · ${g.totalPanels} แผ่น',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: ToolkitColors.royalBlue,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (it.hardware.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            ...it.hardware.map(
+                              (h) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 1.5),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        h.code.isNotEmpty
+                                            ? 'อุปกรณ์: ${h.code} · ${h.name}'
+                                            : 'อุปกรณ์: ${h.name}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: ToolkitColors.slateBody,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      h.displayQty,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                           const Divider(),
                         ],
                       ),
@@ -1059,27 +1148,241 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 // Accordion 3: การบริหารเส้นรวมทั้งโครงการ (Cross-Item Bin-Packing)
                 _accordionCard(
                   title: '3. การบริหารเส้นรวมทั้งโครงการ (${packedGroups.fold(0, (s, g) => s + g.totalBars)} เส้น)',
-                  children: packedGroups
-                      .map((grp) => ProfileBarGroupCard(group: grp))
-                      .toList(),
+                  children: packedGroups.isEmpty
+                      ? const [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'ไม่มีรายการเส้นอลูมิเนียมในโครงการนี้',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: ToolkitColors.slateMuted,
+                              ),
+                            ),
+                          ),
+                        ]
+                      : packedGroups
+                          .map((grp) => ProfileBarGroupCard(group: grp))
+                          .toList(),
                 ),
                 const SizedBox(height: 12),
 
-                // Accordion 4: รายการวัสดุรวม
+                // Accordion 4: รายการวัสดุรวม (อลูมิเนียม + กระจก + อุปกรณ์ประกอบ)
                 _accordionCard(
-                  title: '4. รายการวัสดุรวม',
+                  key: const ValueKey('proj_detail_bom_accordion'),
+                  title:
+                      '4. รายการวัสดุรวม (อลูมิเนียม ${packedGroups.length} · กระจก ${projectGlasses.length} · อุปกรณ์ ${projectHardware.length})',
                   children: [
-                    ...packedGroups.map(
-                      (g) => ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('${g.brand} · ${g.code} (${g.combinedNames})'),
-                        trailing: Text(
-                          '${g.totalBars} เส้น',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
+                    // 4.1 อลูมิเนียมสั่งซื้อรวมทั้งโครงการ
+                    _bomSubHeader(
+                      'อลูมิเนียมสั่งซื้อรวมทั้งโครงการ (${packedGroups.fold(0, (s, g) => s + g.totalBars)} เส้น)',
                     ),
+                    if (packedGroups.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'ไม่มีรายการอลูมิเนียม',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      )
+                    else
+                      ...packedGroups.map((g) {
+                        final profImg = AluproImageRegistry.instance
+                            .resolveProfileAsset(
+                          code: g.code,
+                          name: g.combinedNames,
+                          brandKey: g.brand,
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              if (profImg != null) ...[
+                                AluproThumbnail(
+                                  assetPath: profImg,
+                                  width: 44,
+                                  height: 34,
+                                  showZoomBadge: false,
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${g.brand} · ${g.code}',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: ToolkitColors.royalBlue,
+                                      ),
+                                    ),
+                                    Text(
+                                      g.combinedNames,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: ToolkitColors.slateDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${g.totalBars} เส้น',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    const Divider(height: 18),
+
+                    // 4.2 กระจกสั่งตัดรวมทั้งโครงการ
+                    _bomSubHeader(
+                      'กระจกสั่งตัดรวมทั้งโครงการ (${projectGlasses.fold(0, (s, e) => s + e.glass.totalPanels)} แผ่น)',
+                    ),
+                    if (projectGlasses.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 10),
+                        child: Text(
+                          'ไม่มีรายการกระจก',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: ToolkitColors.slateMuted,
+                          ),
+                        ),
+                      )
+                    else
+                      ...projectGlasses.map((entry) {
+                        final g = entry.glass;
+                        final glassImg = AluproImageRegistry.instance.glassAsset;
+                        final dimTxt = g.siteCut
+                            ? 'วัดตัดหน้างาน'
+                            : '${FormulaEvaluator.formatMm(g.widthMm ?? 0)} × ${FormulaEvaluator.formatMm(g.heightMm ?? 0)} มม.';
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              if (glassImg != null) ...[
+                                AluproThumbnail(
+                                  assetPath: glassImg,
+                                  width: 44,
+                                  height: 34,
+                                  showZoomBadge: false,
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '[${entry.tag}] ${g.name}',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      dimTxt,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: ToolkitColors.slateMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${g.totalPanels} แผ่น',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    const Divider(height: 18),
+
+                    // 4.3 อุปกรณ์ประกอบรวมทั้งโครงการ
+                    _bomSubHeader(
+                      'อุปกรณ์ประกอบรวมทั้งโครงการ (${projectHardware.length} รายการ)',
+                    ),
+                    if (projectHardware.isEmpty)
+                      const Text(
+                        'ไม่มีรายการอุปกรณ์ประกอบ',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: ToolkitColors.slateMuted,
+                        ),
+                      )
+                    else
+                      ...projectHardware.map((h) {
+                        final hwImg = AluproImageRegistry.instance
+                            .resolveHardwareAsset(code: h.code, name: h.name);
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              if (hwImg != null) ...[
+                                AluproThumbnail(
+                                  assetPath: hwImg,
+                                  width: 44,
+                                  height: 34,
+                                  showZoomBadge: true,
+                                  zoomTitle: h.code.isNotEmpty
+                                      ? '${h.code} · ${h.name}'
+                                      : h.name,
+                                  zoomSubtitle: h.displayQty,
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (h.code.isNotEmpty)
+                                      Text(
+                                        h.code,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: ToolkitColors.royalBlue,
+                                        ),
+                                      ),
+                                    Text(
+                                      h.name,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: ToolkitColors.slateDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                h.displayQty,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: ToolkitColors.slateDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ],
@@ -1087,12 +1390,34 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     );
   }
 
+  Widget _bomSubHeader(String title) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: ToolkitColors.softBlueBg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: ToolkitColors.royalBlue,
+        ),
+      ),
+    );
+  }
+
   Widget _accordionCard({
+    Key? key,
     required String title,
     required List<Widget> children,
     bool initiallyExpanded = false,
   }) {
     return Container(
+      key: key,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),

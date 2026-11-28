@@ -1181,12 +1181,27 @@ class _ResultScreenState extends State<ResultScreen>
                             const SizedBox(width: 10),
                           ],
                           Expanded(
-                            child: Text(
-                              hwLabel,
-                              style: const TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (h.code.isNotEmpty)
+                                  Text(
+                                    h.code,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: ToolkitColors.royalBlue,
+                                    ),
+                                  ),
+                                Text(
+                                  h.name,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: ToolkitColors.slateDark,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -3969,8 +3984,8 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                   ...List.generate(summary.hardwareLines.length, (hi) {
                     final hl = summary.hardwareLines[hi];
                     final h = hl.item;
-                    final title =
-                        h.code.isNotEmpty ? '${h.code} · ${h.name}' : h.name;
+                    final hwImg = AluproImageRegistry.instance
+                        .resolveHardwareAsset(code: h.code, name: h.name);
                     return InkWell(
                       borderRadius: BorderRadius.circular(8),
                       onTap: () => _openInlineHardwareRateDialog(hl),
@@ -3979,12 +3994,30 @@ class _PricingWorkspaceWidgetState extends State<PricingWorkspaceWidget> {
                             vertical: 5, horizontal: 2),
                         child: Row(
                           children: [
+                            if (hwImg != null) ...[
+                              AluproThumbnail(
+                                assetPath: hwImg,
+                                width: 42,
+                                height: 32,
+                                showZoomBadge: false,
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (h.code.isNotEmpty)
+                                    Text(
+                                      h.code,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: ToolkitColors.royalBlue,
+                                      ),
+                                    ),
                                   Text(
-                                    title,
+                                    h.name,
                                     style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,

@@ -35,7 +35,7 @@ type ApkMeta = {
 const DIRECT_APK_URL =
   "https://akarapol-krachog-aluminum.vercel.app/downloads/akkaraphon-toolkit.apk";
 const MIRROR_APK_URL =
-  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.15/akkaraphon-toolkit.apk";
+  "https://github.com/BqnkZaa/Akarapol-Krachog-Aluminum/releases/download/v0.1.16/akkaraphon-toolkit.apk";
 
 async function loadApkMeta(): Promise<ApkMeta> {
   const metaPath = path.join(
@@ -51,7 +51,7 @@ async function loadApkMeta(): Promise<ApkMeta> {
     return {
       appName: "อัครพลกระจกอลูมิเนียม",
       packageId: "com.akkaraphon.toolkit",
-      version: "0.1.15 (VIP Offline)",
+      version: "0.1.16 (VIP Offline)",
       fileName: "akkaraphon-toolkit.apk",
       sizeMb: "46.00",
       sha256: "-",
@@ -67,7 +67,7 @@ export default async function DownloadLandingPage() {
     margin: 1,
     width: 112,
     color: {
-      dark: "#0F172A",
+      dark: "#0F2557",
       light: "#FFFFFF",
     },
   });
@@ -80,13 +80,13 @@ export default async function DownloadLandingPage() {
     },
     {
       icon: Layers,
-      title: "คลังอุปกรณ์ ALUMET · VVP · RP (258 รายการ พร้อมรูปจริง) แบ่งหมวดหมู่ชัดเจน",
-      desc: "คัดเฉพาะคลังอุปกรณ์ ALUMET 133 รายการ (แบ่ง 5 หมวด: บานเลื่อน, บานเปิด, บานกระทุ้ง, บานเฟี้ยม, สกรู/ทั่วไป), VVP 46 รายการ และ RP Steel Glass 79 รายการ พร้อมรูปถ่ายสินค้าจริงจากแคตตาล็อก 2026 และแตะแก้ราคาได้ทันที",
+      title: "ใบถอดของ & คลังอุปกรณ์ ALUMET · VVP · RP (258 รายการ) มีรหัสครบ 100% ทุก 505 แบบ",
+      desc: "แสดงรหัสอุปกรณ์จริงและรูปสินค้าจริงในใบถอดของ Tab 2, ใบถอดของรวมโครงการ (อลูมิเนียม + กระจก + อุปกรณ์ทั้ง 3 หมวด) และไฟล์ PDF ครบทั้ง 505 รูปแบบ พร้อมคลังอุปกรณ์ ALUMET 133 / VVP 46 / RP 79 ชื่อภาษาไทยถูกต้องครบถ้วน",
     },
     {
       icon: Calculator,
       title: "แก้ไขสูตรคำนวณพร้อม Dropdown พิมพ์ค้นหาบางคำ + ปลดล็อกสูตรตัดกระจก",
-      desc: "พิมพ์แค่บางคำ (เช่น เฟรม, x116, มือจับ, โช้ค) เด้ง Dropdown หน้าตัด/อุปกรณ์พร้อมรูปให้แตะเลือกเติมรหัส-ชื่ออัตโนมัติ (ใช้ได้ทั้งหน้าแก้ไขสูตรและเพิ่มชุดโปรไฟล์ใหม่) สลับปลดล็อกกรอกสูตรตัดกระจกเองได้ทุกแบบ ล้างเป็น 0 เส้น สี ALUMET 27 สี และปุ่มจำค่าตั้งต้นครบทุกจุด",
+      desc: "พิมพ์แค่บางคำ (เช่น เฟรม, x116, มือจับ, โช้ค) เด้ง Dropdown หน้าตัด/อุปกรณ์พร้อมรูปให้แตะเลือกเติมรหัส-ชื่ออัตโนมัติ (ใช้ได้ทั้งหน้าแก้ไขสูตร, ปุ่มเพิ่มอุปกรณ์ในใบถอดของ และเพิ่มชุดโปรไฟล์ใหม่) สลับปลดล็อกกรอกสูตรตัดกระจกเองได้ทุกแบบ พร้อมสี ALUMET 27 สี",
     },
     {
       icon: FileText,
@@ -237,7 +237,7 @@ export default async function DownloadLandingPage() {
                 <div className="pt-6 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-6">
                   <div>
                     <p className="text-xl font-semibold text-slate-900 tabular-nums">
-                      254
+                      505
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       แบบคำนวณมาตรฐาน (+ชาวเวอร์/บานเปลือย)

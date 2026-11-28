@@ -1241,6 +1241,35 @@ class PricingEngine {
     }
     for (final ov in overrides.values) {
       if (ov.category == category && !map.containsKey(ov.rateKey)) {
+        final upCode = ov.code.trim().toUpperCase();
+        String inferredBrand = '';
+        if (category == 'HARDWARE') {
+          if (upCode.startsWith('AKL-') ||
+              upCode.startsWith('ACF-') ||
+              upCode.startsWith('AAL-') ||
+              upCode.startsWith('AHD-') ||
+              upCode.startsWith('ATP-') ||
+              upCode.startsWith('ASP-') ||
+              upCode.startsWith('AGU-') ||
+              upCode.startsWith('ADC-')) {
+            inferredBrand = 'ALUMET';
+          } else if (upCode.startsWith('VVP') ||
+              upCode.startsWith('FC ') ||
+              upCode.startsWith('FT ') ||
+              upCode.startsWith('OC ') ||
+              upCode.startsWith('SW ') ||
+              upCode.startsWith('GC-') ||
+              upCode.startsWith('SB ') ||
+              upCode.startsWith('FL ') ||
+              upCode.startsWith('AT ')) {
+            inferredBrand = 'VVP';
+          } else if (upCode.startsWith('RP-') ||
+              upCode.startsWith('RPS-') ||
+              upCode.startsWith('BL-') ||
+              upCode.startsWith('SS-')) {
+            inferredBrand = 'RP';
+          }
+        }
         map[ov.rateKey] = MaterialRateItem(
           rateKey: ov.rateKey,
           category: ov.category,
@@ -1249,6 +1278,7 @@ class PricingEngine {
           unit: ov.unit,
           factoryPrice: ov.price,
           customPrice: ov.price,
+          brand: inferredBrand,
         );
       }
     }

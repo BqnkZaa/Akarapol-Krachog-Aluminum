@@ -1615,20 +1615,26 @@ class _HardwareItemEditorBodyState extends State<_HardwareItemEditorBody> {
   }
 
   void _onSave() {
+    final cd = _codeCtrl.text.trim();
     final nm = _nameCtrl.text.trim();
-    if (nm.isEmpty) return;
+    if (nm.isEmpty && cd.isEmpty) return;
+    final effName = nm.isEmpty ? cd : nm;
     final rawQty = _qtyCtrl.text.trim();
     final parsedQty = rawQty.isEmpty ? null : int.tryParse(rawQty);
+    final parsedDec = (parsedQty == null && rawQty.isNotEmpty)
+        ? double.tryParse(rawQty)
+        : null;
     final unit = _unitCtrl.text.trim().isEmpty
-        ? (parsedQty == null ? 'ตามหน้างาน' : 'ชิ้น')
+        ? (parsedQty == null && parsedDec == null ? 'ตามหน้างาน' : 'ชิ้น')
         : _unitCtrl.text.trim();
     Navigator.pop(
       context,
       HardwareEditResult.save(
         AggregatedHardwareItem(
-          code: _codeCtrl.text.trim(),
-          name: nm,
+          code: cd,
+          name: effName,
           numericQty: parsedQty != null && parsedQty > 0 ? parsedQty : null,
+          decimalQty: parsedDec != null && parsedDec > 0 ? parsedDec : null,
           unitOrNote: unit,
         ),
       ),
@@ -1637,6 +1643,11 @@ class _HardwareItemEditorBodyState extends State<_HardwareItemEditorBody> {
 
   @override
   Widget build(BuildContext context) {
+    final catalogHw = PricingEngine.mergeMaterialRates(
+      SeedRepository.instance.visibleHardwareRates,
+      widget.materialOverrides,
+      category: 'HARDWARE',
+    );
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.85,
@@ -1705,26 +1716,21 @@ class _HardwareItemEditorBodyState extends State<_HardwareItemEditorBody> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      key: const ValueKey('edit_hw_code_field'),
-                      controller: _codeCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'รหัสอุปกรณ์ (ถ้ามี)',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      key: const ValueKey('edit_hw_name_field'),
-                      controller: _nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'ชื่ออุปกรณ์ *',
-                        hintText:
-                            'เช่น มือจับล็อก, ล้อคู่, สักหลาด, ยางอัดกระจก',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
+                    HardwareAutocompleteFields(
+                      codeFieldKey: const ValueKey('edit_hw_code_field'),
+                      nameFieldKey: const ValueKey('edit_hw_name_field'),
+                      codeCtrl: _codeCtrl,
+                      nameCtrl: _nameCtrl,
+                      hardwareItems: catalogHw,
+                      preferredBrand: 'ALUMET',
+                      materialOverrides: widget.materialOverrides,
+                      onHardwarePicked: (picked) {
+                        setState(() {
+                          _unitCtrl.text = picked.unit.trim().isEmpty
+                              ? 'ชิ้น'
+                              : picked.unit;
+                        });
+                      },
                     ),
                     const SizedBox(height: 10),
                     Row(

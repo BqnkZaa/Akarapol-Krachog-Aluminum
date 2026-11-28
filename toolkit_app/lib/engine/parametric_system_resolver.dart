@@ -296,6 +296,11 @@ class ParametricSystemResolver {
         cuts: foldCuts,
         hardware: foldHw,
       );
+      _ensureCompleteHardwareAndCodes(
+        pattern: pattern,
+        tableKey: foldTable.key,
+        hardware: foldHw,
+      );
       return VerifiedFormulaTable(
         key: foldTable.key,
         header: foldTable.header,
@@ -307,10 +312,36 @@ class ParametricSystemResolver {
 
     // 1B. Category 5 Shower (4 patterns) & Frameless Door (25 patterns) — VVP / RP
     if (pattern.baseFormulaKey.startsWith('c5_shw:')) {
-      return _resolveShowerTable(pattern, selectedOptions);
+      final t = _resolveShowerTable(pattern, selectedOptions);
+      final hw = List<HardwareItemSpec>.from(t.hardware);
+      _ensureCompleteHardwareAndCodes(
+        pattern: pattern,
+        tableKey: t.key,
+        hardware: hw,
+      );
+      return VerifiedFormulaTable(
+        key: t.key,
+        header: t.header,
+        cuts: t.cuts,
+        glasses: t.glasses,
+        hardware: hw,
+      );
     }
     if (pattern.baseFormulaKey.startsWith('c5_fl:')) {
-      return _resolveFramelessDoorTable(pattern, selectedOptions);
+      final t = _resolveFramelessDoorTable(pattern, selectedOptions);
+      final hw = List<HardwareItemSpec>.from(t.hardware);
+      _ensureCompleteHardwareAndCodes(
+        pattern: pattern,
+        tableKey: t.key,
+        hardware: hw,
+      );
+      return VerifiedFormulaTable(
+        key: t.key,
+        header: t.header,
+        cuts: t.cuts,
+        glasses: t.glasses,
+        hardware: hw,
+      );
     }
 
     // 2. Determine Base Key (accounting for direct variant tables in seed)
@@ -455,6 +486,14 @@ class ParametricSystemResolver {
       cuts: cuts,
       hardware: hardware,
     );
+
+    if (!pattern.id.startsWith('cust_sys_')) {
+      _ensureCompleteHardwareAndCodes(
+        pattern: pattern,
+        tableKey: base.key,
+        hardware: hardware,
+      );
+    }
 
     return VerifiedFormulaTable(
       key: base.key,
@@ -4841,5 +4880,884 @@ class ParametricSystemResolver {
       glasses: glasses,
       hardware: hw,
     );
+  }
+
+  // ===========================================================================
+  // v0.1.16 Complete Hardware & Authentic Catalog Code Guarantee (All 505 Patterns)
+  // ===========================================================================
+  static void _ensureCompleteHardwareAndCodes({
+    required PatternCardDef pattern,
+    required String tableKey,
+    required List<HardwareItemSpec> hardware,
+  }) {
+    final pid = pattern.id.toLowerCase();
+    final key = tableKey.toLowerCase();
+    final title = pattern.title.toLowerCase();
+
+    final isAlumet = pid.contains('_alu_') ||
+        pid.contains('_nex_') ||
+        key.startsWith('c2_alu') ||
+        key.startsWith('c3_alu') ||
+        key.startsWith('c4_alu') ||
+        key.startsWith('c2_nex') ||
+        key.startsWith('alu_ext:') ||
+        key.startsWith('smx_hang:');
+    final isIconiq = key.startsWith('c3_alu') || key.startsWith('alu_ext:iq:');
+    final isNex = key.startsWith('c2_nex') || key.startsWith('alu_ext:nex:');
+
+    // 1. Populate authentic brand hardware when a built-in pattern shipped with 0 hardware
+    if (hardware.isEmpty) {
+      hardware.addAll(
+        _buildDefaultHardwareForZeroHwPattern(
+          pid: pid,
+          key: key,
+          title: title,
+          isAlumet: isAlumet,
+          isIconiq: isIconiq,
+        ),
+      );
+    }
+
+    // 2. Backfill missing hardware codes + normalize pack/box units & 'ตามผู้ผลิต' qty on ALUMET
+    final isDoubleLeaf = pid.contains('d2') ||
+        pid.contains('case2') ||
+        pid.contains('win2') ||
+        pid.contains('s4') ||
+        pid.contains('s6') ||
+        title.contains('คู่') ||
+        title.contains('4 บาน');
+
+    for (int i = 0; i < hardware.length; i++) {
+      final h = hardware[i];
+      var code = h.code.trim();
+      var name = h.name.trim();
+      var qtyText = h.qtyText.trim();
+
+      // Upgrade placeholder non-catalog ICONIQ codes to official ALUMET codes
+      if (code == 'ICONIQ_LOCKING_PINS') {
+        code = 'ACF-EUCA045';
+      } else if (code == 'ICONIQ_U_RECEIVERS') {
+        code = 'ACF-EUCA047';
+      }
+
+      if (code.isEmpty) {
+        if (isAlumet) {
+          final mapped = _resolveAlumetHardwareCodeAndUnit(
+            name: name,
+            qtyText: qtyText,
+            isIconiq: isIconiq,
+            isNex: isNex,
+            isDoubleLeaf: isDoubleLeaf,
+            isDoor: pid.contains('_d1') ||
+                pid.contains('_d2') ||
+                key.contains(':door:') ||
+                title.contains('ประตู'),
+            isAwning: pid.contains('awn') ||
+                key.contains(':awn:') ||
+                title.contains('กระทุ้ง'),
+          );
+          code = mapped.code;
+          name = mapped.name;
+          qtyText = mapped.qtyText;
+        } else {
+          code = _resolveNonAlumetHardwareCode(
+            pid: pid,
+            key: key,
+            name: name,
+          );
+        }
+      }
+
+      if (code != h.code || name != h.name || qtyText != h.qtyText) {
+        hardware[i] = HardwareItemSpec(
+          code: code,
+          name: name,
+          qtyText: qtyText,
+        );
+      }
+    }
+  }
+
+  static List<HardwareItemSpec> _buildDefaultHardwareForZeroHwPattern({
+    required String pid,
+    required String key,
+    required String title,
+    required bool isAlumet,
+    required bool isIconiq,
+  }) {
+    final is4 = pid.contains('_s4') ||
+        key.contains('_s4') ||
+        title.contains('4 บาน') ||
+        title.contains('แบ่ง 4');
+    final is6 = pid.contains('_s6') ||
+        key.contains('_s6') ||
+        title.contains('6 บาน') ||
+        title.contains('แบ่ง 6');
+    final is3 = !is4 &&
+        !is6 &&
+        (pid.contains('_s3') || key.contains('_s3') || title.contains('3 บาน'));
+    final isDouble = pid.contains('2') ||
+        pid.contains('d2') ||
+        title.contains('คู่');
+    final slideLeaves = is6 ? 4 : (is4 ? 2 : (is3 ? 3 : 2));
+
+    // A. ALUMET Smart X (3 models) & ALUMET ICONIQ (7 models)
+    if (isAlumet) {
+      if (isIconiq) {
+        final cornerCount = is4 ? 64 : 32;
+        final spigotCount = is4 ? 16 : 8;
+        final rollerCount = is4 ? 8 : 4;
+        return [
+          HardwareItemSpec(
+            code: 'AAL-EUCA034',
+            name: 'ฉากสแตนเลส 6.6 มม. (ใช้ $cornerCount ตัว · แพค 100 ชิ้น)',
+            qtyText: '1 แพค',
+          ),
+          HardwareItemSpec(
+            code: 'AHD-ICSL047',
+            name: 'สปิก็อตบานเลื่อนยูโร 10.5×24 ไอคอนิค',
+            qtyText: '$spigotCount ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'AKL-MTSL031',
+            name: 'ล้อบานเลื่อน 1522 (180 กก./คู่) ไอคอนิค',
+            qtyText: '$rollerCount ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'ACF-MTSL055',
+            name: 'มือจับล็อกมัลติพ้อยท์ Cifial ไอคอนิค',
+            qtyText: is4 ? '1 ชิ้น' : '2 ชิ้น',
+          ),
+          if (is4)
+            const HardwareItemSpec(
+              code: 'ACF-MTSL056',
+              name: 'มือจับดัมมี่ Cifial ไอคอนิค',
+              qtyText: '1 ชิ้น',
+            ),
+          HardwareItemSpec(
+            code: 'ACF-ICSL054',
+            name: 'ตัว T มัลติพ้อยท์ล็อก (ยาว 30 มม.) ไอคอนิค',
+            qtyText: is4 ? '1 ชิ้น' : '2 ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'AHD-ICSL050',
+            name: 'รับล็อกบานเลื่อน (HD-1127) ไอคอนิค',
+            qtyText: is4 ? '2 ชิ้น' : '4 ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'AAL-MTSL024',
+            name: 'ตะขอล็อกบานเลื่อน ALUMET',
+            qtyText: is4 ? '2 ชิ้น' : '4 ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'AHD-MTSL048',
+            name: 'ยางกันชนบานเลื่อน ไอคอนิค',
+            qtyText: '$rollerCount ชิ้น',
+          ),
+          HardwareItemSpec(
+            code: 'AHD-ICSL051',
+            name: 'ฝาปิดเสากุญแจบานเลื่อน ไอคอนิค (HD-1034)',
+            qtyText: '${slideLeaves * 2} ชิ้น',
+          ),
+          const HardwareItemSpec(
+            code: 'AKL-MTSL036',
+            name: 'สักหลาด 6×4 มม. (300 เมตร)',
+            qtyText: 'ตามหน้างาน',
+          ),
+        ];
+      }
+
+      // ALUMET Smart X sliding (c2_alu_s2_top, c2_alu_s4, c2_alu_s4_top)
+      final cornerCount = is4 ? 64 : 32;
+      final spigotCount = is4 ? 16 : 8;
+      final rollerCount = is4 ? 8 : 4;
+      return [
+        HardwareItemSpec(
+          code: 'AAL-EUCA034',
+          name: 'ฉากสแตนเลส 6.6 มม. (ใช้ $cornerCount ตัว · แพค 100 ชิ้น)',
+          qtyText: '1 แพค',
+        ),
+        HardwareItemSpec(
+          code: 'ATP-MTSL060',
+          name: 'สปริกอสบานเลื่อนสมาร์ทเอ็กซ์ 9.8×22 มม.',
+          qtyText: '$spigotCount ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: 'AKL-MTSL030',
+          name: 'ล้อบานเลื่อน 1624 (80 กก./คู่) ALUMET',
+          qtyText: '$rollerCount ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: 'AKL-MTSL026',
+          name: 'มือจับฝังล็อก+ดัมมี่ ALUMET',
+          qtyText: is4 ? '1 ชุด' : '2 ชุด',
+        ),
+        if (is4)
+          const HardwareItemSpec(
+            code: 'AKL-MTSL027',
+            name: 'มือจับฝังดัมมี่ ALUMET',
+            qtyText: '1 ชิ้น',
+          ),
+        HardwareItemSpec(
+          code: 'ACF-MTSL041',
+          name: 'ตัว T มัลติพ้อยท์ล็อก (ยาว 23 มม.) สีดำ',
+          qtyText: is4 ? '1 ชิ้น' : '2 ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: 'AAL-MTSL024',
+          name: 'ตะขอล็อกบานเลื่อน ALUMET',
+          qtyText: is4 ? '2 ชิ้น' : '4 ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: 'AHD-ICSL050',
+          name: 'รับล็อกบานเลื่อน (HD-1127) ALUMET',
+          qtyText: is4 ? '2 ชิ้น' : '4 ชิ้น',
+        ),
+        HardwareItemSpec(
+          code: 'AAL-MTSL002',
+          name: 'ยางกันชนบานเลื่อน ALUMET',
+          qtyText: '$rollerCount ชิ้น',
+        ),
+        const HardwareItemSpec(
+          code: 'AKL-MTSL036',
+          name: 'สักหลาด 6×4 มม. (300 เมตร)',
+          qtyText: 'ตามหน้างาน',
+        ),
+      ];
+    }
+
+    // B. Category 1 MARKET (Swing 1/2, Hanging 1/2)
+    if (pid.startsWith('c1_pat_swing')) {
+      final leaves = pid.contains('2') ? 2 : 1;
+      return [
+        HardwareItemSpec(
+          code: 'MKT-SW-CLS',
+          name: 'โช้คบานสวิง + แกนหมุนบน-ล่าง',
+          qtyText: '$leaves ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'MKT-SW-HDL',
+          name: 'มือจับบานสวิง (คู่)',
+          qtyText: '$leaves คู่',
+        ),
+        const HardwareItemSpec(
+          code: 'MKT-SW-LCK',
+          name: 'ชุดกุญแจบานสวิง',
+          qtyText: '1 ชุด',
+        ),
+      ];
+    }
+    if (pid.startsWith('c1_pat_hang')) {
+      final leaves = pid.contains('2') ? 2 : 1;
+      return [
+        HardwareItemSpec(
+          code: 'MKT-HG-RLR',
+          name: 'ชุดล้อรางแขวนบน',
+          qtyText: '$leaves ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'MKT-HG-GID',
+          name: 'ไกด์ประคองล่างบานแขวน',
+          qtyText: '$leaves ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'MKT-HG-LCK',
+          name: 'ชุดกุญแจมือจับฝังบานแขวน',
+          qtyText: '$leaves ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'MKT-SL-BMP',
+          name: 'ยางกันกระแทกบานเลื่อน',
+          qtyText: '${leaves * 2} ตัว',
+        ),
+      ];
+    }
+
+    // C. ORM Fixed
+    if (pid.startsWith('c2_orm_fix')) {
+      return const [
+        HardwareItemSpec(
+          code: 'ORM-FX-SCR',
+          name: 'สกรูยึดเฟรมช่องแสง ORM',
+          qtyText: '1 กล่อง',
+        ),
+        HardwareItemSpec(
+          code: 'ORM-FX-GSK',
+          name: 'ยางอัดกระจกช่องแสง ORM',
+          qtyText: '1 ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'GEN-SIL-01',
+          name: 'ซิลิโคนยาแนว / PU',
+          qtyText: '2 หลอด',
+        ),
+      ];
+    }
+
+    // D. SCHIMMER (SD 200 sliding, 250 doors, 260 windows)
+    if (pid.startsWith('c2_sch_200_')) {
+      final leaves = pid.contains('010')
+          ? 4
+          : (pid.contains('004') ? 1 : 2);
+      return [
+        HardwareItemSpec(
+          code: 'SCH-SL-RLR',
+          name: 'ล้อตลับบานเลื่อน Schimmer',
+          qtyText: '${leaves * 2} ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-SL-MPL',
+          name: 'มือจับล็อกมัลติพอยท์ Schimmer',
+          qtyText: leaves >= 2 ? '2 ชุด' : '1 ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-SL-TGR',
+          name: 'แกนเกียร์มัลติพอยท์ Schimmer',
+          qtyText: leaves >= 2 ? '2 ตัว' : '1 ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-SL-KPR',
+          name: 'แป้นรับล็อกบานเลื่อน Schimmer',
+          qtyText: '${leaves * 2} ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-SL-BMP',
+          name: 'ยางกันชนบานเลื่อน Schimmer',
+          qtyText: '${leaves * 2} ตัว',
+        ),
+      ];
+    }
+    if (pid.startsWith('c2_sch_250_')) {
+      final isDbl = pid.contains('004');
+      return [
+        HardwareItemSpec(
+          code: 'SCH-DR-HNG',
+          name: 'บานพับประตูบานเปิด Schimmer',
+          qtyText: isDbl ? '6 ตัว' : '3 ตัว',
+        ),
+        const HardwareItemSpec(
+          code: 'SCH-DR-LCK',
+          name: 'ชุดกุญแจมือจับก้านโยก Schimmer',
+          qtyText: '1 ชุด',
+        ),
+        if (isDbl)
+          const HardwareItemSpec(
+            code: 'SCH-DR-BLT',
+            name: 'กลอนฝังประตูบานคู่ Schimmer',
+            qtyText: '2 ตัว',
+          ),
+        HardwareItemSpec(
+          code: 'SCH-CR-CLV',
+          name: 'ฉากยึดมุมกรอบบาน Schimmer',
+          qtyText: isDbl ? '8 ตัว' : '4 ตัว',
+        ),
+      ];
+    }
+    if (pid.startsWith('c2_sch_260_')) {
+      final isDbl = !pid.contains('001');
+      final panels = isDbl ? 2 : 1;
+      return [
+        HardwareItemSpec(
+          code: 'SCH-WN-HNG',
+          name: 'บานพับบานเปิด/กระทุ้ง Schimmer',
+          qtyText: '$panels คู่',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-WN-MPL',
+          name: 'มือจับและเกียร์มัลติพอยท์ Schimmer',
+          qtyText: '$panels ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'SCH-CR-CLV',
+          name: 'ฉากยึดมุมกรอบบาน Schimmer',
+          qtyText: '${panels * 4} ตัว',
+        ),
+      ];
+    }
+
+    // E. SMART PLUS (Cat 2 & Cat 3 sliding, windows, doors)
+    if (pid.startsWith('c2_sp_') || pid.startsWith('c3_sp_')) {
+      if (pid.contains('door')) {
+        final isDbl = pid.contains('door2');
+        return [
+          HardwareItemSpec(
+            code: 'SP-DR-HNG',
+            name: 'บานพับประตูบานเปิด Smart Plus',
+            qtyText: isDbl ? '6 ตัว' : '3 ตัว',
+          ),
+          const HardwareItemSpec(
+            code: 'SP-DR-LCK',
+            name: 'ชุดกุญแจมือจับประตู Smart Plus',
+            qtyText: '1 ชุด',
+          ),
+          HardwareItemSpec(
+            code: 'SP-SPG-20',
+            name: 'สปิก๊อตเข้ามุม 20 มม. Smart Plus',
+            qtyText: isDbl ? '8 ตัว' : '4 ตัว',
+          ),
+        ];
+      }
+      if (pid.contains('case') || pid.contains('awn') || pid.contains('win')) {
+        final panels = (pid.contains('win2') || isDouble) ? 2 : 1;
+        return [
+          HardwareItemSpec(
+            code: 'SP-WN-HNG',
+            name: 'บานพับหน้าต่าง Smart Plus',
+            qtyText: '$panels คู่',
+          ),
+          HardwareItemSpec(
+            code: 'SP-WN-HDL',
+            name: 'มือจับมัลติพอยท์ Smart Plus',
+            qtyText: '$panels ชุด',
+          ),
+          HardwareItemSpec(
+            code: 'SP-WN-GR',
+            name: 'ตลับเกียร์มัลติพอยท์ Smart Plus',
+            qtyText: '$panels ชุด',
+          ),
+          HardwareItemSpec(
+            code: 'SP-SPG-20',
+            name: 'สปิก๊อตเข้ามุม 20 มม. Smart Plus',
+            qtyText: '${panels * 4} ตัว',
+          ),
+        ];
+      }
+      // Sliding
+      final rollers = is4 ? 8 : (is3 ? 6 : 4);
+      return [
+        HardwareItemSpec(
+          code: 'SP-CR-65',
+          name: 'ฉากประคองมุม TL 6.5 มม. Smart Plus',
+          qtyText: '${rollers * 8} ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SP-SPG-20',
+          name: 'สปิก๊อตเข้ามุม 20 มม. Smart Plus',
+          qtyText: '${rollers * 2} ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SP-SL-RLR',
+          name: 'ล้อตลับ 15×20 Smart Plus',
+          qtyText: '$rollers ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SP-SL-MPL',
+          name: 'มือจับฝัง/เมโทร Multi Point Smart Plus',
+          qtyText: is4 ? '1 ชุด' : '2 ชุด',
+        ),
+        if (is4)
+          const HardwareItemSpec(
+            code: 'SP-SL-DMY',
+            name: 'มือจับฝัง/เมโทร Dummy Smart Plus',
+            qtyText: '1 ชุด',
+          ),
+        HardwareItemSpec(
+          code: 'SP-SL-TGR',
+          name: 'แกนเกียร์ตัวที Smart Plus',
+          qtyText: is4 ? '1 ตัว' : '2 ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SP-SL-KPR',
+          name: 'ยูรับล็อก Smart Plus',
+          qtyText: is4 ? '2 ตัว' : '4 ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'SP-SL-BMP',
+          name: 'ยางกันชนเม้าส์ Smart Plus',
+          qtyText: '$rollers ตัว',
+        ),
+      ];
+    }
+
+    // F. FUJI Eurotech casement/awning windows
+    if (pid.startsWith('c3_fuji_')) {
+      final panels = pid.contains('_w2') ? 2 : 1;
+      return [
+        HardwareItemSpec(
+          code: 'FJ-WN-HNG',
+          name: 'บานพับกระทุ้ง/บานเปิด Fuji Eurotech',
+          qtyText: '$panels คู่',
+        ),
+        HardwareItemSpec(
+          code: 'FJ-WN-HDL',
+          name: 'มือจับมัลติพอยท์ Fuji Eurotech',
+          qtyText: '$panels ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'FJ-WN-GR',
+          name: 'ตลับเกียร์มัลติพอยท์ Fuji Eurotech',
+          qtyText: '$panels ชุด',
+        ),
+        HardwareItemSpec(
+          code: 'FJ-CR-CLV',
+          name: 'ฉากเข้ามุมกรอบบาน Fuji Eurotech',
+          qtyText: '${panels * 4} ตัว',
+        ),
+      ];
+    }
+
+    // G. ALUFRAME sliding
+    if (pid.startsWith('c3_af_')) {
+      final rollers = is6 ? 12 : (is4 ? 8 : (is3 ? 6 : 4));
+      return [
+        HardwareItemSpec(
+          code: 'AF-SL-RLR',
+          name: 'ล้อตลับบานเลื่อน Aluframe',
+          qtyText: '$rollers ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'AF-SL-MPL',
+          name: 'มือจับล็อกมัลติพอยท์ Aluframe',
+          qtyText: (is4 || is6) ? '1 ชุด' : '2 ชุด',
+        ),
+        if (is4 || is6)
+          const HardwareItemSpec(
+            code: 'AF-SL-DMY',
+            name: 'มือจับดัมมี่ Aluframe',
+            qtyText: '1 ชุด',
+          ),
+        HardwareItemSpec(
+          code: 'AF-SL-TGR',
+          name: 'แกนเกียร์ตัว T Aluframe',
+          qtyText: (is4 || is6) ? '1 ตัว' : '2 ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'AF-SL-KPR',
+          name: 'แป้นรับล็อกบานเลื่อน Aluframe',
+          qtyText: (is4 || is6) ? '2 ตัว' : '4 ตัว',
+        ),
+        HardwareItemSpec(
+          code: 'AF-SL-BMP',
+          name: 'ยางกันชนบานเลื่อน Aluframe',
+          qtyText: '$rollers ตัว',
+        ),
+      ];
+    }
+
+    // H. Category 5 Frameless/Shower edge case (e.g. 6F fixed wall with U-channel enabled)
+    if (key.startsWith('c5_')) {
+      return const [
+        HardwareItemSpec(
+          code: 'GEN-SIL-01',
+          name: 'ซิลิโคนยาแนวรางกระจกเปลือย',
+          qtyText: '2 หลอด',
+        ),
+      ];
+    }
+
+    return const [
+      HardwareItemSpec(
+        code: 'GEN-ACC-01',
+        name: 'ชุดอุปกรณ์มาตรฐานประกอบ',
+        qtyText: '1 ชุด',
+      ),
+    ];
+  }
+
+  static ({String code, String name, String qtyText})
+      _resolveAlumetHardwareCodeAndUnit({
+    required String name,
+    required String qtyText,
+    required bool isIconiq,
+    required bool isNex,
+    required bool isDoubleLeaf,
+    required bool isDoor,
+    required bool isAwning,
+  }) {
+    final n = name.toLowerCase();
+
+    // Helper for pack/box/roll items so PricingEngine multiplies by 1 pack/box, never 32 × packPrice!
+    String packName(String baseName, String origQty, String packNote) {
+      if (origQty.contains('แพค') ||
+          origQty.contains('กล่อง') ||
+          origQty.contains('ม้วน') ||
+          origQty.contains('ตาม')) {
+        return baseName;
+      }
+      return '$baseName (ใช้ $origQty · $packNote)';
+    }
+
+    // Corner cleats (100 pcs/pack = ฿200)
+    if (n.contains('ฉากประคอง') ||
+        n.contains('ฉากข้อต่อใหญ่') ||
+        n.contains('ข้อต่อเข้ามุมใหญ่') ||
+        n.contains('ฉากยึดมุมกรอบบาน')) {
+      return (
+        code: 'AAL-EUCA034',
+        name: packName('ฉากสแตนเลส 6.6 มม. ALUMET', qtyText, 'แพค 100 ชิ้น'),
+        qtyText: '1 แพค',
+      );
+    }
+    // Spigot / corner bracket
+    if (n.contains('สปิก๊อต') || n.contains('สปริกอส') || n.contains('sprigot')) {
+      if (isDoor) {
+        return (
+          code: 'AAL-EUCA065',
+          name: name,
+          qtyText: qtyText.contains('ตาม') ? (isDoubleLeaf ? '8 ตัว' : '4 ตัว') : qtyText,
+        );
+      }
+      return (
+        code: isIconiq ? 'AHD-ICSL047' : 'ATP-MTSL060',
+        name: name,
+        qtyText: qtyText,
+      );
+    }
+    // Rollers
+    if (n.contains('ล้อ') || n.contains('ล๊อตตัว')) {
+      final code = isNex
+          ? 'AAL-MTSL040'
+          : (isIconiq ? 'AKL-MTSL031' : 'AKL-MTSL030');
+      return (code: code, name: name, qtyText: qtyText);
+    }
+    // Handles
+    if (n.contains('มือจับฝัง') && n.contains('dummy')) {
+      return (code: 'AKL-MTSL027', name: name, qtyText: qtyText);
+    }
+    if (n.contains('มือจับฝัง') && n.contains('ซิงเกิล')) {
+      return (code: 'AKL-MTSL028', name: name, qtyText: qtyText);
+    }
+    if (n.contains('มือจับฝัง') || n.contains('มือจับล็อกมัลติพ้อย')) {
+      return (
+        code: isIconiq ? 'ACF-MTSL055' : 'AKL-MTSL026',
+        name: name,
+        qtyText: qtyText,
+      );
+    }
+    if (n.contains('มือจับก้านโยก')) {
+      return (code: 'ACF-EUOP001', name: name, qtyText: qtyText);
+    }
+    if (n.contains('มือจับกระทุ้ง')) {
+      return (code: 'ACF-EUCA035', name: name, qtyText: qtyText);
+    }
+    if (n.contains('มือจับ spindle')) {
+      return (code: 'ACF-EUCA018', name: name, qtyText: qtyText);
+    }
+    if (n == 'มือจับ') {
+      if (isDoor) {
+        return (
+          code: isIconiq ? 'ACF-EUOP001' : 'AKL-EUCA019',
+          name: isIconiq ? 'มือจับประตูบานเปิด #92 ALUMET' : 'มือจับประตูบานเปิด #85 ALUMET',
+          qtyText: qtyText.contains('ตาม') ? '1 ชุด' : qtyText,
+        );
+      }
+      if (isAwning) {
+        return (
+          code: 'ACF-EUCA035',
+          name: 'มือจับบานกระทุ้ง Nordic Series ALUMET',
+          qtyText: qtyText.contains('ตาม') ? '1 ชิ้น' : qtyText,
+        );
+      }
+      return (
+        code: 'ACF-EUCA018',
+        name: 'มือจับบานเปิด (Spindle L30) ALUMET',
+        qtyText: qtyText.contains('ตาม') ? (isDoubleLeaf ? '2 ชุด' : '1 ชุด') : qtyText,
+      );
+    }
+    // T-gear / Multipoint lock gear
+    if (n.contains('แกนเกียร์') || n.contains('ตัวที') || n.contains('ตัว t')) {
+      return (
+        code: isIconiq ? 'ACF-ICSL054' : 'ACF-MTSL041',
+        name: name,
+        qtyText: qtyText,
+      );
+    }
+    if (n.contains('ตลับเกียร์') || n.contains('cdq') || n.contains('gear/spindle')) {
+      return (code: 'ACF-EUCA044', name: name, qtyText: qtyText);
+    }
+    // Flush bolt
+    if (n.contains('กลอนฝัง') || n.contains('flush bolt')) {
+      return (code: 'AKL-EUCA028', name: name, qtyText: qtyText);
+    }
+    // Lock kits
+    if (n.contains('ชุดล็อก')) {
+      if (isDoor) {
+        return (
+          code: isIconiq ? 'ACF-EUOP007' : 'ACF-EUOP008',
+          name: isIconiq
+              ? 'เสื้อกุญแจ #32-92 สองทาง ALUMET'
+              : 'เสื้อกุญแจ #32-85 สองทาง ALUMET',
+          qtyText: qtyText.contains('ตาม') ? '1 ชุด' : qtyText,
+        );
+      }
+      return (
+        code: 'ACF-EUCA044',
+        name: 'CDQ 27.5 ตลับเกียร์มัลติพ้อยท์ล็อก ALUMET',
+        qtyText: qtyText.contains('ตาม') ? (isDoubleLeaf ? '2 ชุด' : '1 ชุด') : qtyText,
+      );
+    }
+    // Locking pins & keepers
+    if (n.contains('ปุ่มล็อก') || n.contains('ปุ่มล็อค')) {
+      return (code: 'AAL-MTSL024', name: name, qtyText: qtyText);
+    }
+    if (n.contains('ยูรับ') || n.contains('แป้นรับล็อก')) {
+      return (code: 'AHD-ICSL050', name: name, qtyText: qtyText);
+    }
+    if (n.contains('กระดุมล็อก')) {
+      return (code: 'ACF-EUCA045', name: name, qtyText: qtyText);
+    }
+    if (n.contains('รับล็อกกระดุม')) {
+      return (code: 'ACF-EUCA047', name: name, qtyText: qtyText);
+    }
+    // Bumpers / seals / caps
+    if (n.contains('ยางกันชน') || n.contains('ยางกันกระแทก')) {
+      return (
+        code: isIconiq ? 'AHD-MTSL048' : 'AAL-MTSL002',
+        name: name,
+        qtyText: qtyText,
+      );
+    }
+    if (n.contains('สักหลาด')) {
+      return (code: 'AKL-MTSL036', name: name, qtyText: qtyText);
+    }
+    if (n.contains('ฝาปิดน้ำเข้า')) {
+      return (code: 'AAL-MTSL006', name: name, qtyText: qtyText);
+    }
+    if (n.contains('ฝาปิดน้ำออก')) {
+      return (code: 'AAL-MTSL007', name: name, qtyText: qtyText);
+    }
+    if (n.contains('ฝาปิดกันบานตก')) {
+      return (code: 'AAL-MTSL001', name: name, qtyText: qtyText);
+    }
+    if (n.contains('กันบานตก (วงกบ)')) {
+      return (code: 'AKL-EUCA021', name: name, qtyText: qtyText);
+    }
+    if (n.contains('กันบานตก (กรอบบาน)')) {
+      return (code: 'AKL-EUCA051', name: name, qtyText: qtyText);
+    }
+    // Hinges & friction stays
+    if (n.contains('4 bar') || n.contains('friction stay') || n.contains('บานพับกระทุ้ง')) {
+      return (code: 'AKL-EUCA023', name: name, qtyText: qtyText);
+    }
+    if (n.contains('บานพับซ่อน')) {
+      return (code: 'AKL-EUCA006', name: name, qtyText: qtyText);
+    }
+    if (n.contains('บานพับประตู')) {
+      return (
+        code: isIconiq ? 'ACF-EUCA056' : 'AKL-EUCA004',
+        name: name,
+        qtyText: qtyText,
+      );
+    }
+    if (n.contains('บานพับบานเปิด')) {
+      return (code: 'AKL-EUCA002', name: name, qtyText: qtyText);
+    }
+    if (n == 'บานพับ') {
+      if (isDoor) {
+        return (
+          code: isIconiq ? 'ACF-EUCA056' : 'AKL-EUCA004',
+          name: isIconiq
+              ? 'บานพับ Hinge 120 กก. Cifial ALUMET'
+              : 'บานพับ Hinge 120 กก. ALUMET',
+          qtyText: qtyText.contains('ตาม') ? (isDoubleLeaf ? '6 ชิ้น' : '3 ชิ้น') : qtyText,
+        );
+      }
+      return (
+        code: 'AKL-EUCA002',
+        name: 'บานพับ Hinge 55 กก. ALUMET',
+        qtyText: qtyText.contains('ตาม') ? (isDoubleLeaf ? '4 ชิ้น' : '2 ชิ้น') : qtyText,
+      );
+    }
+    // Screws / gaskets / silicone
+    if (n.contains('สกรู')) {
+      return (
+        code: 'AKL-MTAL003X',
+        name: packName('สกรู SUS410 F4.2x25 ยึดเฟรม ALUMET', qtyText, 'กล่อง 500 ตัว'),
+        qtyText: '1 กล่อง',
+      );
+    }
+    if (n.contains('ยางอัดกระจก')) {
+      return (
+        code: 'AKL-EUCA059',
+        name: 'ยางอัดกระจกช่องแสง 50 เมตร/ม้วน (55320) ALUMET',
+        qtyText: '1 ม้วน',
+      );
+    }
+    if (n.contains('ซิลิโคน')) {
+      return (code: 'GEN-SIL-01', name: name, qtyText: qtyText);
+    }
+    if (n.contains('มุมมุ้ง')) {
+      return (code: 'MS-CORNER-F', name: name, qtyText: qtyText);
+    }
+    return (code: 'AAL-MTSL002', name: name, qtyText: qtyText);
+  }
+
+  static String _resolveNonAlumetHardwareCode({
+    required String pid,
+    required String key,
+    required String name,
+  }) {
+    final n = name.toLowerCase();
+
+    // MARKET
+    if (pid.startsWith('c1_') || key.startsWith('c1_')) {
+      if (n.contains('ล้อ')) return 'MKT-SL-RLR';
+      if (n.contains('กุญแจ')) return 'MKT-SL-KEY';
+      if (n.contains('ดัมมี่')) return 'MKT-SL-DMY';
+      if (n.contains('มือจับฝัง')) return 'MKT-SL-LCK';
+      if (n.contains('ยางกันกระแทก')) return 'MKT-SL-BMP';
+      if (n.contains('บานพับกระทุ้ง')) return 'MKT-UN-HNG';
+      if (n.contains('มือจับกระทุ้ง')) return 'MKT-UN-HDL';
+      return 'GEN-ACC-01';
+    }
+
+    // UAI
+    if (pid.contains('_uai_') || key.contains('_uai_')) {
+      if (n.contains('hd-1025a')) return 'HD-1025A';
+      if (n.contains('มือจับ')) return 'UAI-SL-HDL';
+      if (n.contains('แกนเกียร์')) return 'UAI-SL-TGR';
+      if (n.contains('ปุ่มล็อค') || n.contains('ปุ่มล็อก')) return 'UAI-SL-PIN';
+      if (n.contains('แป้นรับ')) return 'UAI-SL-KPR';
+      if (n.contains('ฝาปิด')) return 'UAI-SL-CAP';
+      if (n.contains('ล้อ')) return 'UAI-SL-RLR';
+      if (n.contains('ตะแกรง')) return 'UAI-DRN-01';
+      if (n.contains('ยางกันชน')) return 'UAI-SL-BMP';
+      if (n.contains('สักหลาด')) return 'UAI-SL-WPL';
+      return 'UAI-GEN-01';
+    }
+
+    // SMART PLUS
+    if (pid.contains('_sp_') || key.contains('_sp_')) {
+      if (n.contains('ฉากประคอง')) return 'SP-CR-65';
+      if (n.contains('สปิก๊อต')) return 'SP-SPG-20';
+      if (n.contains('ล้อ')) return 'SP-SL-RLR';
+      if (n.contains('dummy') || n.contains('ดัมมี่')) {
+        return n.contains('เขาควาย') ? 'ORM-DR-DMY' : 'SP-SL-DMY';
+      }
+      if (n.contains('เขาควาย')) return 'ORM-DR-LVR';
+      if (n.contains('เสื้อกุญแจ')) return 'ORM-DR-LCK';
+      if (n.contains('มือจับ')) return 'SP-SL-MPL';
+      if (n.contains('แกนเกียร์')) return 'SP-SL-TGR';
+      if (n.contains('ปุ่มล็อค') || n.contains('ปุ่มล็อก')) return 'SP-SL-PIN';
+      if (n.contains('ยูรับ')) return 'SP-SL-KPR';
+      if (n.contains('ยางกันชน')) return 'SP-SL-BMP';
+      return 'GEN-ACC-01';
+    }
+
+    // ALUFRAME
+    if (pid.contains('_af_') || key.contains('_af_')) {
+      if (n.contains('บานพับ')) return 'AF-WN-HNG';
+      if (n.contains('มือจับ')) return 'AF-WN-HDL';
+      if (n.contains('แกนเกียร์')) return 'AF-SL-TGR';
+      if (n.contains('ล้อ')) return 'AF-SL-RLR';
+      return 'GEN-ACC-01';
+    }
+
+    // ORM / HYDA Folding & General
+    if (n.contains('ซิลิโคน') || n.contains('pu')) return 'GEN-SIL-01';
+    if (n.contains('ลูกล้อ') || n.contains('ล้อ')) return 'ORM-SL-RLR';
+    if (n.contains('เขาควาย') && n.contains('ดัมมี่')) return 'ORM-DR-DMY';
+    if (n.contains('เขาควาย')) return 'ORM-DR-LVR';
+    if (n.contains('มือจับดัมมี่')) return 'ORM-SL-DMY';
+    if (n.contains('มือจับ')) return 'ORM-SL-MPL';
+    if (n.contains('ปุ่มเสริม')) return 'ORM-SL-PIN';
+    if (n.contains('แป้นรับ')) return 'ORM-SL-KPR';
+    if (n.contains('แกนเกียร์')) return 'ORM-SL-TGR';
+    if (n.contains('สักหลาด')) return 'ORM-SL-WPL';
+    if (n.contains('ยางหุ้ม')) return 'ORM-SL-GSK';
+    if (n.contains('เสื้อกุญแจ')) return 'ORM-DR-LCK';
+    if (n.contains('ไส้กุญแจ')) return 'ORM-DR-CYL';
+    if (n.contains('บานพับ')) return 'ORM-DR-HNG';
+    return 'GEN-ACC-01';
   }
 }

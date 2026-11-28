@@ -233,36 +233,62 @@ class ProjectPdfGenerator {
                 ),
               );
               for (final s in it.evaluatedSets) {
+                if (s.cuts.isEmpty) {
+                  w.add(
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 3),
+                      child: pw.Text(
+                        '• ไม่มีรายการเส้นอลูมิเนียม (ชุดบานเปลือย / ชาวเวอร์)',
+                        style: const pw.TextStyle(
+                            fontSize: 8.5, color: mutedText),
+                      ),
+                    ),
+                  );
+                } else {
+                  w.add(
+                    pw.TableHelper.fromTextArray(
+                      border: pw.TableBorder.all(color: borderGray, width: 0.5),
+                      headerDecoration: const pw.BoxDecoration(color: lightBg),
+                      headerStyle: pw.TextStyle(
+                          fontSize: 8, fontWeight: pw.FontWeight.bold),
+                      cellStyle: const pw.TextStyle(fontSize: 8),
+                      headers: const [
+                        'หมวด',
+                        'รหัส',
+                        'ชื่อชิ้นส่วน',
+                        'ระยะตัด (มม.)',
+                        'จำนวน',
+                        'มุมตัด',
+                      ],
+                      data: s.cuts
+                          .map((c) => [
+                                c.section,
+                                c.code,
+                                c.name,
+                                c.isSiteMeasured
+                                    ? 'วัดตามจริง'
+                                    : FormulaEvaluator.formatMm(
+                                        c.lengthMm ?? 0),
+                                '${c.totalQty} ชิ้น',
+                                c.angle,
+                              ])
+                          .toList(),
+                    ),
+                  );
+                }
+                w.add(pw.SizedBox(height: 4));
+              }
+              if (it.hardware.isNotEmpty) {
                 w.add(
-                  pw.TableHelper.fromTextArray(
-                    border: pw.TableBorder.all(color: borderGray, width: 0.5),
-                    headerDecoration: const pw.BoxDecoration(color: lightBg),
-                    headerStyle: pw.TextStyle(
-                        fontSize: 8, fontWeight: pw.FontWeight.bold),
-                    cellStyle: const pw.TextStyle(fontSize: 8),
-                    headers: const [
-                      'หมวด',
-                      'รหัส',
-                      'ชื่อชิ้นส่วน',
-                      'ระยะตัด (มม.)',
-                      'จำนวน',
-                      'มุมตัด',
-                    ],
-                    data: s.cuts
-                        .map((c) => [
-                              c.section,
-                              c.code,
-                              c.name,
-                              c.isSiteMeasured
-                                  ? 'วัดตามจริง'
-                                  : FormulaEvaluator.formatMm(c.lengthMm ?? 0),
-                              '${c.totalQty} ชิ้น',
-                              c.angle,
-                            ])
-                        .toList(),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 4),
+                    child: pw.Text(
+                      'อุปกรณ์ประกอบ: ${it.hardware.map((h) => '${h.code.isNotEmpty ? "${h.code} " : ""}${h.name} (${h.displayQty})').join(' · ')}',
+                      style:
+                          const pw.TextStyle(fontSize: 7.8, color: mutedText),
+                    ),
                   ),
                 );
-                w.add(pw.SizedBox(height: 4));
               }
             }
           }
@@ -385,7 +411,14 @@ class ProjectPdfGenerator {
               ),
             );
             w.add(pw.SizedBox(height: 4));
-            if (packedGroups.isNotEmpty) {
+            if (packedGroups.isEmpty) {
+              w.add(
+                pw.Text(
+                  'ไม่มีรายการอลูมิเนียม',
+                  style: const pw.TextStyle(fontSize: 9, color: mutedText),
+                ),
+              );
+            } else {
               w.add(
                 pw.TableHelper.fromTextArray(
                   border: pw.TableBorder.all(color: borderGray, width: 0.6),
@@ -440,7 +473,14 @@ class ProjectPdfGenerator {
                 }
               }
             }
-            if (glassRows.isNotEmpty) {
+            if (glassRows.isEmpty) {
+              w.add(
+                pw.Text(
+                  'ไม่มีรายการกระจก',
+                  style: const pw.TextStyle(fontSize: 9, color: mutedText),
+                ),
+              );
+            } else {
               w.add(
                 pw.TableHelper.fromTextArray(
                   border: pw.TableBorder.all(color: borderGray, width: 0.6),
@@ -471,6 +511,16 @@ class ProjectPdfGenerator {
                 final prev = hwMap[k];
                 if (prev == null) {
                   hwMap[k] = h;
+                } else if (prev.decimalQty != null && h.decimalQty != null) {
+                  final sum =
+                      ((prev.decimalQty! + h.decimalQty!) * 100.0).round() /
+                          100.0;
+                  hwMap[k] = AggregatedHardwareItem(
+                    code: h.code,
+                    name: h.name,
+                    decimalQty: sum,
+                    unitOrNote: h.unitOrNote,
+                  );
                 } else if (prev.numericQty != null && h.numericQty != null) {
                   hwMap[k] = AggregatedHardwareItem(
                     code: h.code,
@@ -481,7 +531,14 @@ class ProjectPdfGenerator {
                 }
               }
             }
-            if (hwMap.isNotEmpty) {
+            if (hwMap.isEmpty) {
+              w.add(
+                pw.Text(
+                  'ไม่มีรายการอุปกรณ์ประกอบ',
+                  style: const pw.TextStyle(fontSize: 9, color: mutedText),
+                ),
+              );
+            } else {
               w.add(
                 pw.TableHelper.fromTextArray(
                   border: pw.TableBorder.all(color: borderGray, width: 0.6),
